@@ -199,8 +199,6 @@ deren E-Mail-Adresse noch einmal in `public.admins` eintragen.
 const CONFIG = {
   SUPABASE_URL:      "https://abcdefghijkl.supabase.co",
   SUPABASE_ANON_KEY: "eyJhbGciOi... (der lange anon-Key)",
-  IMPRESSUM_URL:     "https://www.zeit-ist-geld.de/impressum",
-  DATENSCHUTZ_URL:   "https://www.zeit-ist-geld.de/datenschutz",
   ...
 ```
 
@@ -494,8 +492,8 @@ Was hier umgesetzt ist:
   technisch nötige Anmeldesitzung im Gerätespeicher.
 - **Zugriff ausschließlich auf eigene Daten**, serverseitig in der Datenbank
   erzwungen — nicht nur in der Webseite versteckt.
-- Im Fuß der App stehen Links zu Impressum und Datenschutzerklärung der
-  ZiG-Website.
+- Im Fuß der App öffnen Impressum und Datenschutz als Fenster (Text steht in `index.html`; Ergänzung zur
+  ZiG-Website-Datenschutzerklärung).
 
 Was du selbst beachten musst:
 
