@@ -488,7 +488,7 @@ Was hier umgesetzt ist:
   einen Hash. Zusätzlich liegt in der Datenbank ein nicht umkehrbarer Prüfwert,
   der für niemanden lesbar ist.
 - **Daten in Frankfurt** (Region `eu-central-1`), mit abgeschlossenem DPA.
-- **Kein Tracking**, keine Analyse-Cookies, keine externen Schriftarten. Nur die
+- **Kein Tracking**, keine Analyse-Cookies, keine externen Schriftarten, keine Drittanbieter-Skripte (alle Bibliotheken liegen im Ordner `vendor/`). Nur die
   technisch nötige Anmeldesitzung im Gerätespeicher.
 - **Zugriff ausschließlich auf eigene Daten**, serverseitig in der Datenbank
   erzwungen — nicht nur in der Webseite versteckt.
@@ -507,14 +507,18 @@ Was du selbst beachten musst:
   (Zweck: Einsatzplanung; Daten: Personalnummer, Verfügbarkeitsangaben;
   Empfänger: Supabase als Auftragsverarbeiter, GitHub für das Hosting der
   Webseite).
-- Lege fest, wie lange alte Wochen aufbewahrt werden. Zum Aufräumen (Beispiel:
-  alles älter als ein Jahr):
-
-```sql
-delete from public.weeks where kw_start_datum < current_date - interval '1 year';
-```
-
-Das löscht Verfügbarkeiten und Abgaben dieser Wochen mit.
+- **Löschfrist:** Die Datenschutzerklärung in der App nennt 12 Monate (Verfügbarkeiten:
+  12 Monate nach Ende der Woche; deaktivierte Zugänge: 12 Monate nach Deaktivierung).
+  Umgesetzt wird das mit `supabase/migrations/0004_loeschfrist.sql`. Einmal im SQL Editor
+  ausführen, danach entweder monatlich von Hand `select public.loeschfrist_anwenden();` oder
+  per pg_cron automatisieren (Anleitung am Ende der Datei). Ändert ihr die Frist, den Text in
+  `index.html` mit anpassen.
+- **Auftragsverarbeitungsvertrag:** Das unterschriebene Supabase-DPA aus dem Dashboard
+  in den eigenen Datenschutzunterlagen ablegen. Für GitHub (Hosting) ebenfalls einen
+  Vertrag (DPA) in den GitHub-Einstellungen der Organisation bzw. des Kontos prüfen.
+- Die Datenschutzerklärung in der App ist ein Entwurf und sollte von einem Anwalt oder
+  Datenschutzbeauftragten geprüft werden. Falls es einen Betriebsrat gibt, ist er wegen
+  § 87 BetrVG zu beteiligen.
 
 ---
 
@@ -541,6 +545,8 @@ README.md                                    diese Anleitung
 supabase/migrations/0001_init.sql             Tabellen, Hilfsfunktionen, Trigger
 supabase/migrations/0002_rls.sql              Schutzregeln, Rechte, RPC-Funktionen
 supabase/migrations/0003_standard_schichten.sql   Standard-Schichten, erste Woche
+supabase/migrations/0004_loeschfrist.sql          Löschfrist (optional, siehe Datenschutz)
+vendor/                                       lokale Kopien von supabase-js und SheetJS
 
 supabase/functions/import-stammliste/index.ts     Stammliste einlesen (Server)
 supabase/functions/reset-passwort/index.ts        Einzelpasswort setzen (Server)
@@ -553,8 +559,8 @@ supabase/tests/rls_selbsttest.sql             Sicherheitsregeln nachprüfen
 ### Technischer Kurzüberblick
 
 - **Frontend:** eine einzige HTML-Datei, kein Bauprozess, gehostet auf GitHub
-  Pages. Externe Bibliotheken nur per CDN mit festen Versionen:
-  `supabase-js 2.45.4` und `SheetJS 0.20.3` (letzteres wird erst geladen, wenn
+  Pages. Bibliotheken liegen lokal im Ordner `vendor/` (kein CDN, keine IP-Weitergabe an
+  Dritte): `supabase-js 2.45.4` und `SheetJS 0.20.3` (letzteres wird erst geladen, wenn
   im Admin-Bereich wirklich eine Datei geöffnet wird — Mitarbeitende am Handy
   laden es nie).
 - **Backend:** Supabase (PostgreSQL). Schutz ausschließlich über Row Level

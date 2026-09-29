@@ -376,7 +376,7 @@
     <div class="box-inhalt">
 
       <div id="recht-impressum" class="verborgen">
-        <h3>Angaben gemäß § 5 TMG</h3>
+        <h3>Angaben gemäß § 5 DDG</h3>
         <p>Zeit ist Geld GmbH<br>Eichenstrasse 10 B<br>85445 Schwaig / Oberding</p>
         <h3>Vertreten durch</h3>
         <p>Geschäftsführer: Andreas Zehendner</p>
@@ -411,11 +411,18 @@
 
         <h3>Empfänger und Hosting</h3>
         <p>Die Daten liegen bei Supabase (Datenbank, Region Frankfurt, EU) auf Grundlage eines
-           Auftragsverarbeitungsvertrags. Die Webseite wird über GitHub Pages ausgeliefert; beim Aufruf
-           wird technisch bedingt Ihre IP-Adresse an GitHub übermittelt. Zum Laden der Anwendung wird
-           außerdem ein Programmbaustein von jsDelivr (Content-Delivery-Netzwerk) abgerufen, wobei ebenfalls
-           Ihre IP-Adresse übertragen wird. Im Verwaltungsbereich kann zusätzlich ein Baustein von
-           cdn.sheetjs.com geladen werden. Ihre Verfügbarkeiten sind nur für die Einsatzplanung
+           Auftragsverarbeitungsvertrags nach Art. 28 DSGVO. Vertragspartner ist die Supabase Pte. Ltd.;
+           Supabase setzt Unterauftragnehmer ein (aktuelle Liste: supabase.com/legal/customer-resources/subprocessor-list).
+           Dabei kann nicht ausgeschlossen werden, dass Daten auch in Ländern außerhalb der EU/des EWR
+           (z. B. USA, Singapur) verarbeitet werden, etwa für Support oder Betrieb. Für solche Übermittlungen
+           gelten die EU-Standardvertragsklauseln (Art. 46 DSGVO), die Teil des Vertrags mit Supabase sind.
+           Beim Betrieb der Datenbank fallen technisch bedingt Zugriffsprotokolle an (u. a. IP-Adresse, Zeitpunkt).</p>
+        <p>Die Webseite wird über GitHub Pages (GitHub Inc., einem Unternehmen der Microsoft-Gruppe, USA)
+           ausgeliefert; beim Aufruf wird technisch bedingt Ihre IP-Adresse an GitHub übermittelt.
+           Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren und funktionsfähigen
+           Betrieb der Anwendung (Art. 6 Abs. 1 lit. f DSGVO). Alle Programmbausteine der Anwendung werden
+           von derselben Adresse geladen; es werden keine weiteren Drittanbieter (z. B. Content-Delivery-Netzwerke
+           oder Schriftarten-Dienste) eingebunden. Ihre Verfügbarkeiten sind nur für die Einsatzplanung
            zuständige Personen einsehbar.</p>
 
         <h3>Cookies und Tracking</h3>
@@ -423,8 +430,10 @@
            Anmeldung technisch notwendige Sitzung im Speicher Ihres Geräts; sie wird beim Abmelden entfernt.</p>
 
         <h3>Speicherdauer</h3>
-        <p>Die Angaben werden nur so lange gespeichert, wie es für die Einsatzplanung erforderlich ist,
-           und danach gelöscht, soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen.</p>
+        <p>Ihre Verfügbarkeitsangaben werden 12 Monate nach Ende der jeweiligen Kalenderwoche gelöscht,
+           soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ihr Zugang (Personalnummer)
+           wird deaktiviert, sobald Sie nicht mehr in der Einsatzplanung geführt werden, und mit den
+           zugehörigen Angaben spätestens nach Ablauf dieser Frist gelöscht.</p>
 
         <h3>Ihre Rechte</h3>
         <p>Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
@@ -442,7 +451,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="vendor/supabase-js-2.45.4.js"></script>
 <script>
 "use strict";
 
@@ -1423,7 +1432,7 @@ function sheetJsLaden() {
   if (sheetJsGeladen) return sheetJsGeladen;
   sheetJsGeladen = new Promise((fertig, fehler) => {
     const s = document.createElement("script");
-    s.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+    s.src = "vendor/xlsx-0.20.3.full.min.js";
     s.onload = fertig;
     s.onerror = () => fehler(new Error("SheetJS konnte nicht geladen werden."));
     document.head.appendChild(s);
