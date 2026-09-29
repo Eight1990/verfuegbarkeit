@@ -73,22 +73,21 @@ Du brauchst keine Programme zu installieren. Alles läuft im Browser.
      Das ist wichtig: so bleiben die Daten in Deutschland.
 4. **Create new project** und ein bis zwei Minuten warten.
 
-### Schritt 2 — Auftragsverarbeitungsvertrag (DPA) abschließen
+### Schritt 2 — Auftragsverarbeitungsvertrag (DPA)
 
 Supabase verarbeitet für euch personenbezogene Daten. Dafür braucht ihr nach
-Art. 28 DSGVO einen Auftragsverarbeitungsvertrag. Den kannst du im Dashboard
-selbst abschließen:
+Art. 28 DSGVO einen Auftragsverarbeitungsvertrag. Bei Supabase ist das DPA
+**Teil der Nutzungsbedingungen (Terms of Service)** und gilt damit automatisch
+für jede Organisation. Ein separates Unterschreiben ist nicht nötig und im
+Dashboard auch nicht vorgesehen.
 
-1. Links unten auf das Organisations-Symbol → **Organization Settings**
-   (oder direkt <https://supabase.com/dashboard/org/_/documents>).
-2. Den Punkt **Legal Documents** bzw. **Documents** öffnen.
-3. Beim **Data Processing Addendum (DPA)** auf **Request** / **Accept** klicken
-   und die Firmendaten der ZiG eintragen.
-4. Das bestätigte Dokument herunterladen und zu euren Datenschutzunterlagen legen.
+1. Dashboard → Organization Settings → **Legal Documents**
+   (<https://supabase.com/dashboard/org/_/documents>).
+2. Beim Punkt **Data Processing Addendum (DPA)** auf **View DPA** klicken.
+3. Den Text (Versionsstand notieren, z. B. „Version 1 vom 01.08.2026") als PDF
+   speichern bzw. ausdrucken und zu den Datenschutzunterlagen legen. Dort steht
+   auch **Transfer Impact Assessment (TIA)** zum Download — ebenfalls ablegen.
 
-> Findest du den Punkt nicht, suche im Dashboard nach „DPA". Supabase ändert die
-> Menüführung gelegentlich. Der Vertrag lässt sich auch nachträglich abschließen,
-> aber **bevor** echte Personalnummern eingetragen werden.
 
 ### Schritt 3 — Datenbank einrichten (3 Dateien)
 
