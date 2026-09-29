@@ -273,9 +273,9 @@ Die Datei braucht **genau zwei Spalten** mit diesen Überschriften in Zeile 1:
 
 | Personalnummer | Passwort  |
 |----------------|-----------|
-| 10001          | start7391 |
-| 10002          | hafen2048 |
-| 00345          | wolke5517 |
+| 10001          | BEISPIEL-Passwort1 |
+| 10002          | BEISPIEL-Passwort2 |
+| 00345          | BEISPIEL-Passwort3 |
 
 `beispiel_stammliste.xlsx` in diesem Ordner zeigt das Format. `.xlsx` und `.csv`
 funktionieren beide.
