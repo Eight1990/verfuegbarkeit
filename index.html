@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="light">
+<title>Verfügbarkeit</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23C5D32A'/%3E%3Cpath d='M8 17l5 5 11-12' stroke='%234D4D4D' stroke-width='4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+
+<!--
+  =====================================================================
+  ZiG - Verfuegbarkeit fuer FedEx-Schichten
+  Eine einzige Datei. Keine Geheimnisse hier drin: nur die oeffentliche
+  Projekt-URL und der oeffentliche anon-Key. Der Schutz der Daten liegt
+  vollstaendig in den RLS-Regeln der Datenbank.
+  =====================================================================
+-->
+
+<style>
+  :root{
+    --gruen:#C5D32A;
+    --gruen-dunkel:#a8b420;
+    --grau:#4D4D4D;
+    --grau-hell:#8a8a8a;
+    --rand:#d9d9d9;
+    --flaeche:#ffffff;
+    --hintergrund:#f2f2f0;
+    --rot:#b3261e;
+    --radius:16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:Arial, Helvetica, sans-serif;
+    background:var(--hintergrund);
+    color:var(--grau);
+    font-size:17px;
+    line-height:1.35;
+    -webkit-text-size-adjust:100%;
+  }
+  .huelle{max-width:640px;margin:0 auto;padding:0 14px 140px;}
+  .verborgen{display:none !important;}
+
+  /* ---------- Kopf ---------- */
+  header.balken{
+    background:var(--grau);
+    color:#fff;
+    padding:10px 14px;
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    position:sticky;top:0;z-index:20;
+  }
+  header.balken .marke{font-weight:bold;letter-spacing:.5px;font-size:18px;}
+  header.balken .marke span{color:var(--gruen);}
+  .knopf-klein{
+    background:transparent;border:2px solid #fff;color:#fff;
+    border-radius:10px;padding:7px 12px;font-size:15px;font-family:inherit;cursor:pointer;
+  }
+  .knopf-klein:active{background:#fff;color:var(--grau);}
+
+  .woche-kopf{
+    background:var(--flaeche);border-radius:var(--radius);
+    padding:16px;margin:14px 0;text-align:center;
+    box-shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  .woche-kopf .kw{font-size:30px;font-weight:bold;color:var(--grau);}
+  .woche-kopf .zeitraum{font-size:20px;margin-top:2px;}
+  .woche-kopf .frist{font-size:15px;color:var(--grau-hell);margin-top:8px;}
+  .woche-kopf .frist.vorbei{color:var(--rot);font-weight:bold;}
+
+  /* ---------- Schnellwahl ---------- */
+  .schnell{display:flex;gap:8px;margin-bottom:14px;}
+  .schnell button{
+    flex:1;background:var(--flaeche);border:2px solid var(--rand);
+    border-radius:12px;padding:12px 4px;font-size:15px;font-family:inherit;
+    color:var(--grau);cursor:pointer;line-height:1.2;white-space:pre-line;
+  }
+  .schnell button:active{background:var(--gruen);border-color:var(--gruen-dunkel);}
+
+  /* ---------- Tageskarte ---------- */
+  .tag{
+    background:var(--flaeche);border-radius:var(--radius);
+    padding:12px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  .tag-kopf{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;}
+  .tag-name{font-size:22px;font-weight:bold;}
+  .tag-datum{font-size:18px;color:var(--grau-hell);}
+  .tag.gesperrt{opacity:.55;}
+  .tag .sperrhinweis{
+    background:#eee;border-radius:10px;padding:10px;text-align:center;font-size:16px;
+  }
+
+  .schicht{
+    display:flex;align-items:center;gap:12px;width:100%;
+    min-height:66px;margin-bottom:8px;padding:10px 12px;
+    background:#fff;border:2px solid var(--rand);border-radius:13px;
+    font-family:inherit;font-size:19px;color:var(--grau);
+    text-align:left;cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .schicht .symbol{flex:0 0 32px;height:32px;display:flex;align-items:center;justify-content:center;}
+  .schicht .symbol svg{width:30px;height:30px;}
+  .schicht .text{flex:1;min-width:0;}
+  .schicht .titel{font-weight:bold;}
+  .schicht .uhrzeit{font-size:19px;font-variant-numeric:tabular-nums;}
+  .schicht .haken{flex:0 0 28px;height:28px;border-radius:50%;border:2px solid var(--rand);}
+  .schicht.an{background:var(--gruen);border-color:var(--gruen-dunkel);}
+  .schicht.an .haken{
+    border-color:var(--grau);background:var(--grau);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 13l4 4 10-11' stroke='%23fff' stroke-width='3.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-size:22px;background-position:center;background-repeat:no-repeat;
+  }
+  .schicht:disabled{opacity:.5;cursor:default;}
+
+  .ganzer-tag{
+    width:100%;margin-top:4px;padding:11px;
+    background:#fff;border:2px dashed var(--rand);border-radius:13px;
+    font-family:inherit;font-size:16px;color:var(--grau);cursor:pointer;
+  }
+  .ganzer-tag:active{background:#f0f2d8;}
+
+  /* ---------- Zusatzangaben ---------- */
+  .karte{
+    background:var(--flaeche);border-radius:var(--radius);
+    padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.08);
+  }
+  .karte h2{font-size:17px;margin:0 0 10px;font-weight:bold;}
+  .stepper{display:flex;align-items:center;gap:12px;}
+  .stepper button{
+    width:52px;height:52px;border-radius:13px;border:2px solid var(--rand);
+    background:#fff;font-size:26px;font-family:inherit;color:var(--grau);cursor:pointer;
+  }
+  .stepper button:active{background:var(--gruen);}
+  .stepper .wert{font-size:24px;font-weight:bold;min-width:80px;text-align:center;}
+  textarea, input[type=text], input[type=password], input[type=email],
+  input[type=time], input[type=date], input[type=datetime-local], select{
+    width:100%;padding:13px;border:2px solid var(--rand);border-radius:12px;
+    font-family:inherit;font-size:17px;color:var(--grau);background:#fff;
+  }
+  textarea{resize:vertical;min-height:70px;}
+  label.feld{display:block;font-size:15px;margin:0 0 6px;}
+
+  .summe{
+    background:var(--grau);color:#fff;border-radius:var(--radius);
+    padding:14px;text-align:center;font-size:19px;margin-bottom:14px;
+  }
+  .summe b{font-size:24px;color:var(--gruen);}
+
+  /* ---------- Senden ---------- */
+  .sendeleiste{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    background:var(--hintergrund);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    border-top:1px solid var(--rand);
+    box-shadow:0 -4px 10px rgba(0,0,0,.07);
+  }
+  .sendeleiste .innen{max-width:640px;margin:0 auto;}
+  .knopf-gross{
+    width:100%;min-height:62px;border:none;border-radius:15px;
+    background:var(--gruen);color:var(--grau);
+    font-family:inherit;font-size:22px;font-weight:bold;cursor:pointer;
+  }
+  .knopf-gross:disabled{background:#d8d8d4;color:#9a9a9a;cursor:default;}
+
+  /* ---------- Meldungen ---------- */
+  .meldung{border-radius:12px;padding:12px;margin-bottom:12px;font-size:16px;}
+  .meldung.gut{background:#e8f0c8;border:2px solid var(--gruen-dunkel);}
+  .meldung.schlecht{background:#fbe6e4;border:2px solid var(--rot);color:var(--rot);}
+  .meldung.info{background:#ececeb;border:2px solid var(--rand);}
+
+  #bestaetigung{
+    position:fixed;inset:0;z-index:50;background:rgba(77,77,77,.93);
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    color:#fff;text-align:center;padding:24px;
+  }
+  #bestaetigung .kreis{
+    width:120px;height:120px;border-radius:50%;background:var(--gruen);
+    display:flex;align-items:center;justify-content:center;margin-bottom:18px;
+  }
+  #bestaetigung .kreis svg{width:70px;height:70px;}
+  #bestaetigung .wort{font-size:32px;font-weight:bold;}
+
+  /* ---------- Login ---------- */
+  .login-huelle{max-width:420px;margin:0 auto;padding:24px 16px 60px;}
+  .login-karte{
+    background:var(--flaeche);border-radius:var(--radius);padding:22px;
+    box-shadow:0 1px 4px rgba(0,0,0,.1);
+  }
+  .login-karte h1{font-size:23px;margin:0 0 18px;text-align:center;}
+  .login-karte .feldblock{margin-bottom:14px;}
+  .login-wechsel{
+    display:block;width:100%;margin-top:16px;background:none;border:none;
+    color:var(--grau-hell);font-family:inherit;font-size:15px;
+    text-decoration:underline;cursor:pointer;
+  }
+  #pn-eingabe{font-size:26px;text-align:center;letter-spacing:3px;font-variant-numeric:tabular-nums;}
+
+  /* ---------- Admin ---------- */
+  .reiter{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0;}
+  .reiter button{
+    flex:1 1 30%;padding:11px 6px;border:2px solid var(--rand);border-radius:11px;
+    background:#fff;font-family:inherit;font-size:15px;color:var(--grau);cursor:pointer;
+  }
+  .reiter button.an{background:var(--gruen);border-color:var(--gruen-dunkel);font-weight:bold;}
+  table.liste{width:100%;border-collapse:collapse;font-size:15px;}
+  table.liste th,table.liste td{
+    text-align:left;padding:8px 6px;border-bottom:1px solid var(--rand);
+    vertical-align:middle;
+  }
+  table.liste th{font-size:13px;color:var(--grau-hell);text-transform:uppercase;letter-spacing:.5px;}
+  .status-ja{color:#3d6b12;font-weight:bold;}
+  .status-nein{color:var(--rot);font-weight:bold;}
+  .zeile-paar{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .zeile-paar > *{flex:1;}
+  .zeile-paar .etikett{flex:0 0 108px;font-size:15px;}
+  .knopf-mittel{
+    padding:13px 16px;border:none;border-radius:12px;background:var(--gruen);
+    color:var(--grau);font-family:inherit;font-size:17px;font-weight:bold;cursor:pointer;
+  }
+  .knopf-mittel.grau{background:#fff;border:2px solid var(--grau);}
+  .knopf-mittel:disabled{background:#d8d8d4;color:#9a9a9a;cursor:default;}
+  .hinweisbox{font-size:14px;color:var(--grau-hell);margin-top:8px;}
+  details.block{border:1px solid var(--rand);border-radius:12px;padding:10px;margin-bottom:10px;background:#fff;}
+  details.block > summary{cursor:pointer;font-weight:bold;}
+
+  /* ---------- Fuss ---------- */
+  footer.fuss{
+    text-align:center;font-size:14px;color:var(--grau-hell);
+    padding:20px 14px 30px;
+  }
+  footer.fuss a{color:var(--grau-hell);margin:0 8px;}
+
+  @media (min-width:700px){
+    .schicht{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- =================== LOGIN =================== -->
+<section id="screen-login" class="verborgen">
+  <header class="balken"><div class="marke" data-marke></div></header>
+  <div class="login-huelle">
+    <div class="login-karte">
+      <h1 id="login-titel"></h1>
+      <div id="login-fehler" class="meldung schlecht verborgen"></div>
+
+      <form id="form-ma" autocomplete="on">
+        <div class="feldblock">
+          <label class="feld" for="pn-eingabe" id="label-pn"></label>
+          <input id="pn-eingabe" type="text" inputmode="numeric" pattern="[0-9]*"
+                 autocomplete="username" required>
+        </div>
+        <div class="feldblock">
+          <label class="feld" for="pw-eingabe" id="label-pw"></label>
+          <input id="pw-eingabe" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="knopf-gross" id="btn-anmelden"></button>
+      </form>
+
+      <form id="form-admin" class="verborgen" autocomplete="on">
+        <div class="feldblock">
+          <label class="feld" for="mail-eingabe" id="label-mail"></label>
+          <input id="mail-eingabe" type="email" autocomplete="username" required>
+        </div>
+        <div class="feldblock">
+          <label class="feld" for="apw-eingabe" id="label-apw"></label>
+          <input id="apw-eingabe" type="password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="knopf-gross" id="btn-anmelden-admin"></button>
+      </form>
+
+      <button type="button" class="login-wechsel" id="btn-login-wechsel"></button>
+    </div>
+  </div>
+</section>
+
+<!-- =================== MITARBEITER =================== -->
+<section id="screen-ma" class="verborgen">
+  <header class="balken">
+    <div class="marke" data-marke></div>
+    <button class="knopf-klein" id="btn-abmelden"></button>
+  </header>
+
+  <div class="huelle" id="ma-huelle">
+    <div class="woche-kopf">
+      <div class="kw" id="kw-text"></div>
+      <div class="zeitraum" id="zeitraum-text"></div>
+      <div class="frist" id="frist-text"></div>
+    </div>
+
+    <div id="ma-meldung" class="meldung verborgen"></div>
+
+    <div class="schnell" id="schnellwahl">
+      <button type="button" id="btn-alles"></button>
+      <button type="button" id="btn-nichts"></button>
+      <button type="button" id="btn-letzte"></button>
+    </div>
+
+    <div id="tage"></div>
+
+    <div class="karte" id="karte-max">
+      <h2 id="titel-max"></h2>
+      <div class="stepper">
+        <button type="button" id="max-minus" aria-label="weniger">–</button>
+        <div class="wert" id="max-wert"></div>
+        <button type="button" id="max-plus" aria-label="mehr">+</button>
+      </div>
+    </div>
+
+    <div class="karte" id="karte-hinweis">
+      <h2 id="titel-hinweis"></h2>
+      <textarea id="hinweis-feld" maxlength="200"></textarea>
+    </div>
+
+    <div class="summe" id="summe-box"></div>
+  </div>
+
+  <div class="sendeleiste" id="sendeleiste">
+    <div class="innen">
+      <button class="knopf-gross" id="btn-senden"></button>
+    </div>
+  </div>
+</section>
+
+<!-- =================== ADMIN =================== -->
+<section id="screen-admin" class="verborgen">
+  <header class="balken">
+    <div class="marke" data-marke data-admin></div>
+    <button class="knopf-klein" id="btn-abmelden-admin"></button>
+  </header>
+
+  <div class="huelle">
+    <div class="reiter" id="admin-reiter"></div>
+    <div id="admin-meldung" class="meldung verborgen"></div>
+    <div id="admin-inhalt"></div>
+  </div>
+</section>
+
+<!-- =================== BESTAETIGUNG =================== -->
+<div id="bestaetigung" class="verborgen">
+  <div class="kreis">
+    <svg viewBox="0 0 24 24"><path d="M4 13l5 5 11-12" stroke="#4D4D4D" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </div>
+  <div class="wort" id="bestaetigung-wort"></div>
+  <div id="bestaetigung-zeit" style="margin-top:8px;font-size:17px;opacity:.85"></div>
+</div>
+
+<footer class="fuss" id="fuss"></footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script>
+"use strict";
+
+/* =====================================================================
+   1. EINSTELLUNGEN
+   Hier tragt ihr nach dem Anlegen des Supabase-Projekts die zwei
+   oeffentlichen Werte ein (siehe README, Schritt 3).
+   Beides sind KEINE Geheimnisse und duerfen im oeffentlichen Repository
+   stehen. Der Service-Role-Key gehoert hier NIEMALS hinein.
+===================================================================== */
+const CONFIG = {
+  SUPABASE_URL:      "https://egrttdarpmqhczntsqzh.supabase.co",
+  // "Publishable key" aus Project Settings -> API Keys.
+  // Neuere Supabase-Projekte nutzen dieses Format anstelle des alten anon-Keys.
+  SUPABASE_ANON_KEY: "sb_publishable_8POgbN5HX9axyHjJpUVRVQ_WzAGYu4d",
+  IMPRESSUM_URL:     "https://www.zeit-ist-geld.de/impressum",
+  DATENSCHUTZ_URL:   "https://www.zeit-ist-geld.de/datenschutz",
+  EMAIL_DOMAIN:      "ma.zig.invalid",
+  PASSWORT_MIN:      6
+};
+
+/* =====================================================================
+   2. ALLE TEXTE AN EINER STELLE
+   Fuer eine weitere Sprache genuegt es, dieses Objekt zu kopieren
+   und die Werte zu uebersetzen.
+===================================================================== */
+const TEXTE = {
+  // Kopfzeile und Seitentitel
+  seiten_titel:          "Verfügbarkeit",
+  marke_vorn:            "Zeit ist",
+  marke_hinten:          "Geld",
+  marke_admin:           " · Admin",
+
+  // Login
+  login_titel_ma:        "Anmelden",
+  login_titel_admin:     "Admin-Anmeldung",
+  label_personalnummer:  "Personalnummer",
+  label_passwort:        "Passwort",
+  label_email:           "E-Mail",
+  btn_anmelden:          "Anmelden",
+  zu_admin:              "Admin-Anmeldung",
+  zu_mitarbeiter:        "Zurück zur Mitarbeiter-Anmeldung",
+  fehler_login:          "Personalnummer oder Passwort falsch.",
+  fehler_login_admin:    "E-Mail oder Passwort falsch.",
+  fehler_gesperrt:       "Dieser Zugang ist nicht mehr aktiv. Bitte im Büro melden.",
+  fehler_kein_admin:     "Dieser Zugang hat keine Admin-Rechte.",
+  fehler_kein_zugang:    "Zugang nicht gefunden. Bitte im Büro melden.",
+  fehler_keine_config:   "Die App ist noch nicht eingerichtet (Supabase-Zugang fehlt).",
+
+  // Kopf
+  abmelden:              "Abmelden",
+  kw_praefix:            "KW ",
+  frist_bis:             "Änderbar bis ",
+  frist_vorbei:          "Frist vorbei – nur noch Ansicht",
+  gespeichert_am:        "Gesendet am ",
+
+  // Schnellwahl
+  alles_moeglich:        "Alles\nmöglich",
+  nichts:                "Nichts",
+  wie_letzte_woche:      "Wie letzte\nWoche",
+  ganzer_tag:            "Ganzer Tag",
+  tag_gesperrt:          "Kein Einsatz",
+
+  // Wochentage
+  wochentage:            ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag"],
+  wochentage_kurz:       ["Mo","Di","Mi","Do","Fr"],
+
+  // Zusatz
+  titel_max:             "Höchstens … Schichten diese Woche",
+  max_ohne_grenze:       "keine Grenze",
+  titel_hinweis:         "Hinweis (kurz)",
+  summe_text:            "Mögliche Stunden: ",
+  senden:                "Senden",
+  gespeichert:           "Gespeichert",
+
+  // Meldungen
+  keine_letzte_woche:    "Für die letzte Woche liegt keine Eingabe vor.",
+  fehler_speichern:      "Konnte nicht gespeichert werden: ",
+  fehler_frist:          "Die Frist ist vorbei. Es kann nichts mehr geändert werden.",
+  laedt:                 "Einen Moment …",
+
+  // Fuss
+  impressum:             "Impressum",
+  datenschutz:           "Datenschutz",
+
+  // Admin
+  admin_reiter:          ["Abgaben","Stammliste","Passwort","Zeiten","Export"],
+  admin_woche:           "Woche",
+  admin_abgaben_titel:   "Abgabestatus",
+  admin_abgegeben:       "abgegeben",
+  admin_fehlt:           "fehlt",
+  admin_von:             " von ",
+  admin_haben_abgegeben: " haben abgegeben",
+  admin_keine_ma:        "Es sind noch keine Personalnummern angelegt.",
+
+  admin_stamm_titel:     "Stammliste hochladen",
+  admin_stamm_hinweis:   "Datei mit genau zwei Spalten: Personalnummer, Passwort. Excel (.xlsx) oder CSV.",
+  admin_vorschau:        "Vorschau prüfen",
+  admin_uebernehmen:     "Jetzt übernehmen",
+  admin_gelesen:         " Zeilen gelesen.",
+  admin_neu:             "neu",
+  admin_geaendert:       "geändert",
+  admin_deaktiviert:     "deaktiviert",
+  admin_reaktiviert:     "wieder aktiv",
+  admin_unveraendert:    "unverändert",
+  admin_import_fertig:   "Stammliste übernommen.",
+
+  admin_pw_titel:        "Passwort zurücksetzen",
+  admin_pw_neu:          "Neues Passwort",
+  admin_pw_setzen:       "Passwort setzen",
+  admin_pw_fertig:       "Neues Passwort gesetzt für ",
+  admin_pw_hinweis:      "Mitarbeitende können ihr Passwort nicht selbst zurücksetzen.",
+
+  admin_zeiten_titel:    "Woche wählen",
+  admin_standard:        "Standardzeiten (gelten für neue Wochen)",
+  admin_diese_woche:     "Zeiten dieser Woche",
+  admin_frist_titel:     "Abgabefrist dieser Woche",
+  admin_tag_sperren:     "Tag sperren",
+  admin_speichern:       "Speichern",
+  admin_neu_laden:       "Zeiten aus Standard neu laden",
+  admin_woche_anlegen:   "Woche anlegen",
+  admin_gespeichert:     "Gespeichert.",
+  admin_schicht_an:      "Schicht wird angeboten",
+  admin_grund:           "Grund (optional)",
+  admin_frist_hinweis:   "Zeitangabe in deutscher Zeit. Standard ist Freitag 12:00 vor der Woche.",
+
+  admin_export_titel:    "Export für die Planung",
+  admin_csv:             "CSV herunterladen",
+  admin_json:            "JSON herunterladen",
+  admin_export_hinweis:  "CSV für Excel, JSON für die Planungs-KI.",
+
+  export_hinweis_text:   "Angaben sind maximale Verfügbarkeit, ungeprüft gegen Arbeitszeitrecht. Eine Verfügbarkeit für LANG schließt SPAET ein."
+};
+
+/* =====================================================================
+   3. KLEINE HELFER
+===================================================================== */
+const $  = (id) => document.getElementById(id);
+const el = (tag, klasse, text) => {
+  const k = document.createElement(tag);
+  if (klasse) k.className = klasse;
+  if (text !== undefined && text !== null) k.textContent = text;
+  return k;
+};
+const zeige   = (knoten) => knoten.classList.remove("verborgen");
+const verbirg = (knoten) => knoten.classList.add("verborgen");
+
+// "2026-10-05" -> Date (lokale Mitternacht, keine Zeitzonen-Verschiebung)
+function alsDatum(iso) {
+  const [j, m, t] = iso.split("-").map(Number);
+  return new Date(j, m - 1, t);
+}
+function alsIso(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+// "05.10."
+function tagKurz(iso) {
+  const d = alsDatum(iso);
+  const p = (n) => String(n).padStart(2, "0");
+  return p(d.getDate()) + "." + p(d.getMonth() + 1) + ".";
+}
+// ISO-Kalenderwoche
+function isoKw(d) {
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const wt = t.getUTCDay() || 7;
+  t.setUTCDate(t.getUTCDate() + 4 - wt);
+  const jahrStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return { kw: Math.ceil(((t - jahrStart) / 86400000 + 1) / 7), jahr: t.getUTCFullYear() };
+}
+// "24.09.2026, 18:12"
+function zeitpunktText(isoZeit) {
+  return new Date(isoZeit).toLocaleString("de-DE", {
+    timeZone: "Europe/Berlin",
+    day: "2-digit", month: "2-digit", year: "numeric",
+    hour: "2-digit", minute: "2-digit"
+  });
+}
+// "2026-09-24 18:12" (sortierbar, fuer den Export)
+function zeitpunktIso(isoZeit) {
+  if (!isoZeit) return "";
+  const teile = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Berlin",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  }).format(new Date(isoZeit));
+  return teile.replace("T", " ");
+}
+// "18:30:00" -> "18:30"
+const uhr = (t) => (t || "").slice(0, 5);
+
+function stundenText(z) {
+  return (Math.round(z * 10) / 10).toString().replace(".", ",") + " h";
+}
+
+// Dauer immer mit genau einer Dezimalstelle und Komma: "3,0" / "6,5".
+// Die Datenbank liefert je nach Spaltentyp "3.00" oder 3 - so wird der
+// Export in jedem Fall gleich.
+function dauerText(wert) {
+  const n = Number(wert);
+  if (!isFinite(n)) return "";
+  return n.toFixed(1).replace(".", ",");
+}
+
+/* =====================================================================
+   4. VERBINDUNG
+===================================================================== */
+let sb = null;
+function verbindungAufbauen() {
+  if (CONFIG.SUPABASE_URL.indexOf("HIER_") === 0 || CONFIG.SUPABASE_ANON_KEY.indexOf("HIER_") === 0) {
+    return false;
+  }
+  sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+  });
+  return true;
+}
+
+/* =====================================================================
+   5. ZUSTAND DER MITARBEITER-ANSICHT
+===================================================================== */
+const zustand = {
+  personalnummer: null,
+  kw: null,                 // "2026-09-28"
+  frist: null,              // ISO-Zeitpunkt
+  bearbeitbar: false,
+  tage: [],                 // [{datum, wochentag, gesperrt, grund, schichten:[...]}]
+  gewaehlt: new Set(),      // "datum|schicht_id"
+  maxSchichten: null,
+  hinweis: "",
+  abgegebenAm: null
+};
+
+const schluessel = (datum, schichtId) => datum + "|" + schichtId;
+
+/* =====================================================================
+   6. LOGIN-ANSICHT
+===================================================================== */
+let loginModus = "ma";
+
+function loginAufbauen() {
+  $("btn-anmelden").textContent       = TEXTE.btn_anmelden;
+  $("btn-anmelden-admin").textContent = TEXTE.btn_anmelden;
+  $("label-pn").textContent   = TEXTE.label_personalnummer;
+  $("label-pw").textContent   = TEXTE.label_passwort;
+  $("label-mail").textContent = TEXTE.label_email;
+  $("label-apw").textContent  = TEXTE.label_passwort;
+  loginModusSetzen("ma");
+
+  $("btn-login-wechsel").onclick = () =>
+    loginModusSetzen(loginModus === "ma" ? "admin" : "ma");
+
+  $("form-ma").onsubmit    = (e) => { e.preventDefault(); anmeldenMitarbeiter(); };
+  $("form-admin").onsubmit = (e) => { e.preventDefault(); anmeldenAdmin(); };
+}
+
+function loginModusSetzen(modus) {
+  loginModus = modus;
+  loginFehler(null);
+  const istMa = modus === "ma";
+  $("login-titel").textContent = istMa ? TEXTE.login_titel_ma : TEXTE.login_titel_admin;
+  $("btn-login-wechsel").textContent = istMa ? TEXTE.zu_admin : TEXTE.zu_mitarbeiter;
+  (istMa ? zeige : verbirg)($("form-ma"));
+  (istMa ? verbirg : zeige)($("form-admin"));
+}
+
+function loginFehler(text) {
+  const box = $("login-fehler");
+  if (!text) { verbirg(box); return; }
+  box.textContent = text;
+  zeige(box);
+}
+
+async function anmeldenMitarbeiter() {
+  const pn = $("pn-eingabe").value.trim();
+  const pw = $("pw-eingabe").value;
+  if (!pn || !pw) return;
+
+  const knopf = $("btn-anmelden");
+  knopf.disabled = true;
+  loginFehler(null);
+
+  const email = pn.toLowerCase() + "@" + CONFIG.EMAIL_DOMAIN;
+  const { error } = await sb.auth.signInWithPassword({ email: email, password: pw });
+
+  if (error) {
+    knopf.disabled = false;
+    const txt = (error.message || "").toLowerCase();
+    loginFehler(txt.indexOf("banned") >= 0 ? TEXTE.fehler_gesperrt : TEXTE.fehler_login);
+    return;
+  }
+
+  const { data: pnDb } = await sb.rpc("current_personalnummer");
+  if (!pnDb) {
+    await sb.auth.signOut();
+    knopf.disabled = false;
+    loginFehler(TEXTE.fehler_gesperrt);
+    return;
+  }
+
+  $("pw-eingabe").value = "";
+  knopf.disabled = false;
+  await weiterNachAnmeldung();
+}
+
+async function anmeldenAdmin() {
+  const mail = $("mail-eingabe").value.trim();
+  const pw   = $("apw-eingabe").value;
+  if (!mail || !pw) return;
+
+  const knopf = $("btn-anmelden-admin");
+  knopf.disabled = true;
+  loginFehler(null);
+
+  const { error } = await sb.auth.signInWithPassword({ email: mail, password: pw });
+  if (error) {
+    knopf.disabled = false;
+    loginFehler(TEXTE.fehler_login_admin);
+    return;
+  }
+
+  const { data: istAdmin } = await sb.rpc("is_admin");
+  if (!istAdmin) {
+    await sb.auth.signOut();
+    knopf.disabled = false;
+    loginFehler(TEXTE.fehler_kein_admin);
+    return;
+  }
+
+  $("apw-eingabe").value = "";
+  knopf.disabled = false;
+  await weiterNachAnmeldung();
+}
+
+async function abmelden() {
+  await sb.auth.signOut();
+  location.reload();
+}
+
+/* =====================================================================
+   7. NACH DER ANMELDUNG: ROLLE BESTIMMEN
+===================================================================== */
+async function weiterNachAnmeldung() {
+  const { data: istAdmin } = await sb.rpc("is_admin");
+  if (istAdmin) {
+    verbirg($("screen-login"));
+    verbirg($("screen-ma"));
+    zeige($("screen-admin"));
+    await adminStarten();
+    return;
+  }
+
+  const { data: pn } = await sb.rpc("current_personalnummer");
+  if (!pn) {
+    await sb.auth.signOut();
+    zeigeLogin();
+    loginFehler(TEXTE.fehler_kein_zugang);
+    return;
+  }
+
+  zustand.personalnummer = pn;
+  verbirg($("screen-login"));
+  verbirg($("screen-admin"));
+  zeige($("screen-ma"));
+  await wocheLaden();
+}
+
+function zeigeLogin() {
+  verbirg($("screen-ma"));
+  verbirg($("screen-admin"));
+  zeige($("screen-login"));
+}
+
+/* =====================================================================
+   8. MITARBEITER: DATEN LADEN
+===================================================================== */
+async function wocheLaden() {
+  // Woche anlegen (falls noch nicht da) und Schichtzeiten einfrieren
+  const { data: kw, error: kwFehler } = await sb.rpc("get_or_create_week");
+  if (kwFehler) { maMeldung("schlecht", kwFehler.message); return; }
+  zustand.kw = kw;
+
+  const ergebnisse = await Promise.all([
+    sb.from("weeks").select("kw_start_datum, abgabefrist").eq("kw_start_datum", kw).single(),
+    sb.from("week_days").select("datum, wochentag, gesperrt, grund")
+      .eq("kw_start_datum", kw).order("datum"),
+    sb.from("week_shifts")
+      .select("datum, schicht_id, name, symbol, sortierung, beginn, ende, dauer_h, aktiv")
+      .eq("kw_start_datum", kw).order("datum").order("sortierung"),
+    sb.from("submissions").select("max_schichten, hinweis, abgegeben_am")
+      .eq("kw_start_datum", kw).maybeSingle(),
+    sb.from("availability").select("datum, schicht_id").eq("kw_start_datum", kw)
+  ]);
+
+  const woche = ergebnisse[0], tage = ergebnisse[1], schichten = ergebnisse[2];
+  const abgabe = ergebnisse[3], verfuegbar = ergebnisse[4];
+
+  zustand.frist       = woche.data ? woche.data.abgabefrist : null;
+  zustand.bearbeitbar = zustand.frist ? (new Date() < new Date(zustand.frist)) : false;
+
+  const schichtenNachTag = {};
+  for (const s of schichten.data || []) {
+    (schichtenNachTag[s.datum] = schichtenNachTag[s.datum] || []).push(s);
+  }
+  zustand.tage = (tage.data || []).map((t) => ({
+    datum: t.datum,
+    wochentag: t.wochentag,
+    gesperrt: t.gesperrt,
+    grund: t.grund,
+    schichten: (schichtenNachTag[t.datum] || []).filter((s) => s.aktiv)
+  }));
+
+  zustand.gewaehlt = new Set((verfuegbar.data || []).map((v) => schluessel(v.datum, v.schicht_id)));
+  zustand.maxSchichten = abgabe.data ? abgabe.data.max_schichten : null;
+  zustand.hinweis      = abgabe.data ? (abgabe.data.hinweis || "") : "";
+  zustand.abgegebenAm  = abgabe.data ? abgabe.data.abgegeben_am : null;
+
+  maAufbauen();
+}
+
+/* =====================================================================
+   9. MITARBEITER: ANSICHT AUFBAUEN
+===================================================================== */
+function maAufbauen() {
+  $("btn-abmelden").textContent = TEXTE.abmelden;
+  $("btn-abmelden").onclick     = abmelden;
+
+  const start = alsDatum(zustand.kw);
+  const letzterTag = zustand.tage.length
+    ? zustand.tage[zustand.tage.length - 1].datum
+    : zustand.kw;
+  const kwNr = isoKw(start);
+
+  $("kw-text").textContent       = TEXTE.kw_praefix + kwNr.kw;
+  $("zeitraum-text").textContent = tagKurz(zustand.kw) + "–" + tagKurz(letzterTag);
+
+  const fristBox = $("frist-text");
+  if (zustand.bearbeitbar) {
+    fristBox.className = "frist";
+    fristBox.textContent = TEXTE.frist_bis + zeitpunktText(zustand.frist) + " Uhr";
+  } else {
+    fristBox.className = "frist vorbei";
+    fristBox.textContent = TEXTE.frist_vorbei;
+  }
+
+  $("btn-alles").textContent  = TEXTE.alles_moeglich;
+  $("btn-nichts").textContent = TEXTE.nichts;
+  $("btn-letzte").textContent = TEXTE.wie_letzte_woche;
+  $("btn-alles").onclick  = () => { alleSetzen(true);  zeichnen(); };
+  $("btn-nichts").onclick = () => { alleSetzen(false); zeichnen(); };
+  $("btn-letzte").onclick = wieLetzteWoche;
+
+  $("titel-max").textContent     = TEXTE.titel_max;
+  $("titel-hinweis").textContent = TEXTE.titel_hinweis;
+  $("max-minus").onclick = () => maxAendern(-1);
+  $("max-plus").onclick  = () => maxAendern(+1);
+  $("hinweis-feld").oninput = (e) => { zustand.hinweis = e.target.value; };
+  $("hinweis-feld").value   = zustand.hinweis;
+
+  $("btn-senden").textContent = TEXTE.senden;
+  $("btn-senden").onclick     = senden;
+
+  if (!zustand.bearbeitbar) {
+    verbirg($("schnellwahl"));
+    verbirg($("sendeleiste"));
+    $("ma-huelle").style.paddingBottom = "40px";
+    $("hinweis-feld").disabled = true;
+    $("max-minus").disabled = true;
+    $("max-plus").disabled  = true;
+  }
+
+  if (zustand.abgegebenAm) {
+    maMeldung("gut", TEXTE.gespeichert_am + zeitpunktText(zustand.abgegebenAm) + " Uhr");
+  }
+
+  zeichnen();
+}
+
+function maMeldung(art, text) {
+  const box = $("ma-meldung");
+  box.className = "meldung " + art;
+  box.textContent = text;
+  zeige(box);
+}
+
+const SYMBOLE = {
+  sonne: '<svg viewBox="0 0 24 24" fill="none" stroke="#4D4D4D" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2" fill="#4D4D4D" stroke="none"/><path d="M12 2v2.6M12 19.4V22M2 12h2.6M19.4 12H22M4.9 4.9l1.9 1.9M17.2 17.2l1.9 1.9M19.1 4.9l-1.9 1.9M6.8 17.2l-1.9 1.9"/></svg>',
+  mond:  '<svg viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="#4D4D4D"/></svg>',
+  mond_lang: '<svg viewBox="0 0 24 24"><path d="M21 15A8.5 8.5 0 0 1 10.5 4.5 8.5 8.5 0 1 0 21 15z" fill="#4D4D4D"/><path d="M2 12h5M2 12l2.4-2.4M2 12l2.4 2.4" stroke="#4D4D4D" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+};
+
+function symbolFuer(schicht) {
+  if (schicht.schicht_id === "LANG") return SYMBOLE.mond_lang;
+  return SYMBOLE[schicht.symbol] || SYMBOLE.sonne;
+}
+
+function zeichnen() {
+  const behaelter = $("tage");
+  behaelter.textContent = "";
+
+  for (const tag of zustand.tage) {
+    const karte = el("div", "tag" + (tag.gesperrt ? " gesperrt" : ""));
+
+    const kopf = el("div", "tag-kopf");
+    kopf.appendChild(el("div", "tag-name", TEXTE.wochentage[tag.wochentag - 1] || ""));
+    kopf.appendChild(el("div", "tag-datum", tagKurz(tag.datum)));
+    karte.appendChild(kopf);
+
+    if (tag.gesperrt) {
+      karte.appendChild(el("div", "sperrhinweis", tag.grund || TEXTE.tag_gesperrt));
+      behaelter.appendChild(karte);
+      continue;
+    }
+
+    for (const s of tag.schichten) {
+      const an = zustand.gewaehlt.has(schluessel(tag.datum, s.schicht_id));
+      const knopf = el("button", "schicht" + (an ? " an" : ""));
+      knopf.type = "button";
+      knopf.disabled = !zustand.bearbeitbar;
+      knopf.setAttribute("aria-pressed", an ? "true" : "false");
+
+      const sym = el("span", "symbol");
+      sym.innerHTML = symbolFuer(s);
+      knopf.appendChild(sym);
+
+      const text = el("span", "text");
+      text.appendChild(el("span", "titel", s.name));
+      text.appendChild(el("br"));
+      text.appendChild(el("span", "uhrzeit", uhr(s.beginn) + " – " + uhr(s.ende)));
+      knopf.appendChild(text);
+
+      knopf.appendChild(el("span", "haken"));
+      knopf.onclick = () => { umschalten(tag, s.schicht_id); zeichnen(); };
+      karte.appendChild(knopf);
+    }
+
+    if (zustand.bearbeitbar && tag.schichten.length > 1) {
+      const alleAn = tag.schichten.every((s) =>
+        zustand.gewaehlt.has(schluessel(tag.datum, s.schicht_id)));
+      const gt = el("button", "ganzer-tag", TEXTE.ganzer_tag);
+      gt.type = "button";
+      gt.onclick = () => { tagSetzen(tag, !alleAn); zeichnen(); };
+      karte.appendChild(gt);
+    }
+
+    behaelter.appendChild(karte);
+  }
+
+  $("max-wert").textContent = zustand.maxSchichten === null
+    ? TEXTE.max_ohne_grenze
+    : String(zustand.maxSchichten);
+
+  $("summe-box").textContent = "";
+  $("summe-box").appendChild(document.createTextNode(TEXTE.summe_text));
+  $("summe-box").appendChild(el("b", null, stundenText(stundenSumme())));
+
+  $("btn-senden").disabled = !zustand.bearbeitbar;
+}
+
+/* ---------------------------------------------------------------------
+   Auswahl-Logik inklusive Kopplung Lang -> Spaet
+--------------------------------------------------------------------- */
+function hatSchicht(tag, id) {
+  return tag.schichten.some((s) => s.schicht_id === id);
+}
+
+function umschalten(tag, schichtId) {
+  const k = schluessel(tag.datum, schichtId);
+
+  if (zustand.gewaehlt.has(k)) {
+    zustand.gewaehlt.delete(k);
+    // Wer "Spät" abwählt, ist auch nicht mehr für "Lang" verfügbar.
+    if (schichtId === "SPAET") zustand.gewaehlt.delete(schluessel(tag.datum, "LANG"));
+  } else {
+    zustand.gewaehlt.add(k);
+    // Wer "Lang" (16:00-22:30) kann, kann automatisch auch "Spät" (18:30-22:30).
+    if (schichtId === "LANG" && hatSchicht(tag, "SPAET")) {
+      zustand.gewaehlt.add(schluessel(tag.datum, "SPAET"));
+    }
+  }
+}
+
+function tagSetzen(tag, an) {
+  for (const s of tag.schichten) {
+    const k = schluessel(tag.datum, s.schicht_id);
+    if (an) zustand.gewaehlt.add(k); else zustand.gewaehlt.delete(k);
+  }
+}
+
+function alleSetzen(an) {
+  for (const tag of zustand.tage) {
+    if (tag.gesperrt) continue;
+    tagSetzen(tag, an);
+  }
+}
+
+function maxAendern(richtung) {
+  if (!zustand.bearbeitbar) return;
+  let w = zustand.maxSchichten;
+  if (w === null) {
+    w = richtung > 0 ? 1 : null;
+  } else {
+    w += richtung;
+    if (w < 1) w = null;
+    else if (w > 10) w = 10;
+  }
+  zustand.maxSchichten = w;
+  zeichnen();
+}
+
+/* ---------------------------------------------------------------------
+   Stundensumme: ueberlappende Schichten werden nur einmal gezaehlt
+   ("Lang" 16:00-22:30 enthaelt "Spät" 18:30-22:30).
+--------------------------------------------------------------------- */
+function minuten(zeit) {
+  const teile = uhr(zeit).split(":").map(Number);
+  return teile[0] * 60 + teile[1];
+}
+
+function stundenSumme() {
+  let summe = 0;
+  for (const tag of zustand.tage) {
+    const abschnitte = tag.schichten
+      .filter((s) => zustand.gewaehlt.has(schluessel(tag.datum, s.schicht_id)))
+      .map((s) => {
+        let a = minuten(s.beginn), b = minuten(s.ende);
+        if (b <= a) b += 24 * 60;
+        return [a, b];
+      })
+      .sort((x, y) => x[0] - y[0]);
+
+    let offenVon = null, offenBis = null;
+    for (const paar of abschnitte) {
+      const a = paar[0], b = paar[1];
+      if (offenVon === null) { offenVon = a; offenBis = b; continue; }
+      if (a <= offenBis) { offenBis = Math.max(offenBis, b); }
+      else { summe += offenBis - offenVon; offenVon = a; offenBis = b; }
+    }
+    if (offenVon !== null) summe += offenBis - offenVon;
+  }
+  return summe / 60;
+}
+
+/* ---------------------------------------------------------------------
+   "Wie letzte Woche"
+--------------------------------------------------------------------- */
+async function wieLetzteWoche() {
+  const vorwoche = alsDatum(zustand.kw);
+  vorwoche.setDate(vorwoche.getDate() - 7);
+  const vorIso = alsIso(vorwoche);
+
+  const { data, error } = await sb
+    .from("availability")
+    .select("datum, schicht_id")
+    .eq("kw_start_datum", vorIso);
+
+  if (error || !data || data.length === 0) {
+    maMeldung("info", TEXTE.keine_letzte_woche);
+    return;
+  }
+
+  // Auswahl anhand des Wochentags auf die neue Woche uebertragen
+  const nachWochentag = {};
+  for (const z of data) {
+    const wt = (alsDatum(z.datum).getDay() + 6) % 7 + 1; // 1 = Montag
+    (nachWochentag[wt] = nachWochentag[wt] || []).push(z.schicht_id);
+  }
+
+  zustand.gewaehlt.clear();
+  for (const tag of zustand.tage) {
+    if (tag.gesperrt) continue;
+    for (const id of nachWochentag[tag.wochentag] || []) {
+      if (hatSchicht(tag, id)) zustand.gewaehlt.add(schluessel(tag.datum, id));
+    }
+  }
+  verbirg($("ma-meldung"));
+  zeichnen();
+}
+
+/* ---------------------------------------------------------------------
+   Senden
+--------------------------------------------------------------------- */
+async function senden() {
+  const knopf = $("btn-senden");
+  knopf.disabled = true;
+
+  const eintraege = Array.from(zustand.gewaehlt).map((k) => {
+    const teile = k.split("|");
+    return { datum: teile[0], schicht_id: teile[1] };
+  });
+
+  const { data, error } = await sb.rpc("abgabe_speichern", {
+    p_kw_start:      zustand.kw,
+    p_max_schichten: zustand.maxSchichten,
+    p_hinweis:       zustand.hinweis,
+    p_eintraege:     eintraege
+  });
+
+  if (error) {
+    knopf.disabled = false;
+    const txt = error.message || "";
+    maMeldung("schlecht", txt.indexOf("Abgabefrist") >= 0
+      ? TEXTE.fehler_frist
+      : TEXTE.fehler_speichern + txt);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+
+  zustand.abgegebenAm = data;
+  knopf.disabled = false;
+  bestaetigungZeigen(data);
+  maMeldung("gut", TEXTE.gespeichert_am + zeitpunktText(data) + " Uhr");
+}
+
+function bestaetigungZeigen(zeitpunkt) {
+  $("bestaetigung-wort").textContent = TEXTE.gespeichert;
+  $("bestaetigung-zeit").textContent = zeitpunktText(zeitpunkt) + " Uhr";
+  const box = $("bestaetigung");
+  zeige(box);
+  const schliessen = () => verbirg(box);
+  box.onclick = schliessen;
+  setTimeout(schliessen, 1800);
+}
+
+/* =====================================================================
+   10. ADMIN-BEREICH
+===================================================================== */
+const admin = { reiter: 0, wochen: [], kw: null };
+
+async function adminStarten() {
+  $("btn-abmelden-admin").textContent = TEXTE.abmelden;
+  $("btn-abmelden-admin").onclick     = abmelden;
+
+  const leiste = $("admin-reiter");
+  leiste.textContent = "";
+  TEXTE.admin_reiter.forEach((name, i) => {
+    const b = el("button", i === admin.reiter ? "an" : "", name);
+    b.type = "button";
+    b.onclick = () => { admin.reiter = i; adminZeichnen(); };
+    leiste.appendChild(b);
+  });
+
+  await wochenLaden();
+  adminZeichnen();
+}
+
+async function wochenLaden() {
+  const { data } = await sb.from("weeks")
+    .select("kw_start_datum, abgabefrist")
+    .order("kw_start_datum", { ascending: false })
+    .limit(60);
+  admin.wochen = data || [];
+  if (!admin.kw && admin.wochen.length) {
+    const { data: aktiv } = await sb.rpc("aktive_woche");
+    const hatAktive = admin.wochen.some((w) => w.kw_start_datum === aktiv);
+    admin.kw = hatAktive ? aktiv : admin.wochen[0].kw_start_datum;
+  }
+}
+
+function adminMeldung(art, text) {
+  const box = $("admin-meldung");
+  if (!text) { verbirg(box); return; }
+  box.className = "meldung " + art;
+  box.textContent = text;
+  zeige(box);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function wochenAuswahl(beiWechsel) {
+  const zeile = el("div", "zeile-paar");
+  zeile.appendChild(el("div", "etikett", TEXTE.admin_woche));
+  const s = document.createElement("select");
+  for (const w of admin.wochen) {
+    const kwNr = isoKw(alsDatum(w.kw_start_datum));
+    const ende = alsDatum(w.kw_start_datum);
+    ende.setDate(ende.getDate() + 4);
+    const o = document.createElement("option");
+    o.value = w.kw_start_datum;
+    o.textContent = "KW " + kwNr.kw + " · " + tagKurz(w.kw_start_datum) + "–" + tagKurz(alsIso(ende));
+    if (w.kw_start_datum === admin.kw) o.selected = true;
+    s.appendChild(o);
+  }
+  s.onchange = () => { admin.kw = s.value; beiWechsel(); };
+  zeile.appendChild(s);
+  return zeile;
+}
+
+function adminZeichnen() {
+  const knoepfe = $("admin-reiter").children;
+  for (let i = 0; i < knoepfe.length; i++) {
+    knoepfe[i].className = (i === admin.reiter) ? "an" : "";
+  }
+  adminMeldung(null);
+
+  const ziel = $("admin-inhalt");
+  ziel.textContent = "";
+
+  if (admin.reiter === 0) adminAbgaben(ziel);
+  if (admin.reiter === 1) adminStammliste(ziel);
+  if (admin.reiter === 2) adminPasswort(ziel);
+  if (admin.reiter === 3) adminZeiten(ziel);
+  if (admin.reiter === 4) adminExport(ziel);
+}
+
+/* ---------- Reiter 1: Abgabestatus ---------- */
+async function adminAbgaben(ziel) {
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, TEXTE.admin_abgaben_titel));
+  karte.appendChild(wochenAuswahl(adminZeichnen));
+  const inhalt = el("div", null, TEXTE.laedt);
+  karte.appendChild(inhalt);
+  ziel.appendChild(karte);
+
+  const ergebnisse = await Promise.all([
+    sb.from("employees").select("personalnummer").eq("aktiv", true).order("personalnummer"),
+    sb.from("submissions").select("personalnummer, abgegeben_am").eq("kw_start_datum", admin.kw)
+  ]);
+  const liste = ergebnisse[0].data || [];
+  const abgaben = ergebnisse[1].data || [];
+
+  inhalt.textContent = "";
+  if (liste.length === 0) {
+    inhalt.appendChild(el("p", null, TEXTE.admin_keine_ma));
+    return;
+  }
+
+  const zeitNach = {};
+  for (const a of abgaben) zeitNach[a.personalnummer] = a.abgegeben_am;
+
+  const anzahl = liste.filter((m) => zeitNach[m.personalnummer]).length;
+  const kopf = el("p");
+  kopf.appendChild(el("b", null, String(anzahl)));
+  kopf.appendChild(document.createTextNode(
+    TEXTE.admin_von + liste.length + TEXTE.admin_haben_abgegeben));
+  inhalt.appendChild(kopf);
+
+  const tab = el("table", "liste");
+  const thead = el("thead");
+  const trh = el("tr");
+  trh.appendChild(el("th", null, TEXTE.label_personalnummer));
+  trh.appendChild(el("th", null, "Status"));
+  thead.appendChild(trh);
+  tab.appendChild(thead);
+
+  const tbody = el("tbody");
+  for (const m of liste) {
+    const tr = el("tr");
+    tr.appendChild(el("td", null, m.personalnummer));
+    const zeit = zeitNach[m.personalnummer];
+    const td = el("td", zeit ? "status-ja" : "status-nein",
+      zeit ? "✓ " + zeitpunktText(zeit) : "✗ " + TEXTE.admin_fehlt);
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+  tab.appendChild(tbody);
+  inhalt.appendChild(tab);
+}
+
+/* ---------- Reiter 2: Stammliste ---------- */
+let gelesenListe = null;
+
+function adminStammliste(ziel) {
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, TEXTE.admin_stamm_titel));
+  karte.appendChild(el("p", "hinweisbox", TEXTE.admin_stamm_hinweis));
+
+  const eingabe = document.createElement("input");
+  eingabe.type = "file";
+  eingabe.accept = ".xlsx,.xls,.csv";
+  eingabe.style.marginBottom = "12px";
+  karte.appendChild(eingabe);
+
+  const info = el("div", "hinweisbox");
+  karte.appendChild(info);
+
+  const btnVorschau = el("button", "knopf-mittel", TEXTE.admin_vorschau);
+  btnVorschau.type = "button";
+  btnVorschau.disabled = true;
+  btnVorschau.style.marginTop = "12px";
+  btnVorschau.style.width = "100%";
+  karte.appendChild(btnVorschau);
+
+  const ergebnis = el("div");
+  ergebnis.style.marginTop = "14px";
+  karte.appendChild(ergebnis);
+  ziel.appendChild(karte);
+
+  eingabe.onchange = async () => {
+    ergebnis.textContent = "";
+    const datei = eingabe.files && eingabe.files[0];
+    if (!datei) return;
+    info.textContent = TEXTE.laedt;
+    try {
+      gelesenListe = await dateiLesen(datei);
+      info.textContent = gelesenListe.length + TEXTE.admin_gelesen;
+      btnVorschau.disabled = gelesenListe.length === 0;
+    } catch (e) {
+      info.textContent = "";
+      adminMeldung("schlecht", String(e.message || e));
+    }
+  };
+
+  btnVorschau.onclick = async () => {
+    btnVorschau.disabled = true;
+    ergebnis.textContent = TEXTE.laedt;
+    const antwort = await funktionRufen("import-stammliste", {
+      modus: "vorschau", eintraege: gelesenListe
+    });
+    btnVorschau.disabled = false;
+    ergebnis.textContent = "";
+
+    if (!antwort.ok) {
+      ergebnis.appendChild(fehlerListe(antwort));
+      return;
+    }
+
+    const z = antwort.zusammenfassung;
+    const box = el("div", "meldung info");
+    box.appendChild(el("b", null, String(z.neu)));
+    box.appendChild(document.createTextNode(" " + TEXTE.admin_neu + " · "));
+    box.appendChild(el("b", null, String(z.geaendert)));
+    box.appendChild(document.createTextNode(" " + TEXTE.admin_geaendert + " · "));
+    box.appendChild(el("b", null, String(z.deaktiviert)));
+    box.appendChild(document.createTextNode(" " + TEXTE.admin_deaktiviert));
+    if (z.reaktiviert) {
+      box.appendChild(document.createTextNode(" · "));
+      box.appendChild(el("b", null, String(z.reaktiviert)));
+      box.appendChild(document.createTextNode(" " + TEXTE.admin_reaktiviert));
+    }
+    box.appendChild(document.createTextNode(
+      " · " + z.unveraendert + " " + TEXTE.admin_unveraendert));
+    ergebnis.appendChild(box);
+
+    ergebnis.appendChild(detailListe(TEXTE.admin_neu, antwort.neu));
+    ergebnis.appendChild(detailListe(TEXTE.admin_geaendert, antwort.geaendert));
+    ergebnis.appendChild(detailListe(TEXTE.admin_deaktiviert, antwort.deaktiviert));
+
+    const btnAnwenden = el("button", "knopf-mittel", TEXTE.admin_uebernehmen);
+    btnAnwenden.type = "button";
+    btnAnwenden.style.width = "100%";
+    btnAnwenden.onclick = async () => {
+      btnAnwenden.disabled = true;
+      btnAnwenden.textContent = TEXTE.laedt;
+      const res = await funktionRufen("import-stammliste", {
+        modus: "anwenden", eintraege: gelesenListe
+      });
+      if (res.ok) {
+        adminMeldung("gut", TEXTE.admin_import_fertig);
+        ergebnis.textContent = "";
+        gelesenListe = null;
+        eingabe.value = "";
+        info.textContent = "";
+        btnVorschau.disabled = true;
+      } else {
+        btnAnwenden.disabled = false;
+        btnAnwenden.textContent = TEXTE.admin_uebernehmen;
+        ergebnis.appendChild(fehlerListe(res));
+      }
+    };
+    ergebnis.appendChild(btnAnwenden);
+  };
+}
+
+function fehlerListe(antwort) {
+  const box = el("div", "meldung schlecht");
+  let zeilen = antwort.fehler || antwort.probleme;
+  if (!zeilen || zeilen.length === 0) zeilen = ["Unbekannter Fehler."];
+  if (!Array.isArray(zeilen)) zeilen = [String(zeilen)];
+  box.textContent = zeilen.slice(0, 25).join("\n");
+  box.style.whiteSpace = "pre-line";
+  return box;
+}
+
+function detailListe(titel, nummern) {
+  const d = el("details", "block");
+  d.appendChild(el("summary", null, titel + " (" + (nummern ? nummern.length : 0) + ")"));
+  d.appendChild(el("div", null, (nummern || []).join(", ")));
+  return d;
+}
+
+// SheetJS wird erst geladen, wenn wirklich eine Datei kommt. So muessen
+// Mitarbeitende am Handy diese knapp 1 MB nie herunterladen.
+// Hinweis: SheetJS liefert Versionen ab 0.19 nur ueber den eigenen CDN
+// (auf npm/jsDelivr steht nur noch 0.18.5).
+let sheetJsGeladen = null;
+function sheetJsLaden() {
+  if (sheetJsGeladen) return sheetJsGeladen;
+  sheetJsGeladen = new Promise((fertig, fehler) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+    s.onload = fertig;
+    s.onerror = () => fehler(new Error("SheetJS konnte nicht geladen werden."));
+    document.head.appendChild(s);
+  });
+  return sheetJsGeladen;
+}
+
+async function dateiLesen(datei) {
+  await sheetJsLaden();
+  const puffer = await datei.arrayBuffer();
+  const mappe = XLSX.read(puffer, { type: "array" });
+  const blatt = mappe.Sheets[mappe.SheetNames[0]];
+  const zeilen = XLSX.utils.sheet_to_json(blatt, { defval: "", raw: false });
+
+  if (zeilen.length === 0) throw new Error("Die Datei enthält keine Zeilen.");
+
+  const spalten = Object.keys(zeilen[0]);
+  const spaltePn = spalten.find((s) => /personal/i.test(s));
+  const spaltePw = spalten.find((s) => /pass/i.test(s));
+
+  if (!spaltePn || !spaltePw) {
+    throw new Error('Es müssen zwei Spalten mit den Überschriften "Personalnummer" und "Passwort" vorhanden sein.');
+  }
+
+  return zeilen
+    .map((z) => ({
+      personalnummer: String(z[spaltePn] === undefined ? "" : z[spaltePn]).trim(),
+      passwort:       String(z[spaltePw] === undefined ? "" : z[spaltePw]).trim()
+    }))
+    .filter((z) => z.personalnummer !== "" || z.passwort !== "");
+}
+
+async function funktionRufen(name, koerper) {
+  const { data, error } = await sb.functions.invoke(name, { body: koerper });
+  if (error) {
+    // Die Fehlerantwort der Funktion enthaelt meist die eigentliche Meldung.
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const j = await error.context.json();
+        j.ok = false;
+        return j;
+      }
+    } catch (_) { /* Antwort war kein JSON */ }
+    return { ok: false, fehler: [error.message || "Fehler"] };
+  }
+  return data;
+}
+
+/* ---------- Reiter 3: Einzelnes Passwort ---------- */
+function adminPasswort(ziel) {
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, TEXTE.admin_pw_titel));
+
+  const z1 = el("div", "zeile-paar");
+  z1.appendChild(el("div", "etikett", TEXTE.label_personalnummer));
+  const iPn = document.createElement("input");
+  iPn.type = "text"; iPn.inputMode = "numeric";
+  z1.appendChild(iPn);
+  karte.appendChild(z1);
+
+  const z2 = el("div", "zeile-paar");
+  z2.appendChild(el("div", "etikett", TEXTE.admin_pw_neu));
+  const iPw = document.createElement("input");
+  iPw.type = "text";
+  z2.appendChild(iPw);
+  karte.appendChild(z2);
+
+  const btn = el("button", "knopf-mittel", TEXTE.admin_pw_setzen);
+  btn.type = "button";
+  btn.style.width = "100%";
+  btn.style.marginTop = "8px";
+  karte.appendChild(btn);
+
+  const ausgabe = el("div");
+  ausgabe.style.marginTop = "12px";
+  karte.appendChild(ausgabe);
+
+  btn.onclick = async () => {
+    ausgabe.textContent = "";
+    const pn = iPn.value.trim(), pw = iPw.value.trim();
+    if (!pn) return;
+    if (pw.length < CONFIG.PASSWORT_MIN) {
+      ausgabe.appendChild(fehlerListe({
+        fehler: ["Passwort muss mindestens " + CONFIG.PASSWORT_MIN + " Zeichen haben."]
+      }));
+      return;
+    }
+    btn.disabled = true;
+    const res = await funktionRufen("reset-passwort", { personalnummer: pn, passwort: pw });
+    btn.disabled = false;
+    if (res.ok) {
+      adminMeldung("gut", TEXTE.admin_pw_fertig + pn);
+      iPn.value = ""; iPw.value = "";
+    } else {
+      ausgabe.appendChild(fehlerListe(res));
+    }
+  };
+
+  karte.appendChild(el("p", "hinweisbox", TEXTE.admin_pw_hinweis));
+  ziel.appendChild(karte);
+}
+
+/* ---------- Reiter 4: Zeiten und Frist ---------- */
+async function adminZeiten(ziel) {
+  // --- Woche waehlen / anlegen ---
+  const karteWoche = el("div", "karte");
+  karteWoche.appendChild(el("h2", null, TEXTE.admin_zeiten_titel));
+  karteWoche.appendChild(wochenAuswahl(adminZeichnen));
+
+  const neuZeile = el("div", "zeile-paar");
+  const iNeu = document.createElement("input");
+  iNeu.type = "date";
+  neuZeile.appendChild(iNeu);
+  const btnNeu = el("button", "knopf-mittel grau", TEXTE.admin_woche_anlegen);
+  btnNeu.type = "button";
+  btnNeu.onclick = async () => {
+    if (!iNeu.value) return;
+    const { data, error } = await sb.rpc("get_or_create_week", { p_kw_start: iNeu.value });
+    if (error) { adminMeldung("schlecht", error.message); return; }
+    // Die Funktion liefert den Montag der Woche zurueck - direkt anzeigen.
+    admin.kw = data;
+    await wochenLaden();
+    adminZeichnen();
+    adminMeldung("gut", TEXTE.admin_gespeichert);
+  };
+  neuZeile.appendChild(btnNeu);
+  karteWoche.appendChild(neuZeile);
+  ziel.appendChild(karteWoche);
+
+  if (!admin.kw) return;
+
+  // --- Frist ---
+  const karteFrist = el("div", "karte");
+  karteFrist.appendChild(el("h2", null, TEXTE.admin_frist_titel));
+  const woche = admin.wochen.find((w) => w.kw_start_datum === admin.kw);
+
+  const iFrist = document.createElement("input");
+  iFrist.type = "datetime-local";
+  if (woche) iFrist.value = fuerDatetimeLocal(woche.abgabefrist);
+  karteFrist.appendChild(iFrist);
+
+  const btnFrist = el("button", "knopf-mittel", TEXTE.admin_speichern);
+  btnFrist.type = "button";
+  btnFrist.style.width = "100%";
+  btnFrist.style.marginTop = "10px";
+  btnFrist.onclick = async () => {
+    if (!iFrist.value) return;
+    const { error } = await sb.from("weeks")
+      .update({ abgabefrist: ausDatetimeLocal(iFrist.value) })
+      .eq("kw_start_datum", admin.kw);
+    if (error) { adminMeldung("schlecht", error.message); return; }
+    await wochenLaden();
+    adminMeldung("gut", TEXTE.admin_gespeichert);
+  };
+  karteFrist.appendChild(btnFrist);
+  karteFrist.appendChild(el("p", "hinweisbox", TEXTE.admin_frist_hinweis));
+  ziel.appendChild(karteFrist);
+
+  // --- Zeiten dieser Woche ---
+  const karteWo = el("div", "karte");
+  karteWo.appendChild(el("h2", null, TEXTE.admin_diese_woche));
+  const inhalt = el("div", null, TEXTE.laedt);
+  karteWo.appendChild(inhalt);
+  ziel.appendChild(karteWo);
+
+  const wochenDaten = await Promise.all([
+    sb.from("week_days").select("datum, wochentag, gesperrt, grund")
+      .eq("kw_start_datum", admin.kw).order("datum"),
+    sb.from("week_shifts")
+      .select("datum, schicht_id, name, beginn, ende, aktiv, sortierung")
+      .eq("kw_start_datum", admin.kw).order("datum").order("sortierung")
+  ]);
+
+  inhalt.textContent = "";
+  const proTag = {};
+  for (const s of wochenDaten[1].data || []) (proTag[s.datum] = proTag[s.datum] || []).push(s);
+
+  const felder = [];
+
+  for (const tag of wochenDaten[0].data || []) {
+    const block = el("details", "block");
+    block.appendChild(el("summary", null,
+      TEXTE.wochentage[tag.wochentag - 1] + " · " + tagKurz(tag.datum) +
+      (tag.gesperrt ? "   (gesperrt)" : "")));
+
+    // Tag sperren
+    const sperrZeile = el("div", "zeile-paar");
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.checked = tag.gesperrt;
+    cb.style.flex = "0 0 26px"; cb.style.width = "26px"; cb.style.height = "26px";
+    const iGrund = document.createElement("input");
+    iGrund.type = "text"; iGrund.placeholder = TEXTE.admin_grund;
+    iGrund.value = tag.grund || "";
+    sperrZeile.appendChild(cb);
+    sperrZeile.appendChild(el("label", null, TEXTE.admin_tag_sperren));
+    sperrZeile.appendChild(iGrund);
+    block.appendChild(sperrZeile);
+
+    const btnSperr = el("button", "knopf-mittel grau", TEXTE.admin_speichern);
+    btnSperr.type = "button";
+    btnSperr.style.width = "100%";
+    btnSperr.onclick = async () => {
+      const { error } = await sb.rpc("tag_sperren", {
+        p_datum: tag.datum, p_gesperrt: cb.checked, p_grund: iGrund.value || null
+      });
+      if (error) { adminMeldung("schlecht", error.message); return; }
+      adminZeichnen();
+      adminMeldung("gut", TEXTE.admin_gespeichert);
+    };
+    block.appendChild(btnSperr);
+
+    // Zeiten je Schicht
+    for (const s of proTag[tag.datum] || []) {
+      const z = el("div", "zeile-paar");
+      z.appendChild(el("div", "etikett", s.name));
+      const iVon = document.createElement("input");
+      iVon.type = "time"; iVon.value = uhr(s.beginn);
+      const iBis = document.createElement("input");
+      iBis.type = "time"; iBis.value = uhr(s.ende);
+      const cbA = document.createElement("input");
+      cbA.type = "checkbox"; cbA.checked = s.aktiv; cbA.title = TEXTE.admin_schicht_an;
+      cbA.style.flex = "0 0 26px"; cbA.style.width = "26px"; cbA.style.height = "26px";
+      z.appendChild(iVon); z.appendChild(iBis); z.appendChild(cbA);
+      block.appendChild(z);
+      felder.push({ datum: s.datum, schicht_id: s.schicht_id, iVon: iVon, iBis: iBis, cbA: cbA });
+    }
+
+    inhalt.appendChild(block);
+  }
+
+  const btnZeiten = el("button", "knopf-mittel", TEXTE.admin_speichern);
+  btnZeiten.type = "button";
+  btnZeiten.style.width = "100%";
+  btnZeiten.style.marginTop = "8px";
+  btnZeiten.onclick = async () => {
+    btnZeiten.disabled = true;
+    for (const f of felder) {
+      const { error } = await sb.from("week_shifts")
+        .update({ beginn: f.iVon.value, ende: f.iBis.value, aktiv: f.cbA.checked })
+        .eq("datum", f.datum).eq("schicht_id", f.schicht_id);
+      if (error) { adminMeldung("schlecht", error.message); btnZeiten.disabled = false; return; }
+    }
+    btnZeiten.disabled = false;
+    adminMeldung("gut", TEXTE.admin_gespeichert);
+  };
+  inhalt.appendChild(btnZeiten);
+
+  const btnReset = el("button", "knopf-mittel grau", TEXTE.admin_neu_laden);
+  btnReset.type = "button";
+  btnReset.style.width = "100%";
+  btnReset.style.marginTop = "8px";
+  btnReset.onclick = async () => {
+    const { error } = await sb.rpc("woche_aus_standard_neu_laden", { p_kw_start: admin.kw });
+    if (error) { adminMeldung("schlecht", error.message); return; }
+    adminZeichnen();
+    adminMeldung("gut", TEXTE.admin_gespeichert);
+  };
+  inhalt.appendChild(btnReset);
+
+  // --- Standardzeiten ---
+  const karteStd = el("div", "karte");
+  karteStd.appendChild(el("h2", null, TEXTE.admin_standard));
+  const stdInhalt = el("div", null, TEXTE.laedt);
+  karteStd.appendChild(stdInhalt);
+  ziel.appendChild(karteStd);
+
+  const stdDaten = await Promise.all([
+    sb.from("shift_types").select("schicht_id, name, aktiv, sortierung").order("sortierung"),
+    sb.from("shift_templates").select("schicht_id, wochentag, beginn, ende, aktiv")
+      .order("schicht_id").order("wochentag")
+  ]);
+
+  stdInhalt.textContent = "";
+  const stdFelder = [];
+  const typFelder = [];
+
+  for (const t of stdDaten[0].data || []) {
+    const block = el("details", "block");
+    block.appendChild(el("summary", null, t.name + (t.aktiv ? "" : "   (aus)")));
+
+    const zAktiv = el("div", "zeile-paar");
+    const cbT = document.createElement("input");
+    cbT.type = "checkbox"; cbT.checked = t.aktiv;
+    cbT.style.flex = "0 0 26px"; cbT.style.width = "26px"; cbT.style.height = "26px";
+    zAktiv.appendChild(cbT);
+    zAktiv.appendChild(el("label", null, TEXTE.admin_schicht_an));
+    block.appendChild(zAktiv);
+    typFelder.push({ schicht_id: t.schicht_id, cbT: cbT });
+
+    const eigene = (stdDaten[1].data || []).filter((v) => v.schicht_id === t.schicht_id);
+    for (const v of eigene) {
+      const z = el("div", "zeile-paar");
+      z.appendChild(el("div", "etikett", TEXTE.wochentage[v.wochentag - 1]));
+      const iVon = document.createElement("input");
+      iVon.type = "time"; iVon.value = uhr(v.beginn);
+      const iBis = document.createElement("input");
+      iBis.type = "time"; iBis.value = uhr(v.ende);
+      z.appendChild(iVon); z.appendChild(iBis);
+      block.appendChild(z);
+      stdFelder.push({ schicht_id: v.schicht_id, wochentag: v.wochentag, iVon: iVon, iBis: iBis });
+    }
+    stdInhalt.appendChild(block);
+  }
+
+  const btnStd = el("button", "knopf-mittel", TEXTE.admin_speichern);
+  btnStd.type = "button";
+  btnStd.style.width = "100%";
+  btnStd.onclick = async () => {
+    btnStd.disabled = true;
+    for (const t of typFelder) {
+      const { error } = await sb.from("shift_types")
+        .update({ aktiv: t.cbT.checked }).eq("schicht_id", t.schicht_id);
+      if (error) { adminMeldung("schlecht", error.message); btnStd.disabled = false; return; }
+    }
+    for (const f of stdFelder) {
+      const { error } = await sb.from("shift_templates")
+        .update({ beginn: f.iVon.value, ende: f.iBis.value })
+        .eq("schicht_id", f.schicht_id).eq("wochentag", f.wochentag);
+      if (error) { adminMeldung("schlecht", error.message); btnStd.disabled = false; return; }
+    }
+    btnStd.disabled = false;
+    adminMeldung("gut", TEXTE.admin_gespeichert);
+  };
+  stdInhalt.appendChild(btnStd);
+  stdInhalt.appendChild(el("p", "hinweisbox",
+    "Standardzeiten gelten für Wochen, die neu angelegt werden. Bereits angelegte " +
+    "Wochen behalten ihre Zeiten, bis oben „" + TEXTE.admin_neu_laden + "“ gedrückt wird."));
+}
+
+function fuerDatetimeLocal(isoZeit) {
+  const teile = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "Europe/Berlin",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false
+  }).format(new Date(isoZeit));
+  return teile.replace(" ", "T");
+}
+
+// Eingabe "2026-09-25T12:00" als deutsche Ortszeit interpretieren
+function ausDatetimeLocal(wert) {
+  const alsUtc = new Date(wert + ":00Z");
+  const teil = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Berlin", timeZoneName: "longOffset"
+  }).formatToParts(alsUtc).find((p) => p.type === "timeZoneName").value; // z. B. "GMT+02:00"
+  const rest = teil.replace("GMT", "");
+  const vorzeichen = rest.indexOf("-") === 0 ? 1 : -1;
+  const zahlen = rest.replace("+", "").replace("-", "").split(":").map(Number);
+  const minuten = (zahlen[0] * 60 + (zahlen[1] || 0));
+  return new Date(alsUtc.getTime() + vorzeichen * minuten * 60000).toISOString();
+}
+
+/* ---------- Reiter 5: Export ---------- */
+function adminExport(ziel) {
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, TEXTE.admin_export_titel));
+  karte.appendChild(wochenAuswahl(adminZeichnen));
+
+  const btnCsv = el("button", "knopf-mittel", TEXTE.admin_csv);
+  btnCsv.type = "button"; btnCsv.style.width = "100%"; btnCsv.style.marginTop = "10px";
+  btnCsv.onclick = () => exportieren("csv", btnCsv);
+  karte.appendChild(btnCsv);
+
+  const btnJson = el("button", "knopf-mittel grau", TEXTE.admin_json);
+  btnJson.type = "button"; btnJson.style.width = "100%"; btnJson.style.marginTop = "10px";
+  btnJson.onclick = () => exportieren("json", btnJson);
+  karte.appendChild(btnJson);
+
+  karte.appendChild(el("p", "hinweisbox", TEXTE.admin_export_hinweis));
+  ziel.appendChild(karte);
+}
+
+async function exportDatenHolen(kw) {
+  const r = await Promise.all([
+    sb.from("week_days").select("datum, wochentag, gesperrt, grund")
+      .eq("kw_start_datum", kw).order("datum"),
+    sb.from("week_shifts")
+      .select("datum, wochentag, schicht_id, name, beginn, ende, dauer_h, aktiv, sortierung")
+      .eq("kw_start_datum", kw).order("datum").order("sortierung"),
+    sb.from("employees").select("personalnummer").eq("aktiv", true).order("personalnummer"),
+    sb.from("submissions").select("personalnummer, max_schichten, hinweis, abgegeben_am")
+      .eq("kw_start_datum", kw),
+    sb.from("availability").select("personalnummer, datum, schicht_id").eq("kw_start_datum", kw)
+  ]);
+
+  for (const teil of r) {
+    if (teil.error) throw new Error(teil.error.message);
+  }
+
+  return {
+    tage:        r[0].data || [],
+    schichten:   r[1].data || [],
+    mitarbeiter: (r[2].data || []).map((m) => m.personalnummer),
+    abgaben:     r[3].data || [],
+    verfuegbar:  r[4].data || []
+  };
+}
+
+function kwEtikett(kw) {
+  const k = isoKw(alsDatum(kw));
+  return k.jahr + "-W" + String(k.kw).padStart(2, "0");
+}
+
+async function exportieren(art, knopf) {
+  knopf.disabled = true;
+  try {
+    const d = await exportDatenHolen(admin.kw);
+    const etikett = kwEtikett(admin.kw);
+    if (art === "csv") {
+      datenSpeichern(csvBauen(etikett, d),
+        "verfuegbarkeit_" + etikett + ".csv", "text/csv;charset=utf-8");
+    } else {
+      datenSpeichern(JSON.stringify(jsonBauen(admin.kw, etikett, d), null, 2),
+        "verfuegbarkeit_" + etikett + ".json", "application/json;charset=utf-8");
+    }
+  } catch (e) {
+    adminMeldung("schlecht", String(e.message || e));
+  }
+  knopf.disabled = false;
+}
+
+function csvFeld(wert) {
+  const s = (wert === null || wert === undefined) ? "" : String(wert);
+  return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+
+function csvBauen(etikett, d) {
+  const kopf = ["kw","datum","wochentag","personalnummer","schicht_id","schicht_name",
+                "beginn","ende","dauer_h","max_schichten_woche","hinweis","abgegeben_am"];
+  const zeilen = [kopf.join(";")];
+
+  const abgabeNach = {};
+  for (const a of d.abgaben) abgabeNach[a.personalnummer] = a;
+
+  const schichtNach = {};
+  for (const s of d.schichten) schichtNach[s.datum + "|" + s.schicht_id] = s;
+
+  const sortNr = (v) => {
+    const s = schichtNach[v.datum + "|" + v.schicht_id];
+    return s ? s.sortierung : 0;
+  };
+
+  const sortiert = d.verfuegbar.slice().sort((a, b) =>
+    a.personalnummer.localeCompare(b.personalnummer, "de") ||
+    a.datum.localeCompare(b.datum) ||
+    (sortNr(a) - sortNr(b))
+  );
+
+  for (const v of sortiert) {
+    const s = schichtNach[v.datum + "|" + v.schicht_id];
+    const a = abgabeNach[v.personalnummer];
+    zeilen.push([
+      etikett,
+      v.datum,
+      TEXTE.wochentage[(s ? s.wochentag : 1) - 1],
+      v.personalnummer,
+      v.schicht_id,
+      s ? s.name : "",
+      s ? uhr(s.beginn) : "",
+      s ? uhr(s.ende) : "",
+      s ? dauerText(s.dauer_h) : "",
+      (a && a.max_schichten !== null && a.max_schichten !== undefined) ? a.max_schichten : "",
+      a ? (a.hinweis || "") : "",
+      a ? zeitpunktIso(a.abgegeben_am) : ""
+    ].map(csvFeld).join(";"));
+  }
+
+  // Je Personalnummer ohne Abgabe eine Zeile
+  for (const pn of d.mitarbeiter) {
+    if (abgabeNach[pn]) continue;
+    zeilen.push([etikett, "", "", pn, "KEINE_ABGABE", "", "", "", "", "", "", ""]
+      .map(csvFeld).join(";"));
+  }
+
+  return "﻿" + zeilen.join("\r\n") + "\r\n";
+}
+
+function jsonBauen(kw, etikett, d) {
+  const k = isoKw(alsDatum(kw));
+  const ende = alsDatum(kw);
+  ende.setDate(ende.getDate() + 4);
+
+  const abgabeNach = {};
+  for (const a of d.abgaben) abgabeNach[a.personalnummer] = a;
+
+  const verfuegbarNach = {};
+  for (const v of d.verfuegbar) {
+    (verfuegbarNach[v.personalnummer] = verfuegbarNach[v.personalnummer] || [])
+      .push({ datum: v.datum, schicht_id: v.schicht_id });
+  }
+
+  // Auch Personalnummern beruecksichtigen, die inzwischen deaktiviert sind,
+  // fuer diese Woche aber schon abgegeben hatten.
+  const allePn = new Set(d.mitarbeiter);
+  for (const a of d.abgaben) allePn.add(a.personalnummer);
+
+  return {
+    meta: {
+      kw: etikett,
+      kw_nummer: k.kw,
+      jahr: k.jahr,
+      start: kw,
+      ende: alsIso(ende),
+      exportiert_am: new Date().toISOString(),
+      hinweis: TEXTE.export_hinweis_text
+    },
+    tage: d.tage.map((t) => ({
+      datum: t.datum,
+      wochentag: TEXTE.wochentage[t.wochentag - 1],
+      gesperrt: t.gesperrt,
+      grund: t.grund || null
+    })),
+    schichten: d.schichten.map((s) => ({
+      datum: s.datum,
+      wochentag: TEXTE.wochentage[s.wochentag - 1],
+      schicht_id: s.schicht_id,
+      name: s.name,
+      beginn: uhr(s.beginn),
+      ende: uhr(s.ende),
+      dauer_h: Number(s.dauer_h),
+      aktiv: s.aktiv
+    })),
+    mitarbeiter: Array.from(allePn).sort((a, b) => a.localeCompare(b, "de")).map((pn) => {
+      const a = abgabeNach[pn];
+      return {
+        personalnummer: pn,
+        abgegeben: !!a,
+        abgegeben_am: a ? a.abgegeben_am : null,
+        max_schichten_woche: a ? a.max_schichten : null,
+        hinweis: a ? (a.hinweis || null) : null,
+        verfuegbar: (verfuegbarNach[pn] || []).sort((x, y) =>
+          x.datum.localeCompare(y.datum) || x.schicht_id.localeCompare(y.schicht_id))
+      };
+    })
+  };
+}
+
+function datenSpeichern(inhalt, dateiname, typ) {
+  const blob = new Blob([inhalt], { type: typ });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = dateiname;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+/* =====================================================================
+   11. START
+===================================================================== */
+function markeAufbauen() {
+  document.title = TEXTE.seiten_titel;
+  const felder = document.querySelectorAll("[data-marke]");
+  for (let i = 0; i < felder.length; i++) {
+    const f = felder[i];
+    f.textContent = "";
+    f.appendChild(document.createTextNode(TEXTE.marke_vorn + " "));
+    f.appendChild(el("span", null, TEXTE.marke_hinten));
+    if (f.hasAttribute("data-admin")) {
+      f.appendChild(document.createTextNode(TEXTE.marke_admin));
+    }
+  }
+}
+
+function fussAufbauen() {
+  const f = $("fuss");
+  const a1 = el("a", null, TEXTE.impressum);
+  a1.href = CONFIG.IMPRESSUM_URL; a1.target = "_blank"; a1.rel = "noopener";
+  const a2 = el("a", null, TEXTE.datenschutz);
+  a2.href = CONFIG.DATENSCHUTZ_URL; a2.target = "_blank"; a2.rel = "noopener";
+  f.appendChild(a1);
+  f.appendChild(document.createTextNode("·"));
+  f.appendChild(a2);
+}
+
+(async function start() {
+  markeAufbauen();
+  fussAufbauen();
+  loginAufbauen();
+
+  if (!verbindungAufbauen()) {
+    zeigeLogin();
+    loginFehler(TEXTE.fehler_keine_config);
+    const felder = $("form-ma").querySelectorAll("input,button");
+    for (let i = 0; i < felder.length; i++) felder[i].disabled = true;
+    return;
+  }
+
+  const { data } = await sb.auth.getSession();
+  if (data && data.session) {
+    await weiterNachAnmeldung();
+  } else {
+    zeigeLogin();
+  }
+})();
+</script>
+</body>
+</html>

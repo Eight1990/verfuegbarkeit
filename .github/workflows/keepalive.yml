@@ -1,0 +1,69 @@
+# =====================================================================
+# Keep-alive fuer das Supabase-Projekt
+#
+# Der kostenlose Supabase-Tarif pausiert Projekte nach 7 Tagen ohne
+# Aktivitaet. Dieser Ablauf ruft alle 3 Tage die Datenbankfunktion
+# ping() auf. Das ist eine echte Abfrage, kein blosses Anpingen der URL.
+#
+# Vorher einmalig in GitHub einrichten:
+#   Settings -> Secrets and variables -> Actions -> New repository secret
+#     SUPABASE_URL        z. B. https://abcdefghij.supabase.co
+#     SUPABASE_ANON_KEY   der oeffentliche Schluessel aus index.html
+#                         (Format sb_publishable_... oder eyJ...)
+#
+# Hinweis: GitHub schaltet geplante Ablaeufe ab, wenn 60 Tage lang
+# niemand etwas am Repository aendert. Der Ablauf laesst sich dann unter
+# "Actions" mit "Run workflow" wieder von Hand starten.
+# =====================================================================
+
+name: Keep-alive Supabase
+
+on:
+  schedule:
+    # Minute Stunde Tag Monat Wochentag -> alle 3 Tage um 06:17 UTC
+    - cron: "17 6 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Datenbankfunktion ping() aufrufen
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${URL}" ] || [ -z "${KEY}" ]; then
+            echo "Die Secrets SUPABASE_URL und SUPABASE_ANON_KEY fehlen."
+            exit 1
+          fi
+
+          # Abschliessenden Schraegstrich entfernen, falls vorhanden
+          BASIS="${URL%/}"
+
+          echo "Rufe ${BASIS}/rest/v1/rpc/ping auf ..."
+
+          STATUS=$(curl --silent --show-error \
+            --output antwort.json --write-out "%{http_code}" \
+            --retry 3 --retry-delay 10 --max-time 30 \
+            -X POST "${BASIS}/rest/v1/rpc/ping" \
+            -H "apikey: ${KEY}" \
+            -H "Authorization: Bearer ${KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          echo "HTTP-Status: ${STATUS}"
+          cat antwort.json
+          echo
+
+          if [ "${STATUS}" != "200" ]; then
+            echo "Keep-alive fehlgeschlagen."
+            exit 1
+          fi
+
+          echo "Keep-alive erfolgreich."
