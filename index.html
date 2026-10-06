@@ -1023,7 +1023,15 @@ async function wocheLaden() {
     schichten: (schichtenNachTag[t.datum] || []).filter((s) => s.aktiv)
   }));
 
-  zustand.gewaehlt = new Set((verfuegbar.data || []).map((v) => schluessel(v.datum, v.schicht_id)));
+  // Nur Auswahlen behalten, die auch angezeigt werden (aktive Schicht, Tag nicht gesperrt).
+  const angezeigt = new Set();
+  for (const t of zustand.tage) {
+    if (t.gesperrt) continue;
+    for (const s of t.schichten) angezeigt.add(schluessel(t.datum, s.schicht_id));
+  }
+  zustand.gewaehlt = new Set((verfuegbar.data || [])
+    .map((v) => schluessel(v.datum, v.schicht_id))
+    .filter((k) => angezeigt.has(k)));
   zustand.maxSchichten = abgabe.data ? abgabe.data.max_schichten : null;
   zustand.abgegebenAm  = abgabe.data ? abgabe.data.abgegeben_am : null;
 
@@ -2309,12 +2317,20 @@ async function exportDatenHolen(kw) {
     if (teil.error) throw new Error(teil.error.message);
   }
 
+  // Nur Schichten exportieren, die den Mitarbeitenden wirklich angezeigt wurden:
+  // aktive Schicht an einem nicht gesperrten Tag. Eintraege fuer inzwischen
+  // abgeschaltete Schichten bleiben in der Datenbank, erscheinen aber nicht.
+  const gesperrt = new Set((r[0].data || []).filter((t) => t.gesperrt).map((t) => t.datum));
+  const sichtbar = new Set((r[1].data || [])
+    .filter((s) => s.aktiv && !gesperrt.has(s.datum))
+    .map((s) => schluessel(s.datum, s.schicht_id)));
+
   return {
     tage:        r[0].data || [],
     schichten:   r[1].data || [],
     mitarbeiter: (r[2].data || []).map((m) => m.personalnummer),
     abgaben:     r[3].data || [],
-    verfuegbar:  r[4].data || []
+    verfuegbar:  (r[4].data || []).filter((v) => sichtbar.has(schluessel(v.datum, v.schicht_id)))
   };
 }
 
