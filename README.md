@@ -533,6 +533,23 @@ Was du selbst beachten musst:
 
 ---
 
+## Geplante Schichten (Dispo einlesen)
+
+Mitarbeitende sehen nach dem Login oben "Meine Planung" (ihre Schichten ab heute).
+
+1. Einmalig `supabase/migrations/0006_geplante_schichten.sql` im SQL Editor ausführen
+   (legt die Tabelle `planung` und die Funktion `planung_ersetzen` an; erweitert die Löschfrist).
+2. Admin-Bereich → Reiter **Planung**: Dispo (`.xlsm`, Blatt "FedEx", eine Woche Mo–Fr) und
+   eine Stammliste **mit Spalte "Name"** auswählen → "Planung prüfen".
+3. Die Namen werden **nur im Browser** den Personalnummern zugeordnet. Sichere Treffer sind
+   vorausgewählt, Vorschläge sind markiert, der Rest wird per Auswahlliste zugeordnet oder übersprungen.
+4. "Planung übernehmen" ersetzt die Planung der Woche. Zum Server gehen nur Personalnummer,
+   Datum, Schichtart (FRUEH/SPAET/LANG/BUERO) und Uhrzeiten, keine Namen.
+5. Schichtart wird aus der Startzeit abgeleitet (vor 12 Uhr Früh, 12–17 Uhr Lang, danach Spät;
+   "ZiG Office" = Büro). Die Spalte "Alternative" wird nicht importiert.
+
+---
+
 ## Was die App bewusst nicht kann
 
 Diese Punkte sind **kein Teil** dieses Projekts — die Struktur ist aber so
@@ -540,7 +557,6 @@ gebaut, dass sie später ergänzt werden können:
 
 - automatische Schichtplanung (macht die nachgelagerte KI)
 - Krankmeldung über die App
-- Anzeige der eigenen **geplanten** Schichten für Mitarbeitende
 - weitere Sprachen (alle Texte liegen dafür gesammelt im Objekt `TEXTE`
   in `index.html`)
 

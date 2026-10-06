@@ -7,7 +7,9 @@
 --   3. nach der Abgabefrist nichts mehr geaendert werden kann,
 --   4. eine deaktivierte Personalnummer nichts mehr speichern kann,
 --   5. der Passwort-Fingerabdruck fuer niemanden lesbar ist,
---   6. bei offenem Passwortwechsel (Migration 0005) nichts gespeichert wird.
+--   6. bei offenem Passwortwechsel (Migration 0005) nichts gespeichert wird,
+--   7. geplante Schichten (Migration 0006) nur der Betroffene sieht und nur
+--      Admins aendern koennen.
 --
 -- VORHER: es muessen mindestens ZWEI aktive Personalnummern angelegt sein.
 --         Am einfachsten: im Admin-Bereich die Datei
@@ -303,6 +305,51 @@ begin
   -- Frist wieder herstellen
   execute 'reset role';
   update public.weeks set abgabefrist = v_frist_alt where kw_start_datum = v_kw;
+
+  -- ------------------------------------------------------------------
+  -- 13b) Geplante Schichten (Migration 0006): nur eigene sichtbar, kein Schreiben
+  -- ------------------------------------------------------------------
+  insert into public.planung (personalnummer, datum, schicht_id, beginn, ende, kw_start_datum)
+  values (v_a_pn, v_kw, 'FRUEH', '04:00', '07:00', v_kw),
+         (v_b_pn, v_kw, 'FRUEH', '04:00', '07:00', v_kw);
+
+  execute 'set local role authenticated';
+
+  select count(*) into v_zahl from public.planung;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter sieht Zeilen in planung'::text,
+    'genau 1 (nur eigene)'::text, v_zahl::text, (v_zahl = 1);
+
+  begin
+    insert into public.planung (personalnummer, datum, schicht_id, beginn, ende, kw_start_datum)
+    values (v_a_pn, v_kw, 'SPAET', '18:30', '22:30', v_kw);
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter schreibt in planung'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter schreibt in planung'::text,
+      'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  begin
+    perform public.planung_ersetzen(v_kw, '[]'::jsonb);
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter ruft planung_ersetzen auf'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter ruft planung_ersetzen auf'::text,
+      'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  execute 'reset role';
+  delete from public.planung where kw_start_datum = v_kw and personalnummer in (v_a_pn, v_b_pn);
 
   -- ------------------------------------------------------------------
   -- 14) Deaktivierte Personalnummer kann nichts mehr speichern

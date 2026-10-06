@@ -341,6 +341,11 @@
 
     <div id="ma-meldung" class="meldung verborgen"></div>
 
+    <div class="karte verborgen" id="karte-planung">
+      <h2 id="titel-planung"></h2>
+      <div id="planung-liste"></div>
+    </div>
+
     <div class="schnell" id="schnellwahl">
       <button type="button" id="btn-alles"></button>
       <button type="button" id="btn-nichts"></button>
@@ -457,7 +462,10 @@
            Anmeldung technisch notwendige Sitzung im Speicher Ihres Geräts; sie wird beim Abmelden entfernt.</p>
 
         <h3>Speicherdauer</h3>
-        <p>Ihre Verfügbarkeitsangaben werden 12 Monate nach Ende der jeweiligen Kalenderwoche gelöscht,
+        <p>Zusätzlich speichern wir Ihre geplanten Schichten (Datum, Schichtart, Uhrzeiten), damit Sie
+           Ihren Einsatz in der App sehen können. Sie sind nur für Sie und die für die Einsatzplanung
+           zuständigen Personen einsehbar; Ihr Name wird dafür nicht gespeichert.</p>
+        <p>Ihre Verfügbarkeitsangaben und geplanten Schichten werden 12 Monate nach Ende der jeweiligen Kalenderwoche gelöscht,
            soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ihr Zugang (Personalnummer)
            wird deaktiviert, sobald Sie nicht mehr in der Einsatzplanung geführt werden, und mit den
            zugehörigen Angaben spätestens nach Ablauf dieser Frist gelöscht.</p>
@@ -578,7 +586,27 @@ const TEXTE = {
   datenschutz:           "Datenschutz",
 
   // Admin
-  admin_reiter:          ["Abgaben","Stammliste","Passwort","Zeiten","Export"],
+  admin_reiter:          ["Abgaben","Stammliste","Passwort","Zeiten","Export","Planung"],
+
+  // Planung (fertige Dispo)
+  plan_titel:            "Fertige Planung einlesen",
+  plan_hinweis:          "Beide Dateien werden nur in diesem Browser gelesen. Der Abgleich Name → Personalnummer passiert hier; zum Server gehen nur Personalnummer, Datum, Schicht und Zeiten – keine Namen.",
+  plan_label_dispo:      "Dispo (.xlsm / .xlsx)",
+  plan_label_stamm:      "Stammliste mit Namensspalte (.xlsx)",
+  plan_pruefen:          "Planung prüfen",
+  plan_uebernehmen:      "Planung übernehmen",
+  plan_ueberspringen:    "– überspringen –",
+  plan_vorschlag:        " (Vorschlag)",
+  plan_fertig:           " Schichten übernommen.",
+  plan_ersetzt:          "Eine bereits vorhandene Planung dieser Woche wird ersetzt.",
+  plan_kein_name:        "In der Stammliste wurde keine Spalte \"Name\" gefunden.",
+  plan_kein_blatt:       "In der Dispo wurde keine Planung gefunden.",
+  plan_nicht_in_db:      " Personen aus der Stammliste haben (noch) keinen Zugang und werden ignoriert.",
+
+  // Mitarbeiter: eigene Planung
+  ma_plan_titel:         "Meine Planung",
+  ma_plan_leer:          "Noch keine Schichten für dich eingetragen.",
+  schicht_namen:         { FRUEH: "Früh", SPAET: "Spät", LANG: "Lang", BUERO: "Büro" },
   admin_woche:           "Woche",
   admin_abgaben_titel:   "Abgabestatus",
   admin_abgegeben:       "abgegeben",
@@ -869,7 +897,7 @@ async function weiterNachAnmeldung() {
 
   verbirg($("screen-pw-aendern"));
   zeige($("screen-ma"));
-  await wocheLaden();
+  await Promise.all([wocheLaden(), planungLaden()]);
 }
 
 function zeigeLogin() {
@@ -1000,6 +1028,40 @@ async function wocheLaden() {
   zustand.abgegebenAm  = abgabe.data ? abgabe.data.abgegeben_am : null;
 
   maAufbauen();
+}
+
+/* ---------- Eigene geplante Schichten (ab heute) ---------- */
+const WOCHENTAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+
+async function planungLaden() {
+  const karte = $("karte-planung");
+  const liste = $("planung-liste");
+  $("titel-planung").textContent = TEXTE.ma_plan_titel;
+
+  const { data, error } = await sb.from("planung")
+    .select("datum, schicht_id, beginn, ende")
+    .gte("datum", alsIso(new Date()))
+    .order("datum").order("beginn")
+    .limit(60);
+  if (error) { verbirg(karte); return; }
+
+  liste.textContent = "";
+  if (!data || data.length === 0) {
+    liste.appendChild(el("p", null, TEXTE.ma_plan_leer));
+  } else {
+    const tab = el("table", "liste");
+    const tbody = el("tbody");
+    for (const p of data) {
+      const tr = el("tr");
+      tr.appendChild(el("td", null, WOCHENTAGE[alsDatum(p.datum).getDay()] + " " + tagKurz(p.datum)));
+      tr.appendChild(el("td", null, TEXTE.schicht_namen[p.schicht_id] || p.schicht_id));
+      tr.appendChild(el("td", null, uhr(p.beginn) + "–" + uhr(p.ende)));
+      tbody.appendChild(tr);
+    }
+    tab.appendChild(tbody);
+    liste.appendChild(tab);
+  }
+  zeige(karte);
 }
 
 /* =====================================================================
@@ -1380,6 +1442,7 @@ function adminZeichnen() {
   if (admin.reiter === 2) adminPasswort(ziel);
   if (admin.reiter === 3) adminZeiten(ziel);
   if (admin.reiter === 4) adminExport(ziel);
+  if (admin.reiter === 5) adminPlanung(ziel);
 }
 
 /* ---------- Reiter 1: Abgabestatus ---------- */
@@ -1614,6 +1677,296 @@ async function funktionRufen(name, koerper) {
     return { ok: false, fehler: [error.message || "Fehler"] };
   }
   return data;
+}
+
+/* ---------- Reiter 6: Planung (fertige Dispo einlesen) ---------- */
+// Die Dispo enthaelt nur Namen. Der Abgleich mit der Stammliste laeuft
+// komplett im Browser; zum Server gehen nur Personalnummer, Datum, Schicht, Zeiten.
+const pad2 = (n) => String(n).padStart(2, "0");
+
+// Excel-Seriennummer -> "2026-07-20"
+function serieAlsIso(n) {
+  const d = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000);
+  return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-" + pad2(d.getUTCDate());
+}
+// Tagesbruchteil (0.1667) -> "04:00"
+function bruchAlsUhr(b) {
+  const min = Math.round(b * 1440);
+  return pad2(Math.floor(min / 60) % 24) + ":" + pad2(min % 60);
+}
+function schichtAusZeit(position, beginn) {
+  if (/office/i.test(position)) return "BUERO";
+  const min = Number(beginn.slice(0, 2)) * 60 + Number(beginn.slice(3, 5));
+  if (min < 12 * 60) return "FRUEH";
+  if (min < 17 * 60) return "LANG";
+  return "SPAET";
+}
+
+// Liest das Blatt "FedEx": Datum in Spalte A (Seriennummer), danach Positionen
+// "ZiG AM n" / "ZiG PM n" / "ZiG Office" mit Name (B) und Von/Bis (C/D).
+function dispoParsen(mappe) {
+  const blattName = mappe.SheetNames.find((n) => /fedex/i.test(n)) || mappe.SheetNames[0];
+  const blatt = mappe.Sheets[blattName];
+  if (!blatt || !blatt["!ref"]) return [];
+  const bereich = XLSX.utils.decode_range(blatt["!ref"]);
+  const wert = (c, r) => {
+    const z = blatt[XLSX.utils.encode_cell({ c: c, r: r })];
+    return z ? z.v : undefined;
+  };
+
+  const ergebnis = [];
+  let datum = null;
+  for (let r = bereich.s.r; r <= bereich.e.r; r++) {
+    const a = wert(0, r);
+    if (typeof a === "number" && a > 40000 && a < 80000) { datum = serieAlsIso(a); continue; }
+    if (typeof a !== "string" || !datum) continue;
+    if (!/^zig\s+(am|pm|office)\s*\d*$/i.test(a.trim())) continue;
+
+    const name = wert(1, r), von = wert(2, r), bis = wert(3, r);
+    if (typeof name !== "string" || !name.trim()) continue;
+    if (typeof von !== "number" || typeof bis !== "number") continue;
+
+    const beginn = bruchAlsUhr(von);
+    ergebnis.push({
+      name: name.replace(/\s+/g, " ").trim(),
+      datum: datum,
+      schicht_id: schichtAusZeit(a, beginn),
+      beginn: beginn,
+      ende: bruchAlsUhr(bis)
+    });
+  }
+  return ergebnis;
+}
+
+// Stammliste: Spalten Personalnummer + Name (Passwort wird ignoriert und nie gelesen).
+async function stammNamenLesen(datei) {
+  await sheetJsLaden();
+  const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
+  const zeilen = XLSX.utils.sheet_to_json(mappe.Sheets[mappe.SheetNames[0]], { defval: "", raw: false });
+  if (zeilen.length === 0) throw new Error("Die Datei enthält keine Zeilen.");
+  const spalten = Object.keys(zeilen[0]);
+  const sPn = spalten.find((s) => /personal/i.test(s));
+  const sName = spalten.find((s) => /name/i.test(s));
+  if (!sPn) throw new Error('Spalte "Personalnummer" fehlt.');
+  if (!sName) throw new Error(TEXTE.plan_kein_name);
+  return zeilen
+    .map((z) => ({ pn: String(z[sPn]).trim(), name: String(z[sName]).trim() }))
+    .filter((z) => z.pn && z.name);
+}
+
+// "Nachname, Vorname" / "Nachname Vorname" -> Kleinbuchstaben-Woerter ohne Akzente.
+// Das Zeichen U+FFFD (kaputte Umlaute in der Dispo) bleibt als Platzhalter erhalten.
+function nameWoerter(s) {
+  return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+    .replace(/[^\p{L}�]+/gu, " ").trim().split(" ").filter(Boolean);
+}
+function wortGleich(a, b) {
+  if (a === b) return true;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i] && a[i] !== "�" && b[i] !== "�") return false;
+  }
+  return true;
+}
+// Anteil der Dispo-Woerter, die in der Stammliste vorkommen (0..1) und ob alle passen
+function nameBewertung(dispoWoerter, stammWoerter) {
+  let treffer = 0;
+  for (const w of dispoWoerter) if (stammWoerter.some((s) => wortGleich(w, s))) treffer++;
+  return {
+    alle: treffer === dispoWoerter.length && dispoWoerter.length >= 2,
+    wert: treffer / Math.max(dispoWoerter.length, stammWoerter.length)
+  };
+}
+
+function adminPlanung(ziel) {
+  let dispo = null;   // [{name, datum, schicht_id, beginn, ende}]
+  let stamm = null;   // [{pn, name}]
+
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, TEXTE.plan_titel));
+  karte.appendChild(el("p", "hinweisbox", TEXTE.plan_hinweis));
+
+  const dateiFeld = (beschriftung, accept, beiDatei) => {
+    karte.appendChild(el("div", "etikett", beschriftung));
+    const f = document.createElement("input");
+    f.type = "file";
+    f.accept = accept;
+    f.style.marginBottom = "12px";
+    f.onchange = async () => {
+      const datei = f.files && f.files[0];
+      if (!datei) return;
+      try { await beiDatei(datei); adminMeldung(null); }
+      catch (e) { adminMeldung("schlecht", String(e.message || e)); }
+      knopf.disabled = !(dispo && stamm);
+    };
+    karte.appendChild(f);
+    const info = el("div", "hinweisbox");
+    info.style.marginBottom = "12px";
+    karte.appendChild(info);
+    return info;
+  };
+
+  const infoDispo = dateiFeld(TEXTE.plan_label_dispo, ".xlsm,.xlsx", async (datei) => {
+    dispo = null;
+    await sheetJsLaden();
+    const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
+    const liste = dispoParsen(mappe);
+    if (liste.length === 0) { infoDispo.textContent = ""; throw new Error(TEXTE.plan_kein_blatt); }
+    dispo = liste;
+    const tage = new Set(liste.map((e) => e.datum)).size;
+    infoDispo.textContent = liste.length + " Schichten an " + tage + " Tagen gelesen.";
+  });
+  const infoStamm = dateiFeld(TEXTE.plan_label_stamm, ".xlsx,.xls", async (datei) => {
+    stamm = null;
+    stamm = await stammNamenLesen(datei);
+    infoStamm.textContent = stamm.length + " Personen gelesen.";
+  });
+
+  const knopf = el("button", "knopf-mittel", TEXTE.plan_pruefen);
+  knopf.type = "button";
+  knopf.disabled = true;
+  knopf.style.width = "100%";
+  karte.appendChild(knopf);
+
+  const ergebnis = el("div");
+  ergebnis.style.marginTop = "14px";
+  karte.appendChild(ergebnis);
+  ziel.appendChild(karte);
+
+  knopf.onclick = async () => {
+    knopf.disabled = true;
+    ergebnis.textContent = TEXTE.laedt;
+    const { data: ma } = await sb.from("employees").select("personalnummer").eq("aktiv", true);
+    knopf.disabled = false;
+    ergebnis.textContent = "";
+    planungVorschau(ergebnis, dispo, stamm, new Set((ma || []).map((m) => m.personalnummer)));
+  };
+}
+
+function planungVorschau(ziel, dispo, stamm, zugaenge) {
+  const daten = dispo.map((e) => e.datum).sort();
+  const montag = alsDatum(daten[0]);
+  montag.setDate(montag.getDate() - ((montag.getDay() + 6) % 7));
+  const kw = alsIso(montag);
+  const freitag = alsDatum(kw);
+  freitag.setDate(freitag.getDate() + 4);
+  if (daten[daten.length - 1] > alsIso(freitag)) {
+    ziel.appendChild(fehlerListe({ fehler: ["Die Dispo reicht über mehr als eine Woche (Mo–Fr)."] }));
+    return;
+  }
+
+  // nur Personen mit Zugang koennen zugeordnet werden
+  const personen = stamm
+    .filter((s) => zugaenge.has(s.pn))
+    .map((s) => ({ pn: s.pn, name: s.name, woerter: nameWoerter(s.name) }))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+  const ohneZugang = stamm.length - personen.length;
+
+  // Schichten je Dispo-Name
+  const nachName = new Map();
+  for (const e of dispo) {
+    if (!nachName.has(e.name)) nachName.set(e.name, []);
+    nachName.get(e.name).push(e);
+  }
+
+  const zeilen = [];   // {name, eintraege, auswahl(select), status(td)}
+  const kwNr = isoKw(alsDatum(kw));
+
+  const kopf = el("div", "meldung info");
+  ziel.appendChild(kopf);
+  ziel.appendChild(el("p", null,
+    "KW " + kwNr.kw + " · " + tagKurz(kw) + "–" + tagKurz(alsIso(freitag)) + " · " + TEXTE.plan_ersetzt));
+  if (ohneZugang > 0) ziel.appendChild(el("p", "hinweisbox", ohneZugang + TEXTE.plan_nicht_in_db));
+
+  const tab = el("table", "liste");
+  const th = el("tr");
+  ["Name in der Dispo", "Schichten", "Mitarbeiter"].forEach((t) => th.appendChild(el("th", null, t)));
+  const thead = el("thead"); thead.appendChild(th); tab.appendChild(thead);
+  const tbody = el("tbody");
+
+  for (const [name, eintraege] of nachName) {
+    const w = nameWoerter(name);
+    const bewertet = personen
+      .map((p) => ({ p: p, b: nameBewertung(w, p.woerter) }))
+      .filter((x) => x.b.wert >= 0.5 || x.b.alle)
+      .sort((a, b) => b.b.wert - a.b.wert);
+
+    // sicher: gleiche Woerter in beliebiger Reihenfolge, genau ein Treffer
+    const gleich = personen.filter((p) =>
+      p.woerter.length === w.length && nameBewertung(w, p.woerter).wert === 1);
+    let vorauswahl = null, hinweis = "";
+    if (gleich.length === 1) vorauswahl = gleich[0].pn;
+    else if (bewertet.length && (bewertet.length === 1 || bewertet[0].b.wert > bewertet[1].b.wert)
+             && bewertet[0].b.alle) {
+      vorauswahl = bewertet[0].p.pn;
+      hinweis = TEXTE.plan_vorschlag;
+    }
+
+    const sel = document.createElement("select");
+    const leer = document.createElement("option");
+    leer.value = ""; leer.textContent = TEXTE.plan_ueberspringen;
+    sel.appendChild(leer);
+    const vorn = new Set();
+    for (const x of bewertet) {
+      const o = document.createElement("option");
+      o.value = x.p.pn;
+      o.textContent = x.p.name + " (" + x.p.pn + ")" + (x.p.pn === vorauswahl ? hinweis : "");
+      sel.appendChild(o);
+      vorn.add(x.p.pn);
+    }
+    for (const p of personen) {
+      if (vorn.has(p.pn)) continue;
+      const o = document.createElement("option");
+      o.value = p.pn; o.textContent = p.name + " (" + p.pn + ")";
+      sel.appendChild(o);
+    }
+    sel.value = vorauswahl || "";
+
+    const tr = el("tr");
+    tr.appendChild(el("td", null, name));
+    tr.appendChild(el("td", null, String(eintraege.length)));
+    const tdSel = el("td"); tdSel.appendChild(sel); tr.appendChild(tdSel);
+    tbody.appendChild(tr);
+    zeilen.push({ eintraege: eintraege, sel: sel, tr: tr });
+  }
+  tab.appendChild(tbody);
+  ziel.appendChild(tab);
+
+  const aktualisieren = () => {
+    let zugeordnet = 0, schichten = 0, offen = 0;
+    for (const z of zeilen) {
+      const ok = z.sel.value !== "";
+      z.tr.className = ok ? "" : "status-nein";
+      if (ok) { zugeordnet++; schichten += z.eintraege.length; } else offen++;
+    }
+    kopf.textContent = schichten + " Schichten für " + zugeordnet + " Personen · " +
+      offen + " Namen übersprungen/ungeklärt";
+  };
+  zeilen.forEach((z) => { z.sel.onchange = aktualisieren; });
+  aktualisieren();
+
+  const btn = el("button", "knopf-mittel", TEXTE.plan_uebernehmen);
+  btn.type = "button";
+  btn.style.width = "100%";
+  btn.style.marginTop = "12px";
+  btn.onclick = async () => {
+    const liste = [];
+    for (const z of zeilen) {
+      if (!z.sel.value) continue;
+      for (const e of z.eintraege) {
+        liste.push({ personalnummer: z.sel.value, datum: e.datum, schicht_id: e.schicht_id,
+                     beginn: e.beginn, ende: e.ende });
+      }
+    }
+    btn.disabled = true;
+    btn.textContent = TEXTE.laedt;
+    const { data, error } = await sb.rpc("planung_ersetzen", { kw: kw, eintraege: liste });
+    btn.disabled = false;
+    btn.textContent = TEXTE.plan_uebernehmen;
+    if (error) { adminMeldung("schlecht", error.message); return; }
+    adminMeldung("gut", data + TEXTE.plan_fertig);
+  };
+  ziel.appendChild(btn);
 }
 
 /* ---------- Reiter 3: Einzelnes Passwort ---------- */
