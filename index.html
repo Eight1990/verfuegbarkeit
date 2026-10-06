@@ -298,6 +298,33 @@
   </div>
 </section>
 
+<!-- =================== EIGENES PASSWORT SETZEN =================== -->
+<section id="screen-pw-aendern" class="verborgen">
+  <header class="balken">
+    <div class="marke" data-marke></div>
+    <button class="knopf-klein" id="btn-pwa-abmelden"></button>
+  </header>
+  <div class="login-huelle">
+    <div class="login-karte">
+      <h1 id="pwa-titel"></h1>
+      <p id="pwa-hinweis"></p>
+      <div id="pwa-fehler" class="meldung schlecht verborgen"></div>
+
+      <form id="form-pw-aendern" autocomplete="off">
+        <div class="feldblock">
+          <label class="feld" for="pwa-neu" id="label-pwa-neu"></label>
+          <input id="pwa-neu" type="password" autocomplete="new-password" required>
+        </div>
+        <div class="feldblock">
+          <label class="feld" for="pwa-wdh" id="label-pwa-wdh"></label>
+          <input id="pwa-wdh" type="password" autocomplete="new-password" required>
+        </div>
+        <button type="submit" class="knopf-gross" id="btn-pwa-speichern"></button>
+      </form>
+    </div>
+  </div>
+</section>
+
 <!-- =================== MITARBEITER =================== -->
 <section id="screen-ma" class="verborgen">
   <header class="balken">
@@ -468,7 +495,9 @@ const CONFIG = {
   // Neuere Supabase-Projekte nutzen dieses Format anstelle des alten anon-Keys.
   SUPABASE_ANON_KEY: "sb_publishable_8POgbN5HX9axyHjJpUVRVQ_WzAGYu4d",
   EMAIL_DOMAIN:      "ma.zig.invalid",
-  PASSWORT_MIN:      6
+  PASSWORT_MIN:      6,
+  // Eigenes Passwort: gleiche Regel in der Edge Function passwort-setzen
+  PASSWORT_MIN_EIGEN: 8
 };
 
 /* =====================================================================
@@ -498,6 +527,20 @@ const TEXTE = {
   fehler_kein_admin:     "Dieser Zugang hat keine Admin-Rechte.",
   fehler_kein_zugang:    "Zugang nicht gefunden. Bitte im Büro melden.",
   fehler_keine_config:   "Die App ist noch nicht eingerichtet (Supabase-Zugang fehlt).",
+
+  // Eigenes Passwort setzen (Pflicht nach dem Startpasswort)
+  pwa_titel:             "Eigenes Passwort festlegen",
+  pwa_hinweis:           "Bitte legen Sie jetzt ein eigenes Passwort fest. Es muss mindestens 8 Zeichen lang sein und mindestens eine Ziffer und ein Sonderzeichen enthalten (z. B. ! ? # . -).",
+  label_pwa_neu:         "Neues Passwort",
+  label_pwa_wdh:         "Neues Passwort wiederholen",
+  btn_pwa_speichern:     "Passwort speichern",
+  btn_pwa_abmelden:      "Abmelden",
+  pwa_zu_kurz:           "Das Passwort muss mindestens 8 Zeichen haben.",
+  pwa_keine_ziffer:      "Das Passwort muss mindestens eine Ziffer enthalten.",
+  pwa_kein_sonderzeichen: "Das Passwort muss mindestens ein Sonderzeichen enthalten.",
+  pwa_ungleich:          "Die beiden Passwörter stimmen nicht überein.",
+  pwa_fehler_allgemein:  "Das Passwort konnte nicht gespeichert werden. Bitte noch einmal versuchen.",
+  pwa_neu_anmelden:      "Das Passwort wurde gespeichert. Bitte jetzt mit dem neuen Passwort anmelden.",
 
   // Kopf
   abmelden:              "Abmelden",
@@ -560,7 +603,7 @@ const TEXTE = {
   admin_pw_neu:          "Neues Passwort",
   admin_pw_setzen:       "Passwort setzen",
   admin_pw_fertig:       "Neues Passwort gesetzt für ",
-  admin_pw_hinweis:      "Mitarbeitende können ihr Passwort nicht selbst zurücksetzen.",
+  admin_pw_hinweis:      "Das Passwort gilt als Startpasswort: Mitarbeitende müssen beim nächsten Login ein eigenes Passwort festlegen. Ein vergessenes Passwort können nur Sie hier zurücksetzen.",
 
   admin_zeiten_titel:    "Woche wählen",
   admin_standard:        "Standardzeiten (gelten für neue Wochen)",
@@ -702,6 +745,8 @@ function loginAufbauen() {
 
   $("form-ma").onsubmit    = (e) => { e.preventDefault(); anmeldenMitarbeiter(); };
   $("form-admin").onsubmit = (e) => { e.preventDefault(); anmeldenAdmin(); };
+
+  pwAendernAufbauen();
 }
 
 function loginModusSetzen(modus) {
@@ -795,6 +840,7 @@ async function weiterNachAnmeldung() {
   if (istAdmin) {
     verbirg($("screen-login"));
     verbirg($("screen-ma"));
+    verbirg($("screen-pw-aendern"));
     zeige($("screen-admin"));
     await adminStarten();
     return;
@@ -811,6 +857,17 @@ async function weiterNachAnmeldung() {
   zustand.personalnummer = pn;
   verbirg($("screen-login"));
   verbirg($("screen-admin"));
+
+  // Nach dem Startpasswort ist ein eigenes Passwort Pflicht. Die Datenbank
+  // sperrt das Speichern zusaetzlich, solange das Flag gesetzt ist.
+  const { data: mussPw } = await sb.rpc("muss_passwort_aendern");
+  if (mussPw) {
+    verbirg($("screen-ma"));
+    pwAendernZeigen();
+    return;
+  }
+
+  verbirg($("screen-pw-aendern"));
   zeige($("screen-ma"));
   await wocheLaden();
 }
@@ -818,7 +875,85 @@ async function weiterNachAnmeldung() {
 function zeigeLogin() {
   verbirg($("screen-ma"));
   verbirg($("screen-admin"));
+  verbirg($("screen-pw-aendern"));
   zeige($("screen-login"));
+}
+
+/* =====================================================================
+   7b. EIGENES PASSWORT FESTLEGEN (Pflicht nach dem Startpasswort)
+   Die Regeln stehen auch in der Edge Function passwort-setzen. Die
+   Pruefung dort ist die verbindliche, diese hier nur fuer schnelle Rueckmeldung.
+===================================================================== */
+function pwAendernAufbauen() {
+  $("pwa-titel").textContent        = TEXTE.pwa_titel;
+  $("pwa-hinweis").textContent      = TEXTE.pwa_hinweis;
+  $("label-pwa-neu").textContent    = TEXTE.label_pwa_neu;
+  $("label-pwa-wdh").textContent    = TEXTE.label_pwa_wdh;
+  $("btn-pwa-speichern").textContent = TEXTE.btn_pwa_speichern;
+  $("btn-pwa-abmelden").textContent = TEXTE.btn_pwa_abmelden;
+
+  $("btn-pwa-abmelden").onclick = abmelden;
+  $("form-pw-aendern").onsubmit = (e) => { e.preventDefault(); pwAendernSpeichern(); };
+}
+
+function pwAendernZeigen() {
+  $("pwa-neu").value = "";
+  $("pwa-wdh").value = "";
+  pwaFehler(null);
+  zeige($("screen-pw-aendern"));
+  $("pwa-neu").focus();
+}
+
+function pwaFehler(text) {
+  const box = $("pwa-fehler");
+  if (!text) { verbirg(box); return; }
+  box.textContent = text;
+  zeige(box);
+}
+
+// Gibt den Fehlertext zurueck oder null, wenn das Passwort die Regeln erfuellt.
+function pwRegelFehler(pw) {
+  if (pw.length < CONFIG.PASSWORT_MIN_EIGEN) return TEXTE.pwa_zu_kurz;
+  if (!/[0-9]/.test(pw)) return TEXTE.pwa_keine_ziffer;
+  if (!/[^\p{L}\p{N}]/u.test(pw)) return TEXTE.pwa_kein_sonderzeichen;
+  return null;
+}
+
+async function pwAendernSpeichern() {
+  const neu = $("pwa-neu").value;
+  const wdh = $("pwa-wdh").value;
+
+  const regelFehler = pwRegelFehler(neu);
+  if (regelFehler) { pwaFehler(regelFehler); return; }
+  if (neu !== wdh) { pwaFehler(TEXTE.pwa_ungleich); return; }
+
+  const knopf = $("btn-pwa-speichern");
+  knopf.disabled = true;
+  pwaFehler(null);
+
+  const antwort = await funktionRufen("passwort-setzen", { passwort: neu });
+  if (!antwort || antwort.ok !== true) {
+    knopf.disabled = false;
+    const f = antwort && antwort.fehler;
+    pwaFehler((Array.isArray(f) ? f[0] : f) || TEXTE.pwa_fehler_allgemein);
+    return;
+  }
+
+  // Mit dem neuen Passwort frisch anmelden, damit die Sitzung sicher passt.
+  const email = zustand.personalnummer.toLowerCase() + "@" + CONFIG.EMAIL_DOMAIN;
+  const { error } = await sb.auth.signInWithPassword({ email: email, password: neu });
+  $("pwa-neu").value = "";
+  $("pwa-wdh").value = "";
+  knopf.disabled = false;
+
+  if (error) {
+    await sb.auth.signOut();
+    zeigeLogin();
+    loginFehler(TEXTE.pwa_neu_anmelden);
+    return;
+  }
+
+  await weiterNachAnmeldung();
 }
 
 /* =====================================================================

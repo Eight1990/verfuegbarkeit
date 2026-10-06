@@ -6,7 +6,8 @@
 --   2. ein Mitarbeiter keine fremden Daten schreiben kann,
 --   3. nach der Abgabefrist nichts mehr geaendert werden kann,
 --   4. eine deaktivierte Personalnummer nichts mehr speichern kann,
---   5. der Passwort-Fingerabdruck fuer niemanden lesbar ist.
+--   5. der Passwort-Fingerabdruck fuer niemanden lesbar ist,
+--   6. bei offenem Passwortwechsel (Migration 0005) nichts gespeichert wird.
 --
 -- VORHER: es muessen mindestens ZWEI aktive Personalnummern angelegt sein.
 --         Am einfachsten: im Admin-Bereich die Datei
@@ -42,6 +43,7 @@ declare
   v_eigene    int;
   v_text      text;
   v_frist_alt timestamptz;
+  v_a_flag    boolean;
   v_nr        int := 0;
 begin
   -- ------------------------------------------------------------------
@@ -92,6 +94,13 @@ begin
   -- eigene Eintraege von A zaehlen (Vergleichswert fuer Test 5)
   select count(*) into v_eigene
   from public.availability a where a.personalnummer = v_a_pn;
+
+  -- Passwortwechsel-Flag von A merken und fuer die Tests abschalten.
+  -- Ein offener Passwortwechsel sperrt das Speichern (siehe Test 11b);
+  -- am Ende wird der urspruengliche Wert wiederhergestellt.
+  select e.muss_pw_aendern into v_a_flag
+  from public.employees e where e.personalnummer = v_a_pn;
+  update public.employees set muss_pw_aendern = false where personalnummer = v_a_pn;
 
   -- ------------------------------------------------------------------
   -- Ab hier arbeiten wir als Mitarbeiter A
@@ -220,6 +229,37 @@ begin
       'gespeichert'::text, ('FEHLER: ' || left(sqlerrm, 70))::text, false;
   end;
 
+  -- 11b) Solange der Passwortwechsel offen ist, darf nicht gespeichert werden
+  execute 'reset role';
+  update public.employees set muss_pw_aendern = true where personalnummer = v_a_pn;
+  execute 'set local role authenticated';
+
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Passwortwechsel offen wird erkannt'::text,
+    'true'::text, public.muss_passwort_aendern()::text,
+    (public.muss_passwort_aendern() = true);
+
+  begin
+    perform public.abgabe_speichern(
+      v_kw, null, 'Selbsttest Passwortwechsel offen',
+      json_build_array(json_build_object('datum', v_datum, 'schicht_id', v_schicht))::jsonb
+    );
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Speichern bei offenem Passwortwechsel'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Speichern bei offenem Passwortwechsel'::text,
+      'abgelehnt'::text, 'abgelehnt'::text, true;
+  end;
+
+  -- Flag fuer die restlichen Tests wieder abschalten
+  execute 'reset role';
+  update public.employees set muss_pw_aendern = false where personalnummer = v_a_pn;
+
   -- ------------------------------------------------------------------
   -- 12) und 13) Nach Ablauf der Frist darf nichts mehr gespeichert werden
   -- ------------------------------------------------------------------
@@ -293,7 +333,9 @@ begin
 
   -- Aufraeumen
   execute 'reset role';
-  update public.employees set aktiv = true where personalnummer = v_a_pn;
+  update public.employees
+     set aktiv = true, muss_pw_aendern = v_a_flag
+   where personalnummer = v_a_pn;
   perform set_config('request.jwt.claims', '', true);
 
   return;

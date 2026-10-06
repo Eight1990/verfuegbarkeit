@@ -1,14 +1,18 @@
 // =====================================================================
-// Edge Function: reset-passwort
+// Edge Function: passwort-setzen
 //
-// Setzt das Passwort EINER Personalnummer neu. Nur fuer Administratoren.
-// Das Startpasswort gilt danach wieder, und der Mitarbeiter muss beim
-// naechsten Login ein eigenes Passwort setzen (siehe passwort-setzen).
+// Der angemeldete Mitarbeiter legt sein eigenes Passwort fest. Pflicht
+// nach dem ersten Login mit dem Startpasswort.
+//
+// Die Personalnummer kommt aus dem Anmelde-Token, nicht aus der Anfrage:
+// jeder kann nur sein eigenes Passwort aendern. Die Regeln werden hier
+// geprueft, nicht nur im Browser. Passwort und Flag werden zusammen
+// gesetzt, damit das Flag nicht ohne echte Aenderung fallen kann.
 // =====================================================================
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
-const PASSWORT_MIN_LAENGE = 6;
+const EIGEN_PASSWORT_MIN_LAENGE = 8;
 const PASSWORT_MAX_LAENGE = 72;
 
 const cors = {
@@ -47,13 +51,16 @@ Deno.serve(async (req: Request) => {
   const { data: userDaten, error: userFehler } = await admin.auth.getUser(token);
   if (userFehler || !userDaten?.user) return antwort({ fehler: "Nicht angemeldet." }, 401);
 
-  const { data: adminZeile } = await admin
-    .from("admins")
-    .select("user_id")
+  const { data: mitarbeiter, error: ladeFehler } = await admin
+    .from("employees")
+    .select("personalnummer, aktiv, passwort_fp")
     .eq("user_id", userDaten.user.id)
     .maybeSingle();
 
-  if (!adminZeile) return antwort({ fehler: "Keine Admin-Berechtigung." }, 403);
+  if (ladeFehler) return antwort({ fehler: ladeFehler.message }, 500);
+  if (!mitarbeiter || !mitarbeiter.aktiv) {
+    return antwort({ fehler: "Kein Mitarbeiter-Zugang." }, 403);
+  }
 
   // --- Eingabe pruefen ----------------------------------------------
   let body: any;
@@ -63,51 +70,41 @@ Deno.serve(async (req: Request) => {
     return antwort({ fehler: "Ungueltige Daten." }, 400);
   }
 
-  const pn = String(body?.personalnummer ?? "").trim();
-  const pw = String(body?.passwort ?? "").trim();
+  // Bewusst ohne trim: Leerzeichen am Rand gehoeren zum Passwort.
+  const pw = String(body?.passwort ?? "");
 
-  if (!pn) return antwort({ fehler: "Personalnummer fehlt." }, 400);
-  if (pw.length < PASSWORT_MIN_LAENGE) {
-    return antwort({ fehler: `Passwort muss mindestens ${PASSWORT_MIN_LAENGE} Zeichen haben.` }, 400);
+  if (pw.length < EIGEN_PASSWORT_MIN_LAENGE) {
+    return antwort({ fehler: `Passwort muss mindestens ${EIGEN_PASSWORT_MIN_LAENGE} Zeichen haben.` }, 400);
   }
   if (pw.length > PASSWORT_MAX_LAENGE) {
     return antwort({ fehler: `Passwort darf hoechstens ${PASSWORT_MAX_LAENGE} Zeichen haben.` }, 400);
   }
-
-  // --- Mitarbeiter suchen -------------------------------------------
-  const { data: mitarbeiter, error: ladeFehler } = await admin
-    .from("employees")
-    .select("personalnummer, user_id, aktiv")
-    .eq("personalnummer", pn)
-    .maybeSingle();
-
-  if (ladeFehler) return antwort({ fehler: ladeFehler.message }, 500);
-  if (!mitarbeiter) return antwort({ fehler: `Personalnummer ${pn} ist nicht angelegt.` }, 404);
-  if (!mitarbeiter.user_id) {
-    return antwort(
-      { fehler: `Personalnummer ${pn} hat keinen Zugang. Bitte Stammliste neu hochladen.` },
-      409,
-    );
+  if (!/[0-9]/.test(pw)) {
+    return antwort({ fehler: "Passwort muss mindestens eine Ziffer enthalten." }, 400);
   }
-  if (!mitarbeiter.aktiv) {
-    return antwort(
-      { fehler: `Personalnummer ${pn} ist deaktiviert. Bitte zuerst wieder in die Stammliste aufnehmen.` },
-      409,
-    );
+  if (!/[^\p{L}\p{N}]/u.test(pw)) {
+    return antwort({ fehler: "Passwort muss mindestens ein Sonderzeichen enthalten." }, 400);
   }
 
-  // --- Passwort setzen ----------------------------------------------
-  const { error: setzFehler } = await admin.auth.admin.updateUserById(mitarbeiter.user_id, {
+  const pn = mitarbeiter.personalnummer as string;
+  const fp = await fingerabdruck(pn, pw, serviceKey);
+  if (fp === mitarbeiter.passwort_fp) {
+    return antwort({ fehler: "Das neue Passwort darf nicht dem Startpasswort entsprechen." }, 400);
+  }
+
+  // --- Passwort setzen, dann Flag loeschen ----------------------------
+  const { error: setzFehler } = await admin.auth.admin.updateUserById(userDaten.user.id, {
     password: pw,
   });
   if (setzFehler) return antwort({ fehler: setzFehler.message }, 500);
 
-  const fp = await fingerabdruck(pn, pw, serviceKey);
+  // passwort_fp bleibt unveraendert: der Stammlisten-Import erkennt so
+  // "Liste unveraendert" und laesst das eigene Passwort in Ruhe.
   const { error: updFehler } = await admin
     .from("employees")
-    .update({ passwort_fp: fp, muss_pw_aendern: true })
+    .update({ muss_pw_aendern: false })
     .eq("personalnummer", pn);
   if (updFehler) return antwort({ fehler: updFehler.message }, 500);
 
-  return antwort({ ok: true, personalnummer: pn });
+  return antwort({ ok: true });
 });

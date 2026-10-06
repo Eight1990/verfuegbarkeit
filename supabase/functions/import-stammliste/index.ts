@@ -242,10 +242,21 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // Neues oder geaendertes Listen-Passwort: der Mitarbeiter muss beim
+      // naechsten Login wieder ein eigenes Passwort setzen. Bei unveraenderter
+      // Liste bleibt das Flag (und damit das Eigen-Passwort) unangetastet.
+      const passwortNeuGesetzt = !vorhanden || vorhanden.passwort_fp !== fp;
+
       const { error: upsertFehler } = await admin
         .from("employees")
         .upsert(
-          { personalnummer: pn, user_id: userId, aktiv: true, passwort_fp: fp },
+          {
+            personalnummer: pn,
+            user_id: userId,
+            aktiv: true,
+            passwort_fp: fp,
+            ...(passwortNeuGesetzt ? { muss_pw_aendern: true } : {}),
+          },
           { onConflict: "personalnummer" },
         );
       if (upsertFehler) throw upsertFehler;

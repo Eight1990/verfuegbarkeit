@@ -27,7 +27,10 @@ CSV oder JSON herunter und gibst diese Datei an die Planungs-KI weiter.
 ## Wie es für die Mitarbeitenden aussieht
 
 1. Link öffnen (am Handy).
-2. Personalnummer und Passwort eingeben. Das Gerät bleibt angemeldet.
+2. Personalnummer und Startpasswort eingeben. Beim ersten Login legt jede Person
+   ein **eigenes Passwort** fest (mindestens 8 Zeichen, eine Ziffer, ein
+   Sonderzeichen). Danach gilt nur noch das eigene Passwort. Das Gerät bleibt
+   angemeldet.
 3. Oben steht groß, um welche Woche es geht, z. B. **KW 40 · 28.09.–02.10.**
 4. Pro Tag drei große Schaltflächen: **Frühschicht**, **Spätschicht**,
    **Lange Spätschicht** — jeweils mit Uhrzeit und Symbol.
@@ -117,9 +120,9 @@ Links auf **Authentication**.
      automatisch bestätigt.
 2. Fertig. Mehr ist hier nicht einzustellen.
 
-### Schritt 5 — Die zwei Server-Funktionen einspielen
+### Schritt 5 — Die Server-Funktionen einspielen
 
-Diese zwei Funktionen legen Zugänge an und setzen Passwörter. Sie laufen auf
+Diese Funktionen legen Zugänge an und setzen Passwörter. Sie laufen auf
 dem Server, weil sie erhöhte Rechte brauchen — diese Rechte dürfen niemals in
 die Webseite gelangen.
 
@@ -134,6 +137,12 @@ Links auf **Edge Functions** → **Deploy a new function** → **Via Editor**.
 - Name exakt: `reset-passwort`
 - Inhalt: kompletter Text aus `supabase/functions/reset-passwort/index.ts`
 - **Deploy**
+
+**Funktion 3** (eigenes Passwort der Mitarbeitenden):
+- Name exakt: `passwort-setzen`
+- Inhalt: kompletter Text aus `supabase/functions/passwort-setzen/index.ts`
+- **Deploy**
+- Zusätzlich einmal `0005_passwort_aendern.sql` im SQL Editor ausführen.
 
 Die Namen müssen genau so geschrieben sein, sonst findet die App sie nicht.
 
@@ -293,7 +302,9 @@ funktionieren beide.
 
 **Was der Import macht:**
 - Nummern, die es noch nicht gibt → **neuer Zugang**
-- Nummern mit **geändertem** Passwort → Passwort wird ersetzt
+- Nummern mit **geändertem** Passwort → Passwort wird ersetzt. Die Person muss
+  beim nächsten Login wieder ein eigenes Passwort festlegen. Bei **unveränderter**
+  Liste bleibt das eigene Passwort bestehen.
 - Nummern, die **nicht mehr** in der Liste stehen → **deaktiviert**, nicht
   gelöscht. Die Person kann sich nicht mehr anmelden, bisherige Angaben bleiben
   für den Export erhalten.
@@ -307,8 +318,9 @@ Du kannst die Liste jederzeit erneut hochladen. Sie ist die maßgebliche Quelle.
 > diese Spalte lesen — auch kein Admin. Nur die Server-Funktion kommt daran.
 
 **Einzelnes Passwort zurücksetzen:** Reiter **Passwort** → Personalnummer und
-neues Passwort eintragen → **Passwort setzen**. Mitarbeitende können das
-**nicht** selbst; sie müssen sich bei dir melden.
+neues Passwort eintragen → **Passwort setzen**. Das gilt dann als Startpasswort:
+die Person legt beim nächsten Login wieder ein eigenes fest. Ein **vergessenes**
+Passwort können Mitarbeitende nicht selbst zurücksetzen; sie melden sich bei dir.
 
 ---
 
@@ -545,10 +557,12 @@ supabase/migrations/0001_init.sql             Tabellen, Hilfsfunktionen, Trigger
 supabase/migrations/0002_rls.sql              Schutzregeln, Rechte, RPC-Funktionen
 supabase/migrations/0003_standard_schichten.sql   Standard-Schichten, erste Woche
 supabase/migrations/0004_loeschfrist.sql          Löschfrist (optional, siehe Datenschutz)
+supabase/migrations/0005_passwort_aendern.sql     eigenes Passwort nach dem Startpasswort
 vendor/                                       lokale Kopien von supabase-js und SheetJS
 
 supabase/functions/import-stammliste/index.ts     Stammliste einlesen (Server)
 supabase/functions/reset-passwort/index.ts        Einzelpasswort setzen (Server)
+supabase/functions/passwort-setzen/index.ts       eigenes Passwort festlegen (Server)
 
 supabase/tests/rls_selbsttest.sql             Sicherheitsregeln nachprüfen
 
