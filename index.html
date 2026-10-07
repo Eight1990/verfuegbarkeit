@@ -273,23 +273,40 @@
     color:var(--grau-hell);text-decoration:underline;cursor:pointer;
   }
 
+  /* ---------- Sprachwahl (Flagge im Fuss) ---------- */
+  footer.fuss button.sprach-knopf{
+    display:inline-flex;align-items:center;gap:6px;text-decoration:none;
+    padding:6px 8px;vertical-align:middle;
+  }
+  .flagge{display:inline-block;width:30px;height:20px;border:1px solid rgba(0,0,0,.28);border-radius:3px;overflow:hidden;flex:0 0 auto;line-height:0;}
+  .flagge svg{display:block;width:100%;height:100%;}
+  #sprache-liste{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding-top:12px;}
+  #sprache-liste button{
+    display:flex;align-items:center;gap:10px;min-height:48px;padding:8px 10px;
+    background:#fff;border:2px solid var(--rand);border-radius:12px;
+    font:inherit;font-size:16px;color:var(--grau);cursor:pointer;text-align:left;
+  }
+  #sprache-liste button[aria-current="true"]{border-color:var(--grau);font-weight:bold;}
+  @media (max-width:340px){ #sprache-liste{grid-template-columns:1fr;} }
+
   /* ---------- Rechtstexte ---------- */
-  #recht{
+  #recht, #sprache{
     position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.5);
     display:flex;align-items:flex-end;justify-content:center;
   }
-  #recht .box{
+  #recht .box, #sprache .box{
     background:#fff;width:100%;max-width:640px;
     max-height:calc(100% - 72px - env(safe-area-inset-top,0px));
     border-radius:var(--radius) var(--radius) 0 0;
     display:flex;flex-direction:column;
   }
-  #recht .box-kopf{
+  #recht .box-kopf, #sprache .box-kopf{
     display:flex;align-items:center;justify-content:space-between;
     padding:14px 16px;border-bottom:1px solid var(--rand);flex:0 0 auto;
   }
-  #recht .box-kopf h2{margin:0;font-size:20px;}
-  #recht .box-inhalt{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 16px calc(24px + env(safe-area-inset-bottom,0px));font-size:15px;line-height:1.5;}
+  #recht .box-kopf h2, #sprache .box-kopf h2{margin:0;font-size:20px;}
+  #recht .box-inhalt, #sprache .box-inhalt{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 16px calc(24px + env(safe-area-inset-bottom,0px));font-size:15px;line-height:1.5;}
+  #recht-hinweis{background:#fff3cd;border-radius:10px;padding:8px 10px;margin:12px 0 0;font-size:14px;}
   #recht h3{font-size:16px;margin:18px 0 4px;}
   #recht p{margin:0 0 8px;}
 
@@ -466,6 +483,7 @@
       <button class="knopf-klein" id="recht-zu">Schließen</button>
     </div>
     <div class="box-inhalt">
+      <p id="recht-hinweis" class="verborgen"></p>
 
       <div id="recht-impressum" class="verborgen">
         <h3>Angaben gemäß § 5 DDG</h3>
@@ -519,7 +537,9 @@
 
         <h3>Cookies und Tracking</h3>
         <p>Es gibt kein Tracking, keine Analyse- und keine Werbe-Cookies. Gespeichert wird nur die für die
-           Anmeldung technisch notwendige Sitzung im Speicher Ihres Geräts; sie wird beim Abmelden entfernt.</p>
+           Anmeldung technisch notwendige Sitzung im Speicher Ihres Geräts; sie wird beim Abmelden entfernt.
+           Außerdem merkt sich Ihr Gerät die von Ihnen gewählte Anzeigesprache; diese Einstellung wird nicht
+           an uns übermittelt.</p>
 
         <h3>Speicherdauer</h3>
         <p>Zusätzlich speichern wir Ihre geplanten Schichten (Datum, Schichtart, Uhrzeiten), damit Sie
@@ -542,6 +562,19 @@
            (Fußzeile, „Datenschutz“).</p>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- =================== SPRACHWAHL =================== -->
+<div id="sprache" class="verborgen" role="dialog" aria-modal="true" aria-labelledby="sprache-titel">
+  <div class="box">
+    <div class="box-kopf">
+      <h2 id="sprache-titel"></h2>
+      <button class="knopf-klein" id="sprache-zu"></button>
+    </div>
+    <div class="box-inhalt">
+      <div id="sprache-liste"></div>
     </div>
   </div>
 </div>
@@ -570,10 +603,23 @@ const CONFIG = {
 
 /* =====================================================================
    2. ALLE TEXTE AN EINER STELLE
-   Fuer eine weitere Sprache genuegt es, dieses Objekt zu kopieren
-   und die Werte zu uebersetzen.
+   Deutsch ist die Grundlage (TEXTE_DE). Die Sprachen fuer Mitarbeitende
+   stehen weiter unten in UEBERSETZUNGEN; fehlt dort ein Schluessel,
+   gilt der deutsche Text. Der Admin-Bereich bleibt immer Deutsch.
 ===================================================================== */
-const TEXTE = {
+const TEXTE_DE = {
+  // Sprachwahl und kleine Zusatztexte
+  heute:                 "Heute",
+  morgen:                "Morgen",
+  heute_klammer:         " (heute)",
+  ma_schichten_anzahl:   "Schichten: ",
+  tage_so_kurz:          ["So","Mo","Di","Mi","Do","Fr","Sa"],
+  tage_so_lang:          ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"],
+  sprache_titel:         "Sprache",
+  sprache_waehlen:       "Sprache wählen",
+  schliessen:            "Schließen",
+  recht_hinweis:         "",
+
   // Kopfzeile und Seitentitel
   seiten_titel:          "Verfügbarkeit",
   marke_vorn:            "Zeit ist",
@@ -702,9 +748,6 @@ const TEXTE = {
   ma_plan_hinweis:       "Stimmt etwas nicht? Bitte im Büro melden: ",
   ma_telefon:            "08122 553300",
   ma_telefon_href:       "tel:+498122553300",
-  ma_oder:               " oder ",
-  ma_handy:              "0174 9491486",
-  ma_handy_href:         "tel:+491749491486",
   schicht_namen:         { FRUEH: "Früh", SPAET: "Spät", LANG: "Lang", BUERO: "Büro" },
   admin_woche:           "Woche",
   admin_abgaben_titel:   "Abgabestatus",
@@ -752,6 +795,525 @@ const TEXTE = {
 
   export_hinweis_text:   "Angaben sind maximale Verfügbarkeit, ungeprüft gegen Arbeitszeitrecht. Eine Verfügbarkeit für LANG schließt SPAET ein."
 };
+// Lebendes Objekt: wird beim Sprachwechsel in-place ueberschrieben (siehe sprachSetzen)
+const TEXTE = Object.assign({}, TEXTE_DE);
+
+/* =====================================================================
+   2b. SPRACHEN FUER MITARBEITENDE
+   Nur Texte, die Mitarbeitende sehen (Login, Passwort, Planung,
+   Verfuegbarkeit). Impressum und Datenschutz bleiben Deutsch.
+===================================================================== */
+const UEBERSETZUNGEN = {
+  en: {
+    seiten_titel: "Availability", login_titel_ma: "Log in", label_personalnummer: "Personnel number",
+    label_passwort: "Password", btn_anmelden: "Log in",
+    fehler_login: "Personnel number or password is wrong.",
+    fehler_gesperrt: "This account is no longer active. Please contact the office.",
+    fehler_kein_zugang: "Account not found. Please contact the office.",
+    pwa_titel: "Set your own password",
+    pwa_hinweis: "Please set your own password now. It must be at least 8 characters long and contain at least one digit and one special character (e.g. ! ? # . -).",
+    label_pwa_neu: "New password", label_pwa_wdh: "Repeat new password",
+    btn_pwa_speichern: "Save password", btn_pwa_abmelden: "Log out",
+    pwa_zu_kurz: "The password must be at least 8 characters long.",
+    pwa_keine_ziffer: "The password must contain at least one digit.",
+    pwa_kein_sonderzeichen: "The password must contain at least one special character.",
+    pwa_ungleich: "The two passwords do not match.",
+    pwa_fehler_allgemein: "The password could not be saved. Please try again.",
+    pwa_neu_anmelden: "The password was saved. Please log in now with your new password.",
+    abmelden: "Log out", kw_praefix: "Week ", frist_bis: "Editable until ",
+    frist_vorbei: "Deadline passed – view only", gespeichert_am: "Sent on ",
+    alles_moeglich: "All\npossible", nichts: "None", wie_letzte_woche: "Like last\nweek",
+    ganzer_tag: "Whole day", tag_gesperrt: "No work",
+    wochentage: ["Monday","Tuesday","Wednesday","Thursday","Friday"],
+    tage_so_kurz: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
+    tage_so_lang: ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"],
+    titel_max: "At most … shifts this week", max_ohne_grenze: "no limit",
+    summe_text: "Possible hours: ", senden: "Send", gespeichert: "Saved",
+    keine_letzte_woche: "There is no entry for last week.",
+    fehler_speichern: "Could not be saved: ",
+    fehler_frist: "The deadline has passed. Nothing can be changed anymore.",
+    laedt: "One moment …",
+    ma_plan_titel: "My schedule", ma_plan_noch_nichts: "No schedule has been loaded yet for the coming days.",
+    ma_plan_stand: "As of: ", ma_btn_planung: "My schedule", ma_btn_verf: "Enter availability",
+    ma_zurueck: "← Back", ma_diese_woche: "This week", ma_naechste_woche: "Next week",
+    ma_abgegeben: "✓ submitted", ma_offen: "not submitted yet",
+    ma_naechste_schicht: "Next shift: ", ma_keine_weitere: "No further shift in these two weeks",
+    ma_plan_noch_nichts_kurz: "No schedule loaded yet", ma_plan_fehler_kurz: "Schedule could not be loaded",
+    ma_tag_antippen: "Tap a day for details.", ma_frei: "no shift",
+    ma_plan_fehler: "The schedule could not be loaded. Please reload or contact the office.",
+    ma_plan_neu_laden: "Reload", ma_plan_hinweis: "Something wrong? Please tell the office: ", ma_oder: " or ",
+    schicht_namen: { FRUEH: "Early", SPAET: "Late", LANG: "Long", BUERO: "Office" },
+    heute: "Today", morgen: "Tomorrow", heute_klammer: " (today)", ma_schichten_anzahl: "Shifts: ",
+    sprache_titel: "Language", sprache_waehlen: "Choose language", schliessen: "Close",
+    recht_hinweis: "Impressum and Datenschutz (legal notice and privacy policy) are only available in German. The German version is the legally binding one."
+  },
+  uk: {
+    seiten_titel: "Доступність", login_titel_ma: "Вхід", label_personalnummer: "Табельний номер",
+    label_passwort: "Пароль", btn_anmelden: "Увійти",
+    fehler_login: "Неправильний табельний номер або пароль.",
+    fehler_gesperrt: "Цей доступ більше не активний. Зверніться до офісу.",
+    fehler_kein_zugang: "Доступ не знайдено. Зверніться до офісу.",
+    pwa_titel: "Встановіть власний пароль",
+    pwa_hinweis: "Будь ласка, встановіть власний пароль. Він має містити щонайменше 8 символів, принаймні одну цифру та один спеціальний символ (напр. ! ? # . -).",
+    label_pwa_neu: "Новий пароль", label_pwa_wdh: "Повторіть новий пароль",
+    btn_pwa_speichern: "Зберегти пароль", btn_pwa_abmelden: "Вийти",
+    pwa_zu_kurz: "Пароль має містити щонайменше 8 символів.",
+    pwa_keine_ziffer: "Пароль має містити щонайменше одну цифру.",
+    pwa_kein_sonderzeichen: "Пароль має містити щонайменше один спеціальний символ.",
+    pwa_ungleich: "Паролі не збігаються.",
+    pwa_fehler_allgemein: "Не вдалося зберегти пароль. Спробуйте ще раз.",
+    pwa_neu_anmelden: "Пароль збережено. Тепер увійдіть із новим паролем.",
+    abmelden: "Вийти", kw_praefix: "Тиждень ", frist_bis: "Можна змінювати до ",
+    frist_vorbei: "Термін минув – лише перегляд", gespeichert_am: "Надіслано ",
+    alles_moeglich: "Усе\nможливо", nichts: "Нічого", wie_letzte_woche: "Як минулого\nтижня",
+    ganzer_tag: "Весь день", tag_gesperrt: "Немає роботи",
+    wochentage: ["Понеділок","Вівторок","Середа","Четвер","П’ятниця"],
+    tage_so_kurz: ["Нд","Пн","Вт","Ср","Чт","Пт","Сб"],
+    tage_so_lang: ["Неділя","Понеділок","Вівторок","Середа","Четвер","П’ятниця","Субота"],
+    titel_max: "Не більше … змін цього тижня", max_ohne_grenze: "без обмежень",
+    summe_text: "Можливих годин: ", senden: "Надіслати", gespeichert: "Збережено",
+    keine_letzte_woche: "За минулий тиждень немає даних.",
+    fehler_speichern: "Не вдалося зберегти: ",
+    fehler_frist: "Термін минув. Змінити вже нічого не можна.",
+    laedt: "Хвилинку …",
+    ma_plan_titel: "Мій графік", ma_plan_noch_nichts: "Для найближчих днів графік ще не завантажено.",
+    ma_plan_stand: "Станом на: ", ma_btn_planung: "Мій графік", ma_btn_verf: "Вказати доступність",
+    ma_zurueck: "← Назад", ma_diese_woche: "Цей тиждень", ma_naechste_woche: "Наступний тиждень",
+    ma_abgegeben: "✓ надіслано", ma_offen: "ще не надіслано",
+    ma_naechste_schicht: "Наступна зміна: ", ma_keine_weitere: "Більше змін у ці два тижні немає",
+    ma_plan_noch_nichts_kurz: "Графік ще не завантажено", ma_plan_fehler_kurz: "Не вдалося завантажити графік",
+    ma_tag_antippen: "Торкніться дня, щоб побачити деталі.", ma_frei: "немає зміни",
+    ma_plan_fehler: "Не вдалося завантажити графік. Оновіть сторінку або зверніться до офісу.",
+    ma_plan_neu_laden: "Оновити", ma_plan_hinweis: "Щось не так? Повідомте офіс: ", ma_oder: " або ",
+    schicht_namen: { FRUEH: "Рання", SPAET: "Пізня", LANG: "Довга", BUERO: "Офіс" },
+    heute: "Сьогодні", morgen: "Завтра", heute_klammer: " (сьогодні)", ma_schichten_anzahl: "Змін: ",
+    sprache_titel: "Мова", sprache_waehlen: "Обрати мову", schliessen: "Закрити",
+    recht_hinweis: "Impressum і Datenschutz (вихідні дані та політика конфіденційності) доступні лише німецькою. Юридично обов’язковою є німецька версія."
+  },
+  tr: {
+    seiten_titel: "Müsaitlik", login_titel_ma: "Giriş", label_personalnummer: "Personel numarası",
+    label_passwort: "Şifre", btn_anmelden: "Giriş yap",
+    fehler_login: "Personel numarası veya şifre yanlış.",
+    fehler_gesperrt: "Bu hesap artık aktif değil. Lütfen ofise başvurun.",
+    fehler_kein_zugang: "Hesap bulunamadı. Lütfen ofise başvurun.",
+    pwa_titel: "Kendi şifrenizi belirleyin",
+    pwa_hinweis: "Lütfen şimdi kendi şifrenizi belirleyin. En az 8 karakter uzunluğunda olmalı ve en az bir rakam ile bir özel karakter içermelidir (ör. ! ? # . -).",
+    label_pwa_neu: "Yeni şifre", label_pwa_wdh: "Yeni şifreyi tekrarlayın",
+    btn_pwa_speichern: "Şifreyi kaydet", btn_pwa_abmelden: "Çıkış yap",
+    pwa_zu_kurz: "Şifre en az 8 karakter olmalıdır.",
+    pwa_keine_ziffer: "Şifre en az bir rakam içermelidir.",
+    pwa_kein_sonderzeichen: "Şifre en az bir özel karakter içermelidir.",
+    pwa_ungleich: "İki şifre birbiriyle eşleşmiyor.",
+    pwa_fehler_allgemein: "Şifre kaydedilemedi. Lütfen tekrar deneyin.",
+    pwa_neu_anmelden: "Şifre kaydedildi. Lütfen şimdi yeni şifrenizle giriş yapın.",
+    abmelden: "Çıkış yap", kw_praefix: "Hafta ", frist_bis: "Son değişiklik zamanı: ",
+    frist_vorbei: "Süre doldu – yalnızca görüntüleme", gespeichert_am: "Gönderim zamanı: ",
+    alles_moeglich: "Hepsi\nmümkün", nichts: "Hiçbiri", wie_letzte_woche: "Geçen hafta\ngibi",
+    ganzer_tag: "Tüm gün", tag_gesperrt: "Çalışma yok",
+    wochentage: ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma"],
+    tage_so_kurz: ["Paz","Pzt","Sal","Çar","Per","Cum","Cmt"],
+    tage_so_lang: ["Pazar","Pazartesi","Salı","Çarşamba","Perşembe","Cuma","Cumartesi"],
+    titel_max: "Bu hafta en fazla … vardiya", max_ohne_grenze: "sınır yok",
+    summe_text: "Olası saat: ", senden: "Gönder", gespeichert: "Kaydedildi",
+    keine_letzte_woche: "Geçen hafta için giriş yok.",
+    fehler_speichern: "Kaydedilemedi: ",
+    fehler_frist: "Süre doldu. Artık değişiklik yapılamaz.",
+    laedt: "Bir saniye …",
+    ma_plan_titel: "Planım", ma_plan_noch_nichts: "Önümüzdeki günler için henüz plan yüklenmedi.",
+    ma_plan_stand: "Güncelleme: ", ma_btn_planung: "Planım", ma_btn_verf: "Müsaitlik gir",
+    ma_zurueck: "← Geri", ma_diese_woche: "Bu hafta", ma_naechste_woche: "Gelecek hafta",
+    ma_abgegeben: "✓ gönderildi", ma_offen: "henüz gönderilmedi",
+    ma_naechste_schicht: "Sonraki vardiya: ", ma_keine_weitere: "Bu iki haftada başka vardiya yok",
+    ma_plan_noch_nichts_kurz: "Henüz plan yüklenmedi", ma_plan_fehler_kurz: "Plan yüklenemedi",
+    ma_tag_antippen: "Ayrıntılar için bir güne dokunun.", ma_frei: "vardiya yok",
+    ma_plan_fehler: "Plan yüklenemedi. Lütfen sayfayı yenileyin veya ofise bildirin.",
+    ma_plan_neu_laden: "Yenile", ma_plan_hinweis: "Bir sorun mu var? Lütfen ofise bildirin: ", ma_oder: " veya ",
+    schicht_namen: { FRUEH: "Sabah", SPAET: "Akşam", LANG: "Uzun", BUERO: "Ofis" },
+    heute: "Bugün", morgen: "Yarın", heute_klammer: " (bugün)", ma_schichten_anzahl: "Vardiya: ",
+    sprache_titel: "Dil", sprache_waehlen: "Dil seç", schliessen: "Kapat",
+    recht_hinweis: "Impressum ve Datenschutz (yasal bilgiler ve gizlilik politikası) yalnızca Almanca olarak mevcuttur. Hukuken geçerli olan Almanca sürümdür."
+  },
+  bs: {
+    seiten_titel: "Dostupnost", login_titel_ma: "Prijava", label_personalnummer: "Personalni broj",
+    label_passwort: "Lozinka", btn_anmelden: "Prijavi se",
+    fehler_login: "Personalni broj ili lozinka nisu tačni.",
+    fehler_gesperrt: "Ovaj pristup više nije aktivan. Obratite se kancelariji.",
+    fehler_kein_zugang: "Pristup nije pronađen. Obratite se kancelariji.",
+    pwa_titel: "Postavite vlastitu lozinku",
+    pwa_hinweis: "Molimo postavite sada vlastitu lozinku. Mora imati najmanje 8 znakova te sadržavati najmanje jednu cifru i jedan poseban znak (npr. ! ? # . -).",
+    label_pwa_neu: "Nova lozinka", label_pwa_wdh: "Ponovite novu lozinku",
+    btn_pwa_speichern: "Sačuvaj lozinku", btn_pwa_abmelden: "Odjavi se",
+    pwa_zu_kurz: "Lozinka mora imati najmanje 8 znakova.",
+    pwa_keine_ziffer: "Lozinka mora sadržavati najmanje jednu cifru.",
+    pwa_kein_sonderzeichen: "Lozinka mora sadržavati najmanje jedan poseban znak.",
+    pwa_ungleich: "Lozinke se ne podudaraju.",
+    pwa_fehler_allgemein: "Lozinka nije mogla biti sačuvana. Pokušajte ponovo.",
+    pwa_neu_anmelden: "Lozinka je sačuvana. Molimo prijavite se sada novom lozinkom.",
+    abmelden: "Odjavi se", kw_praefix: "Sedmica ", frist_bis: "Izmjena moguća do ",
+    frist_vorbei: "Rok je istekao – samo pregled", gespeichert_am: "Poslano ",
+    alles_moeglich: "Sve\nmoguće", nichts: "Ništa", wie_letzte_woche: "Kao prošle\nsedmice",
+    ganzer_tag: "Cijeli dan", tag_gesperrt: "Nema rada",
+    wochentage: ["Ponedjeljak","Utorak","Srijeda","Četvrtak","Petak"],
+    tage_so_kurz: ["Ned","Pon","Uto","Sri","Čet","Pet","Sub"],
+    tage_so_lang: ["Nedjelja","Ponedjeljak","Utorak","Srijeda","Četvrtak","Petak","Subota"],
+    titel_max: "Najviše … smjena ove sedmice", max_ohne_grenze: "bez ograničenja",
+    summe_text: "Moguće sati: ", senden: "Pošalji", gespeichert: "Sačuvano",
+    keine_letzte_woche: "Za prošlu sedmicu nema unosa.",
+    fehler_speichern: "Nije moglo biti sačuvano: ",
+    fehler_frist: "Rok je istekao. Više se ništa ne može mijenjati.",
+    laedt: "Trenutak …",
+    ma_plan_titel: "Moj raspored", ma_plan_noch_nichts: "Za naredne dane raspored još nije učitan.",
+    ma_plan_stand: "Stanje: ", ma_btn_planung: "Moj raspored", ma_btn_verf: "Unesi dostupnost",
+    ma_zurueck: "← Nazad", ma_diese_woche: "Ova sedmica", ma_naechste_woche: "Sljedeća sedmica",
+    ma_abgegeben: "✓ poslano", ma_offen: "još nije poslano",
+    ma_naechste_schicht: "Sljedeća smjena: ", ma_keine_weitere: "Nema više smjena u ove dvije sedmice",
+    ma_plan_noch_nichts_kurz: "Raspored još nije učitan", ma_plan_fehler_kurz: "Raspored nije mogao biti učitan",
+    ma_tag_antippen: "Dodirnite dan za detalje.", ma_frei: "nema smjene",
+    ma_plan_fehler: "Raspored nije mogao biti učitan. Osvježite stranicu ili se obratite kancelariji.",
+    ma_plan_neu_laden: "Osvježi", ma_plan_hinweis: "Nešto nije u redu? Javite kancelariji: ", ma_oder: " ili ",
+    schicht_namen: { FRUEH: "Jutarnja", SPAET: "Večernja", LANG: "Duga", BUERO: "Kancelarija" },
+    heute: "Danas", morgen: "Sutra", heute_klammer: " (danas)", ma_schichten_anzahl: "Smjena: ",
+    sprache_titel: "Jezik", sprache_waehlen: "Odaberi jezik", schliessen: "Zatvori",
+    recht_hinweis: "Impressum i Datenschutz (pravne informacije i politika privatnosti) dostupni su samo na njemačkom jeziku. Pravno obavezujuća je njemačka verzija."
+  },
+  hr: {
+    seiten_titel: "Dostupnost", login_titel_ma: "Prijava", label_personalnummer: "Personalni broj",
+    label_passwort: "Lozinka", btn_anmelden: "Prijavi se",
+    fehler_login: "Personalni broj ili lozinka nisu točni.",
+    fehler_gesperrt: "Ovaj pristup više nije aktivan. Obratite se uredu.",
+    fehler_kein_zugang: "Pristup nije pronađen. Obratite se uredu.",
+    pwa_titel: "Postavite vlastitu lozinku",
+    pwa_hinweis: "Molimo postavite sada vlastitu lozinku. Mora imati najmanje 8 znakova te sadržavati najmanje jednu znamenku i jedan poseban znak (npr. ! ? # . -).",
+    label_pwa_neu: "Nova lozinka", label_pwa_wdh: "Ponovite novu lozinku",
+    btn_pwa_speichern: "Spremi lozinku", btn_pwa_abmelden: "Odjavi se",
+    pwa_zu_kurz: "Lozinka mora imati najmanje 8 znakova.",
+    pwa_keine_ziffer: "Lozinka mora sadržavati najmanje jednu znamenku.",
+    pwa_kein_sonderzeichen: "Lozinka mora sadržavati najmanje jedan poseban znak.",
+    pwa_ungleich: "Lozinke se ne podudaraju.",
+    pwa_fehler_allgemein: "Lozinka nije mogla biti spremljena. Pokušajte ponovno.",
+    pwa_neu_anmelden: "Lozinka je spremljena. Molimo prijavite se sada novom lozinkom.",
+    abmelden: "Odjavi se", kw_praefix: "Tjedan ", frist_bis: "Izmjena moguća do ",
+    frist_vorbei: "Rok je istekao – samo pregled", gespeichert_am: "Poslano ",
+    alles_moeglich: "Sve\nmoguće", nichts: "Ništa", wie_letzte_woche: "Kao prošlog\ntjedna",
+    ganzer_tag: "Cijeli dan", tag_gesperrt: "Nema rada",
+    wochentage: ["Ponedjeljak","Utorak","Srijeda","Četvrtak","Petak"],
+    tage_so_kurz: ["Ned","Pon","Uto","Sri","Čet","Pet","Sub"],
+    tage_so_lang: ["Nedjelja","Ponedjeljak","Utorak","Srijeda","Četvrtak","Petak","Subota"],
+    titel_max: "Najviše … smjena ovaj tjedan", max_ohne_grenze: "bez ograničenja",
+    summe_text: "Moguće sati: ", senden: "Pošalji", gespeichert: "Spremljeno",
+    keine_letzte_woche: "Za prošli tjedan nema unosa.",
+    fehler_speichern: "Nije moglo biti spremljeno: ",
+    fehler_frist: "Rok je istekao. Više se ništa ne može mijenjati.",
+    laedt: "Trenutak …",
+    ma_plan_titel: "Moj raspored", ma_plan_noch_nichts: "Za sljedeće dane raspored još nije učitan.",
+    ma_plan_stand: "Stanje: ", ma_btn_planung: "Moj raspored", ma_btn_verf: "Unesi dostupnost",
+    ma_zurueck: "← Natrag", ma_diese_woche: "Ovaj tjedan", ma_naechste_woche: "Sljedeći tjedan",
+    ma_abgegeben: "✓ poslano", ma_offen: "još nije poslano",
+    ma_naechste_schicht: "Sljedeća smjena: ", ma_keine_weitere: "Nema više smjena u ova dva tjedna",
+    ma_plan_noch_nichts_kurz: "Raspored još nije učitan", ma_plan_fehler_kurz: "Raspored nije mogao biti učitan",
+    ma_tag_antippen: "Dodirnite dan za detalje.", ma_frei: "nema smjene",
+    ma_plan_fehler: "Raspored nije mogao biti učitan. Osvježite stranicu ili se obratite uredu.",
+    ma_plan_neu_laden: "Osvježi", ma_plan_hinweis: "Nešto nije u redu? Javite uredu: ", ma_oder: " ili ",
+    schicht_namen: { FRUEH: "Jutarnja", SPAET: "Večernja", LANG: "Duga", BUERO: "Ured" },
+    heute: "Danas", morgen: "Sutra", heute_klammer: " (danas)", ma_schichten_anzahl: "Smjena: ",
+    sprache_titel: "Jezik", sprache_waehlen: "Odaberi jezik", schliessen: "Zatvori",
+    recht_hinweis: "Impressum i Datenschutz (pravne informacije i politika privatnosti) dostupni su samo na njemačkom jeziku. Pravno obvezujuća je njemačka verzija."
+  },
+  sr: {
+    seiten_titel: "Dostupnost", login_titel_ma: "Prijava", label_personalnummer: "Personalni broj",
+    label_passwort: "Lozinka", btn_anmelden: "Prijavi se",
+    fehler_login: "Personalni broj ili lozinka nisu tačni.",
+    fehler_gesperrt: "Ovaj pristup više nije aktivan. Obratite se kancelariji.",
+    fehler_kein_zugang: "Pristup nije pronađen. Obratite se kancelariji.",
+    pwa_titel: "Postavite sopstvenu lozinku",
+    pwa_hinweis: "Molimo vas da sada postavite sopstvenu lozinku. Mora imati najmanje 8 znakova i sadržati najmanje jednu cifru i jedan poseban znak (npr. ! ? # . -).",
+    label_pwa_neu: "Nova lozinka", label_pwa_wdh: "Ponovite novu lozinku",
+    btn_pwa_speichern: "Sačuvaj lozinku", btn_pwa_abmelden: "Odjavi se",
+    pwa_zu_kurz: "Lozinka mora imati najmanje 8 znakova.",
+    pwa_keine_ziffer: "Lozinka mora sadržati najmanje jednu cifru.",
+    pwa_kein_sonderzeichen: "Lozinka mora sadržati najmanje jedan poseban znak.",
+    pwa_ungleich: "Lozinke se ne podudaraju.",
+    pwa_fehler_allgemein: "Lozinka nije mogla biti sačuvana. Pokušajte ponovo.",
+    pwa_neu_anmelden: "Lozinka je sačuvana. Molimo prijavite se sada novom lozinkom.",
+    abmelden: "Odjavi se", kw_praefix: "Sedmica ", frist_bis: "Izmena moguća do ",
+    frist_vorbei: "Rok je istekao – samo pregled", gespeichert_am: "Poslato ",
+    alles_moeglich: "Sve\nmoguće", nichts: "Ništa", wie_letzte_woche: "Kao prošle\nsedmice",
+    ganzer_tag: "Ceo dan", tag_gesperrt: "Nema rada",
+    wochentage: ["Ponedeljak","Utorak","Sreda","Četvrtak","Petak"],
+    tage_so_kurz: ["Ned","Pon","Uto","Sre","Čet","Pet","Sub"],
+    tage_so_lang: ["Nedelja","Ponedeljak","Utorak","Sreda","Četvrtak","Petak","Subota"],
+    titel_max: "Najviše … smena ove sedmice", max_ohne_grenze: "bez ograničenja",
+    summe_text: "Moguće sati: ", senden: "Pošalji", gespeichert: "Sačuvano",
+    keine_letzte_woche: "Za prošlu sedmicu nema unosa.",
+    fehler_speichern: "Nije moglo biti sačuvano: ",
+    fehler_frist: "Rok je istekao. Više se ništa ne može menjati.",
+    laedt: "Trenutak …",
+    ma_plan_titel: "Moj raspored", ma_plan_noch_nichts: "Za naredne dane raspored još nije učitan.",
+    ma_plan_stand: "Stanje: ", ma_btn_planung: "Moj raspored", ma_btn_verf: "Unesi dostupnost",
+    ma_zurueck: "← Nazad", ma_diese_woche: "Ova sedmica", ma_naechste_woche: "Sledeća sedmica",
+    ma_abgegeben: "✓ poslato", ma_offen: "još nije poslato",
+    ma_naechste_schicht: "Sledeća smena: ", ma_keine_weitere: "Nema više smena u ove dve sedmice",
+    ma_plan_noch_nichts_kurz: "Raspored još nije učitan", ma_plan_fehler_kurz: "Raspored nije mogao biti učitan",
+    ma_tag_antippen: "Dodirnite dan za detalje.", ma_frei: "nema smene",
+    ma_plan_fehler: "Raspored nije mogao biti učitan. Osvežite stranicu ili se obratite kancelariji.",
+    ma_plan_neu_laden: "Osveži", ma_plan_hinweis: "Nešto nije u redu? Javite kancelariji: ", ma_oder: " ili ",
+    schicht_namen: { FRUEH: "Jutarnja", SPAET: "Večernja", LANG: "Duga", BUERO: "Kancelarija" },
+    heute: "Danas", morgen: "Sutra", heute_klammer: " (danas)", ma_schichten_anzahl: "Smena: ",
+    sprache_titel: "Jezik", sprache_waehlen: "Izaberi jezik", schliessen: "Zatvori",
+    recht_hinweis: "Impressum i Datenschutz (pravne informacije i politika privatnosti) dostupni su samo na nemačkom jeziku. Pravno obavezujuća je nemačka verzija."
+  },
+  hu: {
+    seiten_titel: "Rendelkezésre állás", login_titel_ma: "Bejelentkezés", label_personalnummer: "Törzsszám",
+    label_passwort: "Jelszó", btn_anmelden: "Belépés",
+    fehler_login: "A törzsszám vagy a jelszó hibás.",
+    fehler_gesperrt: "Ez a hozzáférés már nem aktív. Kérjük, forduljon az irodához.",
+    fehler_kein_zugang: "A hozzáférés nem található. Kérjük, forduljon az irodához.",
+    pwa_titel: "Állítson be saját jelszót",
+    pwa_hinweis: "Kérjük, most állítson be saját jelszót. Legalább 8 karakter hosszúnak kell lennie, és tartalmaznia kell legalább egy számjegyet és egy speciális karaktert (pl. ! ? # . -).",
+    label_pwa_neu: "Új jelszó", label_pwa_wdh: "Új jelszó ismét",
+    btn_pwa_speichern: "Jelszó mentése", btn_pwa_abmelden: "Kijelentkezés",
+    pwa_zu_kurz: "A jelszónak legalább 8 karakter hosszúnak kell lennie.",
+    pwa_keine_ziffer: "A jelszónak tartalmaznia kell legalább egy számjegyet.",
+    pwa_kein_sonderzeichen: "A jelszónak tartalmaznia kell legalább egy speciális karaktert.",
+    pwa_ungleich: "A két jelszó nem egyezik.",
+    pwa_fehler_allgemein: "A jelszót nem sikerült menteni. Kérjük, próbálja újra.",
+    pwa_neu_anmelden: "A jelszó mentve. Kérjük, jelentkezzen be most az új jelszóval.",
+    abmelden: "Kijelentkezés", kw_praefix: "Hét ", frist_bis: "Módosítható eddig: ",
+    frist_vorbei: "A határidő lejárt – csak megtekintés", gespeichert_am: "Elküldve: ",
+    alles_moeglich: "Bármikor\nlehet", nichts: "Semmi", wie_letzte_woche: "Mint a múlt\nhéten",
+    ganzer_tag: "Egész nap", tag_gesperrt: "Nincs munka",
+    wochentage: ["Hétfő","Kedd","Szerda","Csütörtök","Péntek"],
+    tage_so_kurz: ["V","H","K","Sze","Cs","P","Szo"],
+    tage_so_lang: ["Vasárnap","Hétfő","Kedd","Szerda","Csütörtök","Péntek","Szombat"],
+    titel_max: "Legfeljebb … műszak ezen a héten", max_ohne_grenze: "nincs korlát",
+    summe_text: "Lehetséges órák: ", senden: "Küldés", gespeichert: "Mentve",
+    keine_letzte_woche: "A múlt hétre nincs bejegyzés.",
+    fehler_speichern: "Nem sikerült menteni: ",
+    fehler_frist: "A határidő lejárt. Már semmi sem módosítható.",
+    laedt: "Egy pillanat …",
+    ma_plan_titel: "Beosztásom", ma_plan_noch_nichts: "A következő napokra még nincs beosztás betöltve.",
+    ma_plan_stand: "Állapot: ", ma_btn_planung: "Beosztásom", ma_btn_verf: "Rendelkezésre állás megadása",
+    ma_zurueck: "← Vissza", ma_diese_woche: "Ez a hét", ma_naechste_woche: "Következő hét",
+    ma_abgegeben: "✓ elküldve", ma_offen: "még nincs elküldve",
+    ma_naechste_schicht: "Következő műszak: ", ma_keine_weitere: "Nincs több műszak erre a két hétre",
+    ma_plan_noch_nichts_kurz: "Még nincs beosztás betöltve", ma_plan_fehler_kurz: "A beosztást nem sikerült betölteni",
+    ma_tag_antippen: "Érintsen meg egy napot a részletekért.", ma_frei: "nincs műszak",
+    ma_plan_fehler: "A beosztást nem sikerült betölteni. Kérjük, töltse újra az oldalt, vagy forduljon az irodához.",
+    ma_plan_neu_laden: "Újratöltés", ma_plan_hinweis: "Valami nem stimmel? Kérjük, jelezze az irodának: ", ma_oder: " vagy ",
+    schicht_namen: { FRUEH: "Korai", SPAET: "Késői", LANG: "Hosszú", BUERO: "Iroda" },
+    heute: "Ma", morgen: "Holnap", heute_klammer: " (ma)", ma_schichten_anzahl: "Műszakok: ",
+    sprache_titel: "Nyelv", sprache_waehlen: "Nyelv választása", schliessen: "Bezárás",
+    recht_hinweis: "Az Impressum és a Datenschutz (jogi közlemény és adatvédelmi nyilatkozat) csak németül érhető el. Jogilag a német változat a kötelező."
+  },
+  ro: {
+    seiten_titel: "Disponibilitate", login_titel_ma: "Conectare", label_personalnummer: "Număr de personal",
+    label_passwort: "Parolă", btn_anmelden: "Conectare",
+    fehler_login: "Numărul de personal sau parola sunt greșite.",
+    fehler_gesperrt: "Acest acces nu mai este activ. Vă rugăm să vă adresați biroului.",
+    fehler_kein_zugang: "Accesul nu a fost găsit. Vă rugăm să vă adresați biroului.",
+    pwa_titel: "Setați propria parolă",
+    pwa_hinweis: "Vă rugăm să setați acum propria parolă. Trebuie să aibă cel puțin 8 caractere și să conțină cel puțin o cifră și un caracter special (de ex. ! ? # . -).",
+    label_pwa_neu: "Parolă nouă", label_pwa_wdh: "Repetați parola nouă",
+    btn_pwa_speichern: "Salvează parola", btn_pwa_abmelden: "Deconectare",
+    pwa_zu_kurz: "Parola trebuie să aibă cel puțin 8 caractere.",
+    pwa_keine_ziffer: "Parola trebuie să conțină cel puțin o cifră.",
+    pwa_kein_sonderzeichen: "Parola trebuie să conțină cel puțin un caracter special.",
+    pwa_ungleich: "Cele două parole nu coincid.",
+    pwa_fehler_allgemein: "Parola nu a putut fi salvată. Vă rugăm să încercați din nou.",
+    pwa_neu_anmelden: "Parola a fost salvată. Vă rugăm să vă conectați acum cu parola nouă.",
+    abmelden: "Deconectare", kw_praefix: "Săptămâna ", frist_bis: "Modificabil până la ",
+    frist_vorbei: "Termenul a expirat – doar vizualizare", gespeichert_am: "Trimis la ",
+    alles_moeglich: "Totul\neste posibil", nichts: "Nimic", wie_letzte_woche: "Ca în săptămâna\ntrecută",
+    ganzer_tag: "Toată ziua", tag_gesperrt: "Fără lucru",
+    wochentage: ["Luni","Marți","Miercuri","Joi","Vineri"],
+    tage_so_kurz: ["Dum","Lun","Mar","Mie","Joi","Vin","Sâm"],
+    tage_so_lang: ["Duminică","Luni","Marți","Miercuri","Joi","Vineri","Sâmbătă"],
+    titel_max: "Cel mult … ture săptămâna aceasta", max_ohne_grenze: "fără limită",
+    summe_text: "Ore posibile: ", senden: "Trimite", gespeichert: "Salvat",
+    keine_letzte_woche: "Pentru săptămâna trecută nu există date.",
+    fehler_speichern: "Nu s-a putut salva: ",
+    fehler_frist: "Termenul a expirat. Nu se mai poate modifica nimic.",
+    laedt: "Un moment …",
+    ma_plan_titel: "Programul meu", ma_plan_noch_nichts: "Pentru zilele următoare nu a fost încă încărcat un program.",
+    ma_plan_stand: "Stare: ", ma_btn_planung: "Programul meu", ma_btn_verf: "Introdu disponibilitatea",
+    ma_zurueck: "← Înapoi", ma_diese_woche: "Săptămâna aceasta", ma_naechste_woche: "Săptămâna viitoare",
+    ma_abgegeben: "✓ trimis", ma_offen: "încă netrimis",
+    ma_naechste_schicht: "Următoarea tură: ", ma_keine_weitere: "Nicio altă tură în aceste două săptămâni",
+    ma_plan_noch_nichts_kurz: "Programul nu a fost încă încărcat", ma_plan_fehler_kurz: "Programul nu a putut fi încărcat",
+    ma_tag_antippen: "Atingeți o zi pentru detalii.", ma_frei: "nicio tură",
+    ma_plan_fehler: "Programul nu a putut fi încărcat. Reîncărcați pagina sau adresați-vă biroului.",
+    ma_plan_neu_laden: "Reîncarcă", ma_plan_hinweis: "Ceva nu este în regulă? Anunțați biroul: ", ma_oder: " sau ",
+    schicht_namen: { FRUEH: "Dimineață", SPAET: "Seară", LANG: "Lungă", BUERO: "Birou" },
+    heute: "Astăzi", morgen: "Mâine", heute_klammer: " (astăzi)", ma_schichten_anzahl: "Ture: ",
+    sprache_titel: "Limba", sprache_waehlen: "Alege limba", schliessen: "Închide",
+    recht_hinweis: "Impressum și Datenschutz (mențiuni legale și politica de confidențialitate) sunt disponibile doar în limba germană. Versiunea germană este cea obligatorie din punct de vedere juridic."
+  },
+  es: {
+    seiten_titel: "Disponibilidad", login_titel_ma: "Iniciar sesión", label_personalnummer: "Número de personal",
+    label_passwort: "Contraseña", btn_anmelden: "Iniciar sesión",
+    fehler_login: "Número de personal o contraseña incorrectos.",
+    fehler_gesperrt: "Este acceso ya no está activo. Por favor, contacte con la oficina.",
+    fehler_kein_zugang: "Acceso no encontrado. Por favor, contacte con la oficina.",
+    pwa_titel: "Establezca su propia contraseña",
+    pwa_hinweis: "Por favor, establezca ahora su propia contraseña. Debe tener al menos 8 caracteres y contener al menos un número y un carácter especial (p. ej. ! ? # . -).",
+    label_pwa_neu: "Nueva contraseña", label_pwa_wdh: "Repita la nueva contraseña",
+    btn_pwa_speichern: "Guardar contraseña", btn_pwa_abmelden: "Cerrar sesión",
+    pwa_zu_kurz: "La contraseña debe tener al menos 8 caracteres.",
+    pwa_keine_ziffer: "La contraseña debe contener al menos un número.",
+    pwa_kein_sonderzeichen: "La contraseña debe contener al menos un carácter especial.",
+    pwa_ungleich: "Las dos contraseñas no coinciden.",
+    pwa_fehler_allgemein: "No se pudo guardar la contraseña. Por favor, inténtelo de nuevo.",
+    pwa_neu_anmelden: "La contraseña se ha guardado. Por favor, inicie sesión ahora con la nueva contraseña.",
+    abmelden: "Cerrar sesión", kw_praefix: "Semana ", frist_bis: "Modificable hasta ",
+    frist_vorbei: "Plazo vencido – solo lectura", gespeichert_am: "Enviado el ",
+    alles_moeglich: "Todo\nposible", nichts: "Nada", wie_letzte_woche: "Como la\nsemana pasada",
+    ganzer_tag: "Todo el día", tag_gesperrt: "Sin trabajo",
+    wochentage: ["Lunes","Martes","Miércoles","Jueves","Viernes"],
+    tage_so_kurz: ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"],
+    tage_so_lang: ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"],
+    titel_max: "Como máximo … turnos esta semana", max_ohne_grenze: "sin límite",
+    summe_text: "Horas posibles: ", senden: "Enviar", gespeichert: "Guardado",
+    keine_letzte_woche: "No hay datos de la semana pasada.",
+    fehler_speichern: "No se pudo guardar: ",
+    fehler_frist: "El plazo ha vencido. Ya no se puede cambiar nada.",
+    laedt: "Un momento …",
+    ma_plan_titel: "Mi planificación", ma_plan_noch_nichts: "Aún no se ha cargado ninguna planificación para los próximos días.",
+    ma_plan_stand: "Actualizado: ", ma_btn_planung: "Mi planificación", ma_btn_verf: "Indicar disponibilidad",
+    ma_zurueck: "← Atrás", ma_diese_woche: "Esta semana", ma_naechste_woche: "Próxima semana",
+    ma_abgegeben: "✓ enviado", ma_offen: "aún no enviado",
+    ma_naechste_schicht: "Próximo turno: ", ma_keine_weitere: "No hay más turnos en estas dos semanas",
+    ma_plan_noch_nichts_kurz: "Aún no hay planificación cargada", ma_plan_fehler_kurz: "No se pudo cargar la planificación",
+    ma_tag_antippen: "Toque un día para ver los detalles.", ma_frei: "sin turno",
+    ma_plan_fehler: "No se pudo cargar la planificación. Recargue la página o contacte con la oficina.",
+    ma_plan_neu_laden: "Recargar", ma_plan_hinweis: "¿Algo no cuadra? Avise a la oficina: ", ma_oder: " o ",
+    schicht_namen: { FRUEH: "Mañana", SPAET: "Tarde", LANG: "Largo", BUERO: "Oficina" },
+    heute: "Hoy", morgen: "Mañana", heute_klammer: " (hoy)", ma_schichten_anzahl: "Turnos: ",
+    sprache_titel: "Idioma", sprache_waehlen: "Elegir idioma", schliessen: "Cerrar",
+    recht_hinweis: "Impressum y Datenschutz (aviso legal y política de privacidad) solo están disponibles en alemán. La versión jurídicamente vinculante es la alemana."
+  },
+  el: {
+    seiten_titel: "Διαθεσιμότητα", login_titel_ma: "Σύνδεση", label_personalnummer: "Αριθμός προσωπικού",
+    label_passwort: "Κωδικός", btn_anmelden: "Σύνδεση",
+    fehler_login: "Ο αριθμός προσωπικού ή ο κωδικός είναι λάθος.",
+    fehler_gesperrt: "Αυτή η πρόσβαση δεν είναι πλέον ενεργή. Παρακαλούμε επικοινωνήστε με το γραφείο.",
+    fehler_kein_zugang: "Η πρόσβαση δεν βρέθηκε. Παρακαλούμε επικοινωνήστε με το γραφείο.",
+    pwa_titel: "Ορίστε τον δικό σας κωδικό",
+    pwa_hinweis: "Παρακαλούμε ορίστε τώρα τον δικό σας κωδικό. Πρέπει να έχει τουλάχιστον 8 χαρακτήρες και να περιέχει τουλάχιστον έναν αριθμό και έναν ειδικό χαρακτήρα (π.χ. ! ? # . -).",
+    label_pwa_neu: "Νέος κωδικός", label_pwa_wdh: "Επαναλάβετε τον νέο κωδικό",
+    btn_pwa_speichern: "Αποθήκευση κωδικού", btn_pwa_abmelden: "Αποσύνδεση",
+    pwa_zu_kurz: "Ο κωδικός πρέπει να έχει τουλάχιστον 8 χαρακτήρες.",
+    pwa_keine_ziffer: "Ο κωδικός πρέπει να περιέχει τουλάχιστον έναν αριθμό.",
+    pwa_kein_sonderzeichen: "Ο κωδικός πρέπει να περιέχει τουλάχιστον έναν ειδικό χαρακτήρα.",
+    pwa_ungleich: "Οι δύο κωδικοί δεν ταιριάζουν.",
+    pwa_fehler_allgemein: "Ο κωδικός δεν μπόρεσε να αποθηκευτεί. Παρακαλούμε δοκιμάστε ξανά.",
+    pwa_neu_anmelden: "Ο κωδικός αποθηκεύτηκε. Παρακαλούμε συνδεθείτε τώρα με τον νέο κωδικό.",
+    abmelden: "Αποσύνδεση", kw_praefix: "Εβδομάδα ", frist_bis: "Αλλαγές έως ",
+    frist_vorbei: "Η προθεσμία έληξε – μόνο προβολή", gespeichert_am: "Στάλθηκε στις ",
+    alles_moeglich: "Όλα\nδυνατά", nichts: "Τίποτα", wie_letzte_woche: "Όπως την\nπροηγ. εβδομάδα",
+    ganzer_tag: "Όλη μέρα", tag_gesperrt: "Χωρίς εργασία",
+    wochentage: ["Δευτέρα","Τρίτη","Τετάρτη","Πέμπτη","Παρασκευή"],
+    tage_so_kurz: ["Κυρ","Δευ","Τρί","Τετ","Πέμ","Παρ","Σάβ"],
+    tage_so_lang: ["Κυριακή","Δευτέρα","Τρίτη","Τετάρτη","Πέμπτη","Παρασκευή","Σάββατο"],
+    titel_max: "Το πολύ … βάρδιες αυτή την εβδομάδα", max_ohne_grenze: "χωρίς όριο",
+    summe_text: "Πιθανές ώρες: ", senden: "Αποστολή", gespeichert: "Αποθηκεύτηκε",
+    keine_letzte_woche: "Δεν υπάρχει καταχώριση για την περασμένη εβδομάδα.",
+    fehler_speichern: "Δεν ήταν δυνατή η αποθήκευση: ",
+    fehler_frist: "Η προθεσμία έληξε. Δεν μπορεί πλέον να αλλάξει τίποτα.",
+    laedt: "Μια στιγμή …",
+    ma_plan_titel: "Το πρόγραμμά μου", ma_plan_noch_nichts: "Για τις επόμενες ημέρες δεν έχει φορτωθεί ακόμη πρόγραμμα.",
+    ma_plan_stand: "Ενημέρωση: ", ma_btn_planung: "Το πρόγραμμά μου", ma_btn_verf: "Καταχώριση διαθεσιμότητας",
+    ma_zurueck: "← Πίσω", ma_diese_woche: "Αυτή την εβδομάδα", ma_naechste_woche: "Επόμενη εβδομάδα",
+    ma_abgegeben: "✓ στάλθηκε", ma_offen: "δεν έχει σταλεί ακόμη",
+    ma_naechste_schicht: "Επόμενη βάρδια: ", ma_keine_weitere: "Καμία άλλη βάρδια αυτές τις δύο εβδομάδες",
+    ma_plan_noch_nichts_kurz: "Δεν έχει φορτωθεί ακόμη πρόγραμμα", ma_plan_fehler_kurz: "Το πρόγραμμα δεν φορτώθηκε",
+    ma_tag_antippen: "Πατήστε μια ημέρα για λεπτομέρειες.", ma_frei: "χωρίς βάρδια",
+    ma_plan_fehler: "Το πρόγραμμα δεν φορτώθηκε. Ανανεώστε τη σελίδα ή επικοινωνήστε με το γραφείο.",
+    ma_plan_neu_laden: "Ανανέωση", ma_plan_hinweis: "Κάτι δεν πάει καλά; Ενημερώστε το γραφείο: ", ma_oder: " ή ",
+    schicht_namen: { FRUEH: "Πρωινή", SPAET: "Απογευματινή", LANG: "Μεγάλη", BUERO: "Γραφείο" },
+    heute: "Σήμερα", morgen: "Αύριο", heute_klammer: " (σήμερα)", ma_schichten_anzahl: "Βάρδιες: ",
+    sprache_titel: "Γλώσσα", sprache_waehlen: "Επιλογή γλώσσας", schliessen: "Κλείσιμο",
+    recht_hinweis: "Τα Impressum και Datenschutz (νομικές πληροφορίες και πολιτική απορρήτου) είναι διαθέσιμα μόνο στα γερμανικά. Νομικά δεσμευτική είναι η γερμανική έκδοση."
+  },
+  pl: {
+    seiten_titel: "Dostępność", login_titel_ma: "Logowanie", label_personalnummer: "Numer personalny",
+    label_passwort: "Hasło", btn_anmelden: "Zaloguj się",
+    fehler_login: "Numer personalny lub hasło jest nieprawidłowe.",
+    fehler_gesperrt: "Ten dostęp nie jest już aktywny. Prosimy skontaktować się z biurem.",
+    fehler_kein_zugang: "Nie znaleziono dostępu. Prosimy skontaktować się z biurem.",
+    pwa_titel: "Ustaw własne hasło",
+    pwa_hinweis: "Ustaw teraz własne hasło. Musi mieć co najmniej 8 znaków oraz zawierać co najmniej jedną cyfrę i jeden znak specjalny (np. ! ? # . -).",
+    label_pwa_neu: "Nowe hasło", label_pwa_wdh: "Powtórz nowe hasło",
+    btn_pwa_speichern: "Zapisz hasło", btn_pwa_abmelden: "Wyloguj się",
+    pwa_zu_kurz: "Hasło musi mieć co najmniej 8 znaków.",
+    pwa_keine_ziffer: "Hasło musi zawierać co najmniej jedną cyfrę.",
+    pwa_kein_sonderzeichen: "Hasło musi zawierać co najmniej jeden znak specjalny.",
+    pwa_ungleich: "Oba hasła nie są takie same.",
+    pwa_fehler_allgemein: "Nie udało się zapisać hasła. Spróbuj ponownie.",
+    pwa_neu_anmelden: "Hasło zostało zapisane. Zaloguj się teraz nowym hasłem.",
+    abmelden: "Wyloguj się", kw_praefix: "Tydzień ", frist_bis: "Zmiany możliwe do ",
+    frist_vorbei: "Termin minął – tylko podgląd", gespeichert_am: "Wysłano ",
+    alles_moeglich: "Wszystko\nmożliwe", nichts: "Nic", wie_letzte_woche: "Jak w zeszłym\ntygodniu",
+    ganzer_tag: "Cały dzień", tag_gesperrt: "Brak pracy",
+    wochentage: ["Poniedziałek","Wtorek","Środa","Czwartek","Piątek"],
+    tage_so_kurz: ["Ndz","Pon","Wt","Śr","Czw","Pt","Sob"],
+    tage_so_lang: ["Niedziela","Poniedziałek","Wtorek","Środa","Czwartek","Piątek","Sobota"],
+    titel_max: "Najwyżej … zmian w tym tygodniu", max_ohne_grenze: "bez limitu",
+    summe_text: "Możliwe godziny: ", senden: "Wyślij", gespeichert: "Zapisano",
+    keine_letzte_woche: "Brak wpisu za zeszły tydzień.",
+    fehler_speichern: "Nie udało się zapisać: ",
+    fehler_frist: "Termin minął. Nie można już nic zmienić.",
+    laedt: "Chwileczkę …",
+    ma_plan_titel: "Mój grafik", ma_plan_noch_nichts: "Na najbliższe dni nie wczytano jeszcze grafiku.",
+    ma_plan_stand: "Stan: ", ma_btn_planung: "Mój grafik", ma_btn_verf: "Wpisz dostępność",
+    ma_zurueck: "← Wstecz", ma_diese_woche: "Ten tydzień", ma_naechste_woche: "Następny tydzień",
+    ma_abgegeben: "✓ wysłano", ma_offen: "jeszcze nie wysłano",
+    ma_naechste_schicht: "Następna zmiana: ", ma_keine_weitere: "Brak kolejnych zmian w tych dwóch tygodniach",
+    ma_plan_noch_nichts_kurz: "Grafik nie został jeszcze wczytany", ma_plan_fehler_kurz: "Nie udało się wczytać grafiku",
+    ma_tag_antippen: "Dotknij dnia, aby zobaczyć szczegóły.", ma_frei: "brak zmiany",
+    ma_plan_fehler: "Nie udało się wczytać grafiku. Odśwież stronę lub skontaktuj się z biurem.",
+    ma_plan_neu_laden: "Odśwież", ma_plan_hinweis: "Coś się nie zgadza? Zgłoś to w biurze: ", ma_oder: " lub ",
+    schicht_namen: { FRUEH: "Poranna", SPAET: "Wieczorna", LANG: "Długa", BUERO: "Biuro" },
+    heute: "Dziś", morgen: "Jutro", heute_klammer: " (dziś)", ma_schichten_anzahl: "Zmiany: ",
+    sprache_titel: "Język", sprache_waehlen: "Wybierz język", schliessen: "Zamknij",
+    recht_hinweis: "Impressum i Datenschutz (informacje prawne i polityka prywatności) są dostępne tylko po niemiecku. Prawnie wiążąca jest wersja niemiecka."
+  }
+};
+
+// Reihenfolge = Reihenfolge im Auswahlfenster. "uhr" = Zusatz hinter Uhrzeiten, "dezimal" = Dezimalzeichen.
+const SPRACHEN = [
+  { code: "de", html: "de",      locale: "de-DE",      name: "Deutsch",    uhr: " Uhr", dezimal: "," },
+  { code: "en", html: "en",      locale: "en-GB",      name: "English",    uhr: "",     dezimal: "." },
+  { code: "uk", html: "uk",      locale: "uk-UA",      name: "Українська", uhr: "",     dezimal: "," },
+  { code: "tr", html: "tr",      locale: "tr-TR",      name: "Türkçe",     uhr: "",     dezimal: "," },
+  { code: "bs", html: "bs",      locale: "bs-BA",      name: "Bosanski",   uhr: "",     dezimal: "," },
+  { code: "hr", html: "hr",      locale: "hr-HR",      name: "Hrvatski",   uhr: "",     dezimal: "," },
+  { code: "sr", html: "sr-Latn", locale: "sr-Latn-RS", name: "Srpski",     uhr: "",     dezimal: "," },
+  { code: "hu", html: "hu",      locale: "hu-HU",      name: "Magyar",     uhr: "",     dezimal: "," },
+  { code: "ro", html: "ro",      locale: "ro-RO",      name: "Română",     uhr: "",     dezimal: "," },
+  { code: "es", html: "es",      locale: "es-ES",      name: "Español",    uhr: "",     dezimal: "," },
+  { code: "el", html: "el",      locale: "el-GR",      name: "Ελληνικά",   uhr: "",     dezimal: "," },
+  { code: "pl", html: "pl",      locale: "pl-PL",      name: "Polski",     uhr: "",     dezimal: "," }
+];
+let sprache = SPRACHEN[0];
+TEXTE.locale = sprache.locale;
+TEXTE.uhr_suffix = sprache.uhr;
+TEXTE.dezimal = sprache.dezimal;
+
+// Vereinfachte Flaggen als eingebettetes SVG (kein externer Dienst, ueberall gleich sichtbar)
+const FLAGGEN = {
+  de: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#FFCE00"/><rect width="30" height="13.4" fill="#DD0000"/><rect width="30" height="6.7" fill="#000"/></svg>',
+  en: '<svg viewBox="0 0 60 30" preserveAspectRatio="none"><rect width="60" height="30" fill="#012169"/><path d="M0 0L60 30M60 0L0 30" stroke="#fff" stroke-width="6"/><path d="M0 0L60 30M60 0L0 30" stroke="#C8102E" stroke-width="2.4"/><path d="M30 0V30M0 15H60" stroke="#fff" stroke-width="10"/><path d="M30 0V30M0 15H60" stroke="#C8102E" stroke-width="6"/></svg>',
+  uk: '<svg viewBox="0 0 30 20"><rect width="30" height="10" fill="#0057B7"/><rect y="10" width="30" height="10" fill="#FFD700"/></svg>',
+  tr: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#E30A17"/><circle cx="11" cy="10" r="5" fill="#fff"/><circle cx="12.4" cy="10" r="4" fill="#E30A17"/><polygon points="15.5,7.5 16.09,9.19 17.88,9.23 16.45,10.31 16.97,12.02 15.5,11 14.03,12.02 14.55,10.31 13.12,9.23 14.91,9.19" fill="#fff"/></svg>',
+  bs: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#002395"/><polygon points="8,0 24,0 24,20" fill="#FECB00"/><g fill="#fff"><circle cx="10" cy="2.4" r="1.1"/><circle cx="12.4" cy="5.4" r="1.1"/><circle cx="14.8" cy="8.4" r="1.1"/><circle cx="17.2" cy="11.4" r="1.1"/><circle cx="19.6" cy="14.4" r="1.1"/><circle cx="22" cy="17.4" r="1.1"/></g></svg>',
+  hr: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#171796"/><rect width="30" height="13.4" fill="#fff"/><rect width="30" height="6.7" fill="#FF0000"/><rect x="12.2" y="6.4" width="5.6" height="7" fill="#fff" stroke="#FF0000" stroke-width=".6"/><path d="M12.2 6.4h2.8v2.3h-2.8zM17.8 8.7h-2.8v2.3h2.8zM12.2 11h2.8v2.4h-2.8z" fill="#FF0000"/></svg>',
+  sr: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><rect width="30" height="13.4" fill="#0C4076"/><rect width="30" height="6.7" fill="#C6363C"/><path d="M7.5 5.4h5v4.6c0 1.9-1.2 3-2.5 3.6-1.3-.6-2.5-1.7-2.5-3.6z" fill="#C6363C" stroke="#EDB92E" stroke-width=".7"/></svg>',
+  hu: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#436F4D"/><rect width="30" height="13.4" fill="#fff"/><rect width="30" height="6.7" fill="#CD2A3E"/></svg>',
+  ro: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#CE1126"/><rect width="20" height="20" fill="#FCD116"/><rect width="10" height="20" fill="#002B7F"/></svg>',
+  es: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#AA151B"/><rect y="5" width="30" height="10" fill="#F1BF00"/></svg>',
+  el: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#0D5EAF"/><g fill="#fff"><rect y="2.22" width="30" height="2.22"/><rect y="6.67" width="30" height="2.22"/><rect y="11.11" width="30" height="2.22"/><rect y="15.56" width="30" height="2.22"/></g><rect width="11.11" height="11.11" fill="#0D5EAF"/><g fill="#fff"><rect x="4.44" width="2.22" height="11.11"/><rect y="4.44" width="11.11" height="2.22"/></g></svg>',
+  pl: '<svg viewBox="0 0 30 20"><rect width="30" height="20" fill="#DC143C"/><rect width="30" height="10" fill="#fff"/></svg>'
+};
 
 /* =====================================================================
    3. KLEINE HELFER
@@ -791,11 +1353,16 @@ function isoKw(d) {
 }
 // "24.09.2026, 18:12"
 function zeitpunktText(isoZeit) {
-  return new Date(isoZeit).toLocaleString("de-DE", {
+  const optionen = {
     timeZone: "Europe/Berlin",
     day: "2-digit", month: "2-digit", year: "numeric",
-    hour: "2-digit", minute: "2-digit"
-  });
+    hour: "2-digit", minute: "2-digit", hour12: false
+  };
+  try {
+    return new Date(isoZeit).toLocaleString(TEXTE.locale || "de-DE", optionen);
+  } catch (e) {
+    return new Date(isoZeit).toLocaleString("de-DE", optionen);
+  }
 }
 // "2026-09-24 18:12" (sortierbar, fuer den Export)
 function zeitpunktIso(isoZeit) {
@@ -811,7 +1378,7 @@ function zeitpunktIso(isoZeit) {
 const uhr = (t) => (t || "").slice(0, 5);
 
 function stundenText(z) {
-  return (Math.round(z * 10) / 10).toString().replace(".", ",") + " h";
+  return (Math.round(z * 10) / 10).toString().replace(".", TEXTE.dezimal || ",") + " h";
 }
 
 // Dauer immer mit genau einer Dezimalstelle und Komma: "3,0" / "6,5".
@@ -865,7 +1432,7 @@ function loginAufbauen() {
   $("label-pw").textContent   = TEXTE.label_passwort;
   $("label-mail").textContent = TEXTE.label_email;
   $("label-apw").textContent  = TEXTE.label_passwort;
-  loginModusSetzen("ma");
+  loginModusSetzen(loginModus);
 
   $("btn-login-wechsel").onclick = () =>
     loginModusSetzen(loginModus === "ma" ? "admin" : "ma");
@@ -965,6 +1532,9 @@ async function abmelden() {
 async function weiterNachAnmeldung() {
   const { data: istAdmin } = await sb.rpc("is_admin");
   if (istAdmin) {
+    // Der Admin-Bereich bleibt Deutsch, egal was auf diesem Geraet gemerkt ist.
+    sprachSetzen("de", false);
+    verbirg($("sprachwahl"));
     verbirg($("screen-login"));
     verbirg($("screen-ma"));
     verbirg($("screen-pw-aendern"));
@@ -1141,8 +1711,9 @@ async function wocheLaden() {
 }
 
 /* ---------- Eigene geplante Schichten: Wochenkalender ---------- */
-const WOCHENTAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
-const WOCHENTAGE_LANG = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+// Beginnen mit Sonntag (wie Date.getDay()); sprachSetzen() ueberschreibt sie in-place
+const WOCHENTAGE = TEXTE_DE.tage_so_kurz.slice();
+const WOCHENTAGE_LANG = TEXTE_DE.tage_so_lang.slice();
 
 // Farbe + Symbol + Text je Schichtart (nie nur Farbe). Vier Reserve-Stile fuer spaetere Schichtarten.
 const SYMBOLE_EXTRA = {};
@@ -1219,10 +1790,6 @@ function hinweisBuero() {
   const a = el("a", "telefon", TEXTE.ma_telefon);
   a.href = TEXTE.ma_telefon_href;
   p.appendChild(a);
-  p.appendChild(document.createTextNode(TEXTE.ma_oder));
-  const m = el("a", "telefon", TEXTE.ma_handy);
-  m.href = TEXTE.ma_handy_href;
-  p.appendChild(m);
   return p;
 }
 
@@ -1245,8 +1812,8 @@ function naechsteSchicht() {
 }
 function tagBezeichnung(iso) {
   const heute = alsIso(new Date());
-  if (iso === heute) return "Heute";
-  if (iso === addTage(heute, 1)) return "Morgen";
+  if (iso === heute) return TEXTE.heute;
+  if (iso === addTage(heute, 1)) return TEXTE.morgen;
   return WOCHENTAGE[alsDatum(iso).getDay()] + " " + tagKurz(iso);
 }
 function maStartInfo() {
@@ -1293,15 +1860,15 @@ function planungZeichnen() {
     b.setAttribute("role", "tab");
     b.setAttribute("aria-selected", i === ma.woche ? "true" : "false");
     b.appendChild(document.createTextNode(titel));
-    b.appendChild(el("small", null, "KW " + isoKw(alsDatum(k)).kw));
+    b.appendChild(el("small", null, TEXTE.kw_praefix + isoKw(alsDatum(k)).kw));
     b.onclick = () => { ma.woche = i; ma.tag = null; planungZeichnen(); };
     tabs.appendChild(b);
   });
   liste.appendChild(tabs);
 
-  liste.appendChild(el("div", "etikett", "KW " + isoKw(alsDatum(kw)).kw + " · " +
+  liste.appendChild(el("div", "etikett", TEXTE.kw_praefix + isoKw(alsDatum(kw)).kw + " · " +
     tagKurz(kw) + "–" + tagKurz(addTage(kw, 4)) +
-    (w.stand ? " · " + TEXTE.ma_plan_stand + zeitpunktText(w.stand) + " Uhr" : "")));
+    (w.stand ? " · " + TEXTE.ma_plan_stand + zeitpunktText(w.stand) + TEXTE.uhr_suffix : "")));
 
   if (!hatPlanung(w)) {
     liste.appendChild(el("p", null, TEXTE.ma_plan_noch_nichts));
@@ -1324,7 +1891,7 @@ function planungZeichnen() {
   const detailText = (iso) => {
     const sch = nachTag[iso] || [];
     const kopf = WOCHENTAGE_LANG[alsDatum(iso).getDay()] + ", " + tagKurz(iso) +
-      (iso === heuteIso ? " (heute)" : "");
+      (iso === heuteIso ? TEXTE.heute_klammer : "");
     return sch.length
       ? kopf + " · " + sch.map((p) => schichtName(p.schicht_id) + " " + uhr(p.beginn) + "–" + uhr(p.ende) +
           " (" + stundenText(dauerMin(p) / 60) + ")").join(" · ")
@@ -1365,7 +1932,7 @@ function planungZeichnen() {
 
   const minGesamt = w.schichten.reduce((a, p) => a + dauerMin(p), 0);
   liste.appendChild(el("div", "kal-summe",
-    w.schichten.length + (w.schichten.length === 1 ? " Schicht" : " Schichten") + " · " + stundenText(minGesamt / 60)));
+    TEXTE.ma_schichten_anzahl + w.schichten.length + " · " + stundenText(minGesamt / 60)));
 
   liste.appendChild(hinweisBuero());
 }
@@ -1423,7 +1990,7 @@ function maAufbauen() {
   const fristBox = $("frist-text");
   if (zustand.bearbeitbar) {
     fristBox.className = "frist";
-    fristBox.textContent = TEXTE.frist_bis + zeitpunktText(zustand.frist) + " Uhr";
+    fristBox.textContent = TEXTE.frist_bis + zeitpunktText(zustand.frist) + TEXTE.uhr_suffix;
   } else {
     fristBox.className = "frist vorbei";
     fristBox.textContent = TEXTE.frist_vorbei;
@@ -1456,7 +2023,7 @@ function maAufbauen() {
   }
 
   if (zustand.abgegebenAm) {
-    maMeldung("gut", TEXTE.gespeichert_am + zeitpunktText(zustand.abgegebenAm) + " Uhr");
+    maMeldung("gut", TEXTE.gespeichert_am + zeitpunktText(zustand.abgegebenAm) + TEXTE.uhr_suffix);
   }
 
   zeichnen();
@@ -1511,7 +2078,7 @@ function zeichnen() {
       knopf.appendChild(sym);
 
       const text = el("span", "text");
-      text.appendChild(el("span", "titel", s.name));
+      text.appendChild(el("span", "titel", TEXTE.schicht_namen[s.schicht_id] || s.name));
       text.appendChild(el("br"));
       text.appendChild(el("span", "uhrzeit", uhr(s.beginn) + " – " + uhr(s.ende)));
       knopf.appendChild(text);
@@ -1696,12 +2263,12 @@ async function senden() {
   zustand.abgegebenAm = data;
   knopf.disabled = false;
   bestaetigungZeigen(data);
-  maMeldung("gut", TEXTE.gespeichert_am + zeitpunktText(data) + " Uhr");
+  maMeldung("gut", TEXTE.gespeichert_am + zeitpunktText(data) + TEXTE.uhr_suffix);
 }
 
 function bestaetigungZeigen(zeitpunkt) {
   $("bestaetigung-wort").textContent = TEXTE.gespeichert;
-  $("bestaetigung-zeit").textContent = zeitpunktText(zeitpunkt) + " Uhr";
+  $("bestaetigung-zeit").textContent = zeitpunktText(zeitpunkt) + TEXTE.uhr_suffix;
   const box = $("bestaetigung");
   zeige(box);
   const schliessen = () => verbirg(box);
@@ -3176,14 +3743,117 @@ function fussAufbauen() {
   f.appendChild(b1);
   f.appendChild(document.createTextNode("·"));
   f.appendChild(b2);
+  f.appendChild(document.createTextNode("·"));
+
+  // Flagge der aktuellen Sprache: oeffnet die Sprachauswahl
+  const wahl = el("span");
+  wahl.id = "sprachwahl";
+  const bs = el("button", "sprach-knopf");
+  bs.type = "button";
+  bs.id = "btn-sprache";
+  bs.setAttribute("aria-haspopup", "dialog");
+  bs.onclick = spracheOeffnen;
+  wahl.appendChild(bs);
+  f.appendChild(wahl);
 
   $("recht-zu").onclick = rechtSchliessen;
   $("recht").onclick = (e) => { if (e.target === $("recht")) rechtSchliessen(); };
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") rechtSchliessen(); });
+  $("sprache-zu").onclick = spracheSchliessen;
+  $("sprache").onclick = (e) => { if (e.target === $("sprache")) spracheSchliessen(); };
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { rechtSchliessen(); spracheSchliessen(); }
+  });
+}
+
+/* ---------- Sprachwahl ---------- */
+function flaggeKnoten(code) {
+  const f = el("span", "flagge");
+  f.setAttribute("aria-hidden", "true");
+  f.innerHTML = FLAGGEN[code] || "";
+  return f;
+}
+
+// Texte des Fusses und des Auswahlfensters in der gewaehlten Sprache
+function fussTexteSetzen() {
+  const bs = $("btn-sprache");
+  bs.textContent = "";
+  bs.appendChild(flaggeKnoten(sprache.code));
+  bs.setAttribute("aria-label", TEXTE.sprache_waehlen + " (" + sprache.name + ")");
+  $("sprache-titel").textContent = TEXTE.sprache_titel;
+  $("sprache-zu").textContent = TEXTE.schliessen;
+  $("recht-zu").textContent = TEXTE.schliessen;
+
+  const liste = $("sprache-liste");
+  liste.textContent = "";
+  for (const s of SPRACHEN) {
+    const b = el("button");
+    b.type = "button";
+    b.setAttribute("lang", s.html);
+    b.setAttribute("aria-current", s.code === sprache.code ? "true" : "false");
+    b.appendChild(flaggeKnoten(s.code));
+    b.appendChild(document.createTextNode(s.name));
+    b.onclick = () => { sprachSetzen(s.code, true); spracheSchliessen(); };
+    liste.appendChild(b);
+  }
+}
+
+function spracheOeffnen() {
+  zeige($("sprache"));
+  const aktuell = $("sprache-liste").querySelector('[aria-current="true"]');
+  if (aktuell) aktuell.focus();
+}
+function spracheSchliessen() {
+  verbirg($("sprache"));
+}
+
+// Setzt die Anzeigesprache und zeichnet alles Sichtbare neu. "speichern" merkt die Wahl auf diesem Geraet.
+function sprachSetzen(code, speichern) {
+  const def = SPRACHEN.find((s) => s.code === code) || SPRACHEN[0];
+  sprache = def;
+
+  // TEXTE in-place ersetzen: alle Stellen, die TEXTE lesen, sehen sofort die neue Sprache
+  Object.assign(TEXTE, TEXTE_DE, UEBERSETZUNGEN[def.code] || {});
+  TEXTE.locale = def.locale;
+  TEXTE.uhr_suffix = def.uhr;
+  TEXTE.dezimal = def.dezimal;
+  WOCHENTAGE.splice(0, 7, ...TEXTE.tage_so_kurz);
+  WOCHENTAGE_LANG.splice(0, 7, ...TEXTE.tage_so_lang);
+  document.documentElement.lang = def.html;
+
+  if (speichern) {
+    try { localStorage.setItem(SPRACHE_SCHLUESSEL, def.code); } catch (e) { /* ohne Speicher: nur fuer diese Sitzung */ }
+  }
+
+  const y = window.scrollY;
+  markeAufbauen();
+  loginAufbauen();
+  pwaFehler(null);
+  fussTexteSetzen();
+
+  if (!$("screen-ma").classList.contains("verborgen")) {
+    maStartAufbauen();
+    if (zustand.kw) maAufbauen();
+    if (ma.planung) maStartInfo();
+    if (ma.ansicht === "planung") planungZeichnen();
+    window.scrollTo({ top: y });
+  }
+}
+
+const SPRACHE_SCHLUESSEL = "fedex_sprache";
+function gemerkteSprache() {
+  try {
+    const c = localStorage.getItem(SPRACHE_SCHLUESSEL);
+    return SPRACHEN.some((s) => s.code === c) ? c : "de";
+  } catch (e) {
+    return "de";
+  }
 }
 
 function rechtZeigen(welcher, titel) {
   $("recht-titel").textContent = titel;
+  const hinweis = $("recht-hinweis");
+  hinweis.textContent = TEXTE.recht_hinweis || "";
+  hinweis.classList.toggle("verborgen", !TEXTE.recht_hinweis);
   $("recht-impressum").classList.toggle("verborgen", welcher !== "impressum");
   $("recht-datenschutz").classList.toggle("verborgen", welcher !== "datenschutz");
   $("recht").classList.remove("verborgen");
@@ -3195,9 +3865,8 @@ function rechtSchliessen() {
 }
 
 (async function start() {
-  markeAufbauen();
   fussAufbauen();
-  loginAufbauen();
+  sprachSetzen(gemerkteSprache(), false);   // baut Marke, Login und Fuss in der gemerkten Sprache auf (Standard: Deutsch)
 
   if (!verbindungAufbauen()) {
     zeigeLogin();
