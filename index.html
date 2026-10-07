@@ -162,6 +162,18 @@
     font-family:inherit;font-size:22px;font-weight:bold;cursor:pointer;
   }
   .knopf-gross:disabled{background:#d8d8d4;color:#9a9a9a;cursor:default;}
+  .start-knopf{
+    display:block;width:100%;margin:14px 0;padding:22px 18px;text-align:left;
+    background:#fff;border:2px solid var(--gruen-dunkel);border-radius:14px;cursor:pointer;
+    font:inherit;color:inherit;min-height:88px;
+  }
+  .start-knopf:active{background:var(--gruen);}
+  .start-knopf .start-titel{display:block;font-weight:bold;font-size:20px;}
+  .start-knopf .start-info{display:block;margin-top:6px;font-size:15px;color:#4d4d4d;}
+  .zurueck{
+    background:none;border:0;padding:12px 0;margin:6px 0;font:inherit;font-weight:bold;
+    cursor:pointer;color:inherit;text-decoration:underline;
+  }
 
   /* ---------- Meldungen ---------- */
   .meldung{border-radius:12px;padding:12px;margin-bottom:12px;font-size:16px;}
@@ -333,6 +345,30 @@
   </header>
 
   <div class="huelle" id="ma-huelle">
+    <!-- Startseite: zwei Wege -->
+    <div id="ma-start">
+      <button type="button" class="start-knopf" id="btn-start-planung">
+        <span class="start-titel" id="start-planung-titel"></span>
+        <span class="start-info" id="start-planung-info"></span>
+      </button>
+      <button type="button" class="start-knopf" id="btn-start-verf">
+        <span class="start-titel" id="start-verf-titel"></span>
+        <span class="start-info" id="start-verf-info"></span>
+      </button>
+    </div>
+
+    <!-- Ansicht: Meine Planung -->
+    <div id="ma-ansicht-planung" class="verborgen">
+      <button type="button" class="zurueck" id="btn-zurueck-planung"></button>
+      <div class="karte" id="karte-planung">
+        <h2 id="titel-planung"></h2>
+        <div id="planung-liste"></div>
+      </div>
+    </div>
+
+    <!-- Ansicht: Verfuegbarkeit fuer die kommende Woche -->
+    <div id="ma-ansicht-verf" class="verborgen">
+    <button type="button" class="zurueck" id="btn-zurueck-verf"></button>
     <div class="woche-kopf">
       <div class="kw" id="kw-text"></div>
       <div class="zeitraum" id="zeitraum-text"></div>
@@ -340,11 +376,6 @@
     </div>
 
     <div id="ma-meldung" class="meldung verborgen"></div>
-
-    <div class="karte verborgen" id="karte-planung">
-      <h2 id="titel-planung"></h2>
-      <div id="planung-liste"></div>
-    </div>
 
     <div class="schnell" id="schnellwahl">
       <button type="button" id="btn-alles"></button>
@@ -364,6 +395,7 @@
     </div>
 
     <div class="summe" id="summe-box"></div>
+    </div>
   </div>
 
   <div class="sendeleiste" id="sendeleiste">
@@ -595,8 +627,22 @@ const TEXTE = {
   plan_label_stamm:      "Stammliste mit Namensspalte (.xlsx)",
   plan_pruefen:          "Planung prüfen",
   plan_uebernehmen:      "Planung übernehmen",
-  plan_ueberspringen:    "– überspringen –",
+  plan_ueberspringen:    "– überspringen (keine Planung) –",
+  plan_bitte_waehlen:    "– bitte wählen –",
   plan_vorschlag:        " (Vorschlag)",
+  plan_status_klaeren:   "KLÄREN",
+  plan_status_keine_app: "Nicht in der App",
+  plan_status_skip:      "übersprungen",
+  plan_status_sicher:    "sicher",
+  plan_status_gemerkt:   "bestätigt (gemerkt)",
+  plan_status_manuell:   "manuell gewählt",
+  plan_erste_planung:    "Für diese Woche gibt es noch keine gespeicherte Planung.",
+  plan_zuordnung_sichern: "Zuordnungsliste sichern",
+  plan_zuordnung_laden:  "Zuordnungsliste laden",
+  plan_zuordnung_geladen: "Zuordnungsliste geladen.",
+  plan_zuordnung_hinweis: "Bestätigte Zuordnungen (Schreibweise in der Dispo → Personalnummer) merkt sich dieser Browser. Die Datei enthält Namen: nur lokal aufbewahren, nicht weitergeben.",
+  plan_fertig_ok:        "Planung übernommen und geprüft.",
+  plan_fertig_fehler:    "Planung gespeichert, aber die Gegenprobe stimmt NICHT. Bitte nicht verlassen, sondern erneut einlesen.",
   plan_fertig:           " Schichten übernommen.",
   plan_ersetzt:          "Eine bereits vorhandene Planung dieser Woche wird ersetzt.",
   plan_kein_name:        "In der Stammliste wurde keine Spalte \"Name\" gefunden.",
@@ -606,6 +652,20 @@ const TEXTE = {
   // Mitarbeiter: eigene Planung
   ma_plan_titel:         "Meine Planung",
   ma_plan_leer:          "Noch keine Schichten für dich eingetragen.",
+  ma_plan_noch_nichts:   "Für die kommenden Tage wurde noch keine Planung eingelesen.",
+  ma_plan_keine:         "Keine (weitere) Schicht für dich eingeplant.",
+  ma_plan_stand:         "Stand: ",
+  ma_btn_planung:        "Meine Planung",
+  ma_btn_planung_info:   "Wann arbeite ich? Diese und nächste Woche",
+  ma_btn_verf:           "Verfügbarkeit eintragen",
+  ma_zurueck:            "← Zurück",
+  ma_diese_woche:        "Diese Woche",
+  ma_naechste_woche:     "Nächste Woche",
+  ma_abgegeben:          "✓ abgegeben",
+  ma_offen:              "noch nicht abgegeben",
+  ma_plan_fehler:        "Die Planung konnte nicht geladen werden. Bitte neu laden oder im Büro melden.",
+  ma_plan_neu_laden:     "Neu laden",
+  ma_plan_hinweis:       "Stimmt etwas nicht? Bitte im Büro melden.",
   schicht_namen:         { FRUEH: "Früh", SPAET: "Spät", LANG: "Lang", BUERO: "Büro" },
   admin_woche:           "Woche",
   admin_abgaben_titel:   "Abgabestatus",
@@ -897,7 +957,9 @@ async function weiterNachAnmeldung() {
 
   verbirg($("screen-pw-aendern"));
   zeige($("screen-ma"));
-  await Promise.all([wocheLaden(), planungLaden()]);
+  maStartAufbauen();
+  maAnsicht("start");
+  await wocheLaden();
 }
 
 function zeigeLogin() {
@@ -1038,38 +1100,118 @@ async function wocheLaden() {
   maAufbauen();
 }
 
-/* ---------- Eigene geplante Schichten (ab heute) ---------- */
+/* ---------- Eigene geplante Schichten: laufende und naechste Woche ---------- */
 const WOCHENTAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+
+// Montag der Woche, in der "d" liegt (lokale Zeit, ISO "2026-10-05")
+function montagIso(d) {
+  const m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
+  return alsIso(m);
+}
 
 async function planungLaden() {
   const karte = $("karte-planung");
   const liste = $("planung-liste");
   $("titel-planung").textContent = TEXTE.ma_plan_titel;
-
-  const { data, error } = await sb.from("planung")
-    .select("datum, schicht_id, beginn, ende")
-    .gte("datum", alsIso(new Date()))
-    .order("datum").order("beginn")
-    .limit(60);
-  if (error) { verbirg(karte); return; }
-
   liste.textContent = "";
-  if (!data || data.length === 0) {
-    liste.appendChild(el("p", null, TEXTE.ma_plan_leer));
-  } else {
+  zeige(karte);
+
+  const heute = new Date();
+  const diese = montagIso(heute);
+  const naechste = new Date(alsDatum(diese));
+  naechste.setDate(naechste.getDate() + 7);
+  const wochenListe = [
+    { kw: diese, titel: TEXTE.ma_diese_woche },
+    { kw: alsIso(naechste), titel: TEXTE.ma_naechste_woche }
+  ];
+  const kws = wochenListe.map((w) => w.kw);
+
+  const [plan, stand] = await Promise.all([
+    sb.from("planung")
+      .select("datum, schicht_id, beginn, ende, kw_start_datum")
+      .in("kw_start_datum", kws)
+      .order("datum").order("beginn"),
+    sb.from("planung_stand")
+      .select("kw_start_datum, aktualisiert_am")
+      .in("kw_start_datum", kws)
+  ]);
+
+  // Ein Ladefehler darf nie wie "keine Schicht" aussehen.
+  if (plan.error || stand.error) {
+    liste.appendChild(el("div", "meldung schlecht", TEXTE.ma_plan_fehler));
+    const neu = el("button", "knopf-mittel", TEXTE.ma_plan_neu_laden);
+    neu.type = "button";
+    neu.onclick = planungLaden;
+    liste.appendChild(neu);
+    return;
+  }
+
+  const standNach = {};
+  for (const s of stand.data || []) standNach[s.kw_start_datum] = s.aktualisiert_am;
+  const heuteIso = alsIso(heute);
+
+  for (const w of wochenListe) {
+    const ende = alsDatum(w.kw);
+    ende.setDate(ende.getDate() + 4);
+    liste.appendChild(el("h3", null, w.titel + " · KW " + isoKw(alsDatum(w.kw)).kw + " · " +
+      tagKurz(w.kw) + "–" + tagKurz(alsIso(ende))));
+
+    const schichten = (plan.data || []).filter((p) => p.kw_start_datum === w.kw);
+    if (!standNach[w.kw] && schichten.length === 0) {
+      liste.appendChild(el("p", null, TEXTE.ma_plan_noch_nichts));
+      continue;
+    }
+    if (standNach[w.kw]) {
+      liste.appendChild(el("div", "etikett", TEXTE.ma_plan_stand + zeitpunktText(standNach[w.kw]) + " Uhr"));
+    }
+    if (schichten.length === 0) {
+      liste.appendChild(el("p", null, TEXTE.ma_plan_keine));
+      continue;
+    }
     const tab = el("table", "liste");
     const tbody = el("tbody");
-    for (const p of data) {
+    for (const p of schichten) {
       const tr = el("tr");
-      tr.appendChild(el("td", null, WOCHENTAGE[alsDatum(p.datum).getDay()] + " " + tagKurz(p.datum)));
+      const tag = WOCHENTAGE[alsDatum(p.datum).getDay()] + " " + tagKurz(p.datum);
+      tr.appendChild(el("td", null, p.datum === heuteIso ? tag + " (heute)" : tag));
       tr.appendChild(el("td", null, TEXTE.schicht_namen[p.schicht_id] || p.schicht_id));
       tr.appendChild(el("td", null, uhr(p.beginn) + "–" + uhr(p.ende)));
+      if (p.datum === heuteIso) tr.style.fontWeight = "700";
       tbody.appendChild(tr);
     }
     tab.appendChild(tbody);
     liste.appendChild(tab);
   }
-  zeige(karte);
+  liste.appendChild(el("p", "hinweisbox", TEXTE.ma_plan_hinweis));
+}
+
+/* ---------- Startseite mit zwei Wegen ---------- */
+const ma = { ansicht: "start" };
+
+function maAnsicht(name) {
+  ma.ansicht = name;
+  $("ma-start").classList.toggle("verborgen", name !== "start");
+  $("ma-ansicht-planung").classList.toggle("verborgen", name !== "planung");
+  $("ma-ansicht-verf").classList.toggle("verborgen", name !== "verf");
+  const leiste = $("sendeleiste");
+  if (name === "verf" && zustand.bearbeitbar) zeige(leiste); else verbirg(leiste);
+  window.scrollTo({ top: 0 });
+}
+
+function maStartAufbauen() {
+  $("start-planung-titel").textContent = TEXTE.ma_btn_planung;
+  $("start-planung-info").textContent  = TEXTE.ma_btn_planung_info;
+  $("start-verf-titel").textContent    = TEXTE.ma_btn_verf;
+  $("start-verf-info").textContent     = TEXTE.laedt;
+  $("btn-zurueck-planung").textContent = TEXTE.ma_zurueck;
+  $("btn-zurueck-verf").textContent    = TEXTE.ma_zurueck;
+  $("btn-start-planung").onclick   = () => { maAnsicht("planung"); planungLaden(); };
+  $("btn-start-verf").onclick      = () => maAnsicht("verf");
+  $("btn-zurueck-planung").onclick = () => maAnsicht("start");
+  $("btn-zurueck-verf").onclick    = () => maAnsicht("start");
+  $("btn-abmelden").textContent = TEXTE.abmelden;
+  $("btn-abmelden").onclick     = abmelden;
 }
 
 /* =====================================================================
@@ -1111,9 +1253,13 @@ function maAufbauen() {
   $("btn-senden").textContent = TEXTE.senden;
   $("btn-senden").onclick     = senden;
 
+  // Startseite: Knopf zur Verfuegbarkeit mit Woche und Stand der Abgabe beschriften
+  $("start-verf-info").textContent =
+    TEXTE.kw_praefix + kwNr.kw + " · " + tagKurz(zustand.kw) + "–" + tagKurz(letzterTag) + " · " +
+    (zustand.abgegebenAm ? TEXTE.ma_abgegeben : TEXTE.ma_offen);
+
   if (!zustand.bearbeitbar) {
     verbirg($("schnellwahl"));
-    verbirg($("sendeleiste"));
     $("ma-huelle").style.paddingBottom = "40px";
     $("max-minus").disabled = true;
     $("max-plus").disabled  = true;
@@ -1124,6 +1270,7 @@ function maAufbauen() {
   }
 
   zeichnen();
+  maAnsicht(ma.ansicht);
 }
 
 function maMeldung(art, text) {
@@ -1690,11 +1837,15 @@ async function funktionRufen(name, koerper) {
 /* ---------- Reiter 6: Planung (fertige Dispo einlesen) ---------- */
 // Die Dispo enthaelt nur Namen. Der Abgleich mit der Stammliste laeuft
 // komplett im Browser; zum Server gehen nur Personalnummer, Datum, Schicht, Zeiten.
+// Grundsatz: kein stiller Fehler. Alles Unklare wird angezeigt und muss
+// ausdruecklich geklaert werden, bevor etwas an die Mitarbeitenden geht.
 const pad2 = (n) => String(n).padStart(2, "0");
+const UEBLICHE_START = ["04:00", "04:15", "04:30", "05:30", "16:00", "16:30", "18:30"];
 
-// Excel-Seriennummer -> "2026-07-20"
-function serieAlsIso(n) {
-  const d = new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400000);
+// Excel-Seriennummer -> "2026-07-20" (Mac-Dateien koennen das 1904-System nutzen)
+function serieAlsIso(n, ist1904) {
+  const basis = ist1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
+  const d = new Date(basis + Math.round(n) * 86400000);
   return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth() + 1) + "-" + pad2(d.getUTCDate());
 }
 // Tagesbruchteil (0.1667) -> "04:00"
@@ -1709,44 +1860,136 @@ function schichtAusZeit(position, beginn) {
   if (min < 17 * 60) return "LANG";
   return "SPAET";
 }
+const wochentagKurz = (iso) => WOCHENTAGE[alsDatum(iso).getDay()] + " " + tagKurz(iso);
+const schichtText = (e) => wochentagKurz(e.datum) + " " + e.beginn + "–" + e.ende;
 
 // Liest das Blatt "FedEx": Datum in Spalte A (Seriennummer), danach Positionen
 // "ZiG AM n" / "ZiG PM n" / "ZiG Office" mit Name (B) und Von/Bis (C/D).
+// Rueckgabe: {eintraege, warnungen, fehler, blatt, unbesetzt, tage}
+// "fehler" blockieren die Uebernahme, "warnungen" muessen nur gesehen werden.
 function dispoParsen(mappe) {
-  const blattName = mappe.SheetNames.find((n) => /fedex/i.test(n)) || mappe.SheetNames[0];
+  const erg = { eintraege: [], warnungen: [], fehler: [], blatt: "", unbesetzt: 0, tage: [] };
+  const wb = mappe.Workbook && mappe.Workbook.WBProps;
+  const ist1904 = !!(wb && wb.date1904);
+
+  let blattName = mappe.SheetNames.find((n) => /fedex/i.test(n));
+  if (!blattName) {
+    blattName = mappe.SheetNames[0];
+    erg.warnungen.push('Kein Blatt "FedEx" gefunden, gelesen wurde "' + blattName + '".');
+  }
+  erg.blatt = blattName;
   const blatt = mappe.Sheets[blattName];
-  if (!blatt || !blatt["!ref"]) return [];
+  if (!blatt || !blatt["!ref"]) { erg.fehler.push("Das Blatt ist leer."); return erg; }
+
   const bereich = XLSX.utils.decode_range(blatt["!ref"]);
   const wert = (c, r) => {
     const z = blatt[XLSX.utils.encode_cell({ c: c, r: r })];
     return z ? z.v : undefined;
   };
 
-  const ergebnis = [];
   let datum = null;
+  const tage = new Set();
+  const gesehen = new Set();
   for (let r = bereich.s.r; r <= bereich.e.r; r++) {
+    const zeile = r + 1;
     const a = wert(0, r);
-    if (typeof a === "number" && a > 40000 && a < 80000) { datum = serieAlsIso(a); continue; }
-    if (typeof a !== "string" || !datum) continue;
-    if (!/^zig\s+(am|pm|office)\s*\d*$/i.test(a.trim())) continue;
+    if (typeof a === "number") {
+      if (a > 40000 && a < 80000) { datum = serieAlsIso(a, ist1904); tage.add(datum); }
+      continue;
+    }
+    if (typeof a !== "string") continue;
+    const text = a.trim();
+    if (/^\d{1,2}\.\d{1,2}\.\d{2,4}$/.test(text)) {
+      erg.fehler.push("Zeile " + zeile + ': Datum "' + text + '" ist als Text eingetragen. In Excel als Datum formatieren.');
+      continue;
+    }
 
     const name = wert(1, r), von = wert(2, r), bis = wert(3, r);
-    if (typeof name !== "string" || !name.trim()) continue;
-    if (typeof von !== "number" || typeof bis !== "number") continue;
+    const hatName = typeof name === "string" && name.trim() !== "";
+    const hatZeit = typeof von === "number" && typeof bis === "number";
+
+    if (!/^zig\s+(am|pm|office)\s*\d*$/i.test(text)) {
+      if (hatName && hatZeit) {
+        erg.warnungen.push("Zeile " + zeile + ': Unbekannte Position "' + text + '" mit Name und Zeiten wurde NICHT eingelesen.');
+      }
+      continue;
+    }
+    if (!datum) { erg.fehler.push("Zeile " + zeile + ': Position "' + text + '" steht vor dem ersten Datum.'); continue; }
+
+    const pk = datum + "|" + text.toLowerCase().replace(/\s+/g, " ");
+    if (gesehen.has(pk)) {
+      erg.fehler.push("Zeile " + zeile + ': Position "' + text + '" kommt am ' + tagKurz(datum) + " doppelt vor (fehlt ein Datum?).");
+      continue;
+    }
+    gesehen.add(pk);
+
+    if (!hatName) { if (hatZeit) erg.unbesetzt++; continue; }
+    if (!hatZeit) {
+      erg.warnungen.push("Zeile " + zeile + ": " + text + " hat einen Namen, aber keine Zeiten und wurde nicht eingelesen.");
+      continue;
+    }
+    if (bis <= von) { erg.fehler.push("Zeile " + zeile + ": Ende liegt nicht nach dem Beginn."); continue; }
 
     const beginn = bruchAlsUhr(von);
-    ergebnis.push({
+    erg.eintraege.push({
       name: name.replace(/\s+/g, " ").trim(),
       datum: datum,
-      schicht_id: schichtAusZeit(a, beginn),
+      schicht_id: schichtAusZeit(text, beginn),
       beginn: beginn,
       ende: bruchAlsUhr(bis)
     });
   }
-  return ergebnis;
+
+  // Struktur: genau fuenf aufeinanderfolgende Tage Mo-Fr
+  erg.tage = Array.from(tage).sort();
+  if (erg.tage.length === 0) {
+    erg.fehler.push("Es wurde kein Datum gefunden.");
+  } else {
+    const erster = alsDatum(erg.tage[0]);
+    let ok = erg.tage.length === 5 && erster.getDay() === 1;
+    for (let i = 0; ok && i < 5; i++) {
+      const soll = new Date(erster); soll.setDate(soll.getDate() + i);
+      if (erg.tage[i] !== alsIso(soll)) ok = false;
+    }
+    if (!ok) {
+      erg.fehler.push("Erwartet werden fünf aufeinanderfolgende Tage Mo–Fr. Gefunden: " +
+        erg.tage.map(tagKurz).join(", ") + ".");
+    }
+  }
+  for (const t of erg.tage) {
+    if (!erg.eintraege.some((e) => e.datum === t)) erg.warnungen.push("Für " + wochentagKurz(t) + " wurde keine einzige Schicht eingelesen.");
+  }
+  // Alte Datei oder falsches Jahr: Woche liegt weit von heute entfernt
+  if (erg.tage.length) {
+    const tageBisWoche = Math.round((alsDatum(erg.tage[0]) - new Date()) / 86400000);
+    if (tageBisWoche < -21 || tageBisWoche > 60) {
+      erg.warnungen.push("Die Woche beginnt am " + erg.tage[0] + " – das liegt weit von heute entfernt. Ist das die richtige Datei?");
+    }
+  }
+
+  // Plausibilitaet: Doppelbuchungen, viele Schichten, ungewoehnliche Startzeiten
+  const nachPerson = new Map();
+  for (const e of erg.eintraege) {
+    const k = nameWoerter(e.name).sort().join(" ");
+    if (!nachPerson.has(k)) nachPerson.set(k, []);
+    nachPerson.get(k).push(e);
+  }
+  for (const liste of nachPerson.values()) {
+    liste.sort((x, y) => (x.datum + x.beginn).localeCompare(y.datum + y.beginn));
+    for (let i = 1; i < liste.length; i++) {
+      if (liste[i].datum === liste[i - 1].datum && liste[i].beginn < liste[i - 1].ende) {
+        erg.warnungen.push("Doppelbuchung: " + liste[i].name + " am " + wochentagKurz(liste[i].datum) + " (überlappende Zeiten).");
+      }
+    }
+    if (liste.length > 5) erg.warnungen.push(liste[0].name + " ist " + liste.length + "× in der Woche eingeplant.");
+  }
+  const seltsam = Array.from(new Set(erg.eintraege.map((e) => e.beginn).filter((b) => UEBLICHE_START.indexOf(b) < 0)));
+  if (seltsam.length) erg.warnungen.push("Ungewöhnliche Startzeit(en): " + seltsam.join(", ") + ". Bitte prüfen.");
+
+  return erg;
 }
 
-// Stammliste: Spalten Personalnummer + Name (Passwort wird ignoriert und nie gelesen).
+// Stammliste: Spalten Personalnummer + Name (Passwort wird nie gelesen).
 async function stammNamenLesen(datei) {
   await sheetJsLaden();
   const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
@@ -1757,15 +2000,25 @@ async function stammNamenLesen(datei) {
   const sName = spalten.find((s) => /name/i.test(s));
   if (!sPn) throw new Error('Spalte "Personalnummer" fehlt.');
   if (!sName) throw new Error(TEXTE.plan_kein_name);
-  return zeilen
+  const liste = zeilen
     .map((z) => ({ pn: String(z[sPn]).trim(), name: String(z[sName]).trim() }))
     .filter((z) => z.pn && z.name);
+  const nachPn = new Map();
+  for (const z of liste) {
+    if (nachPn.has(z.pn) && nachPn.get(z.pn) !== z.name) {
+      throw new Error("Die Personalnummer " + z.pn + " kommt mit verschiedenen Namen vor.");
+    }
+    nachPn.set(z.pn, z.name);
+  }
+  return liste;
 }
 
 // "Nachname, Vorname" / "Nachname Vorname" -> Kleinbuchstaben-Woerter ohne Akzente.
 // Das Zeichen U+FFFD (kaputte Umlaute in der Dispo) bleibt als Platzhalter erhalten.
+// Unsichtbare Zeichen werden vorher entfernt, damit sie keine Woerter trennen.
 function nameWoerter(s) {
-  return String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
+  return String(s).replace(/[​-‍⁠﻿­]/g, "")
+    .normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
     .replace(/[^\p{L}�]+/gu, " ").trim().split(" ").filter(Boolean);
 }
 function wortGleich(a, b) {
@@ -1785,9 +2038,44 @@ function nameBewertung(dispoWoerter, stammWoerter) {
     wert: treffer / Math.max(dispoWoerter.length, stammWoerter.length)
   };
 }
+const nameSchluessel = (name) => nameWoerter(name).sort().join(" ");
+
+// Bestaetigte Zuordnungen (Schreibweise -> Personalnummer): nur lokal im Browser.
+const ZUORDNUNG_KEY = "zig_namenzuordnung_v1";
+function zuordnungLaden() {
+  try { return JSON.parse(localStorage.getItem(ZUORDNUNG_KEY) || "{}") || {}; }
+  catch (_) { return {}; }
+}
+function zuordnungSpeichern(objekt) {
+  try { localStorage.setItem(ZUORDNUNG_KEY, JSON.stringify(objekt)); return true; }
+  catch (_) { return false; }
+}
+
+// Kontrollliste zum Gegenlesen gegen die Excel (nur lokal, mit Namen)
+function kontrollListe(titel, zeilen) {
+  const d = el("details", "block");
+  d.appendChild(el("summary", null, titel + " (" + zeilen.length + ")"));
+  const tab = el("table", "liste");
+  const th = el("tr");
+  ["Name in der Dispo", "Personalnummer", "Schichten"].forEach((t) => th.appendChild(el("th", null, t)));
+  const thead = el("thead"); thead.appendChild(th); tab.appendChild(thead);
+  const tbody = el("tbody");
+  for (const z of zeilen.slice().sort((a, b) => a.name.localeCompare(b.name, "de"))) {
+    const tr = el("tr");
+    tr.appendChild(el("td", null, z.name));
+    tr.appendChild(el("td", null, z.pn || "–"));
+    tr.appendChild(el("td", null, z.eintraege
+      .slice().sort((a, b) => (a.datum + a.beginn).localeCompare(b.datum + b.beginn))
+      .map(schichtText).join("; ")));
+    tbody.appendChild(tr);
+  }
+  tab.appendChild(tbody);
+  d.appendChild(tab);
+  return d;
+}
 
 function adminPlanung(ziel) {
-  let dispo = null;   // [{name, datum, schicht_id, beginn, ende}]
+  let dispo = null;   // Ergebnis von dispoParsen
   let stamm = null;   // [{pn, name}]
 
   const karte = el("div", "karte");
@@ -1803,6 +2091,7 @@ function adminPlanung(ziel) {
     f.onchange = async () => {
       const datei = f.files && f.files[0];
       if (!datei) return;
+      ergebnis.textContent = "";
       try { await beiDatei(datei); adminMeldung(null); }
       catch (e) { adminMeldung("schlecht", String(e.message || e)); }
       knopf.disabled = !(dispo && stamm);
@@ -1818,11 +2107,12 @@ function adminPlanung(ziel) {
     dispo = null;
     await sheetJsLaden();
     const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
-    const liste = dispoParsen(mappe);
-    if (liste.length === 0) { infoDispo.textContent = ""; throw new Error(TEXTE.plan_kein_blatt); }
-    dispo = liste;
-    const tage = new Set(liste.map((e) => e.datum)).size;
-    infoDispo.textContent = liste.length + " Schichten an " + tage + " Tagen gelesen.";
+    const erg = dispoParsen(mappe);
+    infoDispo.textContent = 'Blatt "' + erg.blatt + '": ' + erg.eintraege.length + " Schichten an " +
+      erg.tage.length + " Tagen gelesen" +
+      (erg.fehler.length ? ", " + erg.fehler.length + " Fehler" : "") +
+      (erg.warnungen.length ? ", " + erg.warnungen.length + " Warnung(en)" : "") + ".";
+    dispo = erg;
   });
   const infoStamm = dateiFeld(TEXTE.plan_label_stamm, ".xlsx,.xls", async (datei) => {
     stamm = null;
@@ -1836,6 +2126,31 @@ function adminPlanung(ziel) {
   knopf.style.width = "100%";
   karte.appendChild(knopf);
 
+  // Zuordnungsliste sichern/laden (enthaelt Namen: nur lokal aufbewahren)
+  const zeileZ = el("div", "zeile-paar");
+  zeileZ.style.marginTop = "12px";
+  const btnSichern = el("button", "knopf-klein", TEXTE.plan_zuordnung_sichern);
+  btnSichern.type = "button";
+  btnSichern.onclick = () => datenSpeichern(JSON.stringify(zuordnungLaden(), null, 2),
+    "namenzuordnung.json", "application/json;charset=utf-8");
+  const btnLaden = el("button", "knopf-klein", TEXTE.plan_zuordnung_laden);
+  btnLaden.type = "button";
+  const dateiZ = document.createElement("input");
+  dateiZ.type = "file"; dateiZ.accept = ".json"; dateiZ.style.display = "none";
+  btnLaden.onclick = () => dateiZ.click();
+  dateiZ.onchange = async () => {
+    try {
+      const obj = JSON.parse(await dateiZ.files[0].text());
+      if (!obj || typeof obj !== "object" || Array.isArray(obj)) throw new Error("Ungültige Datei.");
+      zuordnungSpeichern(Object.assign({}, zuordnungLaden(), obj));
+      adminMeldung("gut", TEXTE.plan_zuordnung_geladen);
+    } catch (e) { adminMeldung("schlecht", String(e.message || e)); }
+    dateiZ.value = "";
+  };
+  zeileZ.appendChild(btnSichern); zeileZ.appendChild(btnLaden); zeileZ.appendChild(dateiZ);
+  karte.appendChild(zeileZ);
+  karte.appendChild(el("p", "hinweisbox", TEXTE.plan_zuordnung_hinweis));
+
   const ergebnis = el("div");
   ergebnis.style.marginTop = "14px";
   karte.appendChild(ergebnis);
@@ -1844,137 +2159,291 @@ function adminPlanung(ziel) {
   knopf.onclick = async () => {
     knopf.disabled = true;
     ergebnis.textContent = TEXTE.laedt;
-    const { data: ma } = await sb.from("employees").select("personalnummer").eq("aktiv", true);
+    const { data: ma, error } = await sb.from("employees").select("personalnummer").eq("aktiv", true);
+    if (error) {
+      knopf.disabled = false;
+      ergebnis.textContent = "";
+      adminMeldung("schlecht", error.message);
+      return;
+    }
+    let bisher = [];
+    if (dispo.tage.length) {
+      const montag = dispo.tage[0];
+      const r = await sb.from("planung")
+        .select("personalnummer, datum, schicht_id, beginn, ende").eq("kw_start_datum", montag);
+      if (r.error) {
+        knopf.disabled = false;
+        ergebnis.textContent = "";
+        adminMeldung("schlecht", r.error.message);
+        return;
+      }
+      bisher = r.data || [];
+    }
     knopf.disabled = false;
     ergebnis.textContent = "";
-    planungVorschau(ergebnis, dispo, stamm, new Set((ma || []).map((m) => m.personalnummer)));
+    planungVorschau(ergebnis, dispo, stamm, new Set((ma || []).map((m) => m.personalnummer)), bisher);
   };
 }
 
-function planungVorschau(ziel, dispo, stamm, zugaenge) {
-  const daten = dispo.map((e) => e.datum).sort();
-  const montag = alsDatum(daten[0]);
-  montag.setDate(montag.getDate() - ((montag.getDay() + 6) % 7));
-  const kw = alsIso(montag);
-  const freitag = alsDatum(kw);
-  freitag.setDate(freitag.getDate() + 4);
-  if (daten[daten.length - 1] > alsIso(freitag)) {
-    ziel.appendChild(fehlerListe({ fehler: ["Die Dispo reicht über mehr als eine Woche (Mo–Fr)."] }));
+function planungVorschau(ziel, dispo, stamm, zugaenge, bisher) {
+  if (dispo.fehler.length) {
+    const box = el("div", "meldung schlecht");
+    box.style.whiteSpace = "pre-line";
+    box.textContent = "Die Dispo kann so nicht übernommen werden:\n" + dispo.fehler.slice(0, 25).join("\n");
+    ziel.appendChild(box);
     return;
   }
 
-  // nur Personen mit Zugang koennen zugeordnet werden
+  const kw = dispo.tage[0];
+  const freitag = dispo.tage[4];
+  const kwNr = isoKw(alsDatum(kw));
+
+  // ---- Kopf: Woche bestaetigen, Warnungen, Unterschied zur bisherigen Planung
+  const woche = el("div", "meldung info");
+  woche.appendChild(el("b", null, "KW " + kwNr.kw + " · " + tagKurz(kw) + "–" + tagKurz(freitag)));
+  ziel.appendChild(woche);
+
+  if (dispo.warnungen.length) {
+    const w = el("div", "meldung schlecht");
+    w.style.whiteSpace = "pre-line";
+    w.textContent = "Bitte prüfen:\n" + dispo.warnungen.slice(0, 30).join("\n");
+    ziel.appendChild(w);
+  }
+  if (dispo.unbesetzt > 0) {
+    ziel.appendChild(el("p", "hinweisbox", dispo.unbesetzt + " Positionen sind ohne Namen (unbesetzt)."));
+  }
+
+  const schluesselAlt = new Set(bisher.map((b) =>
+    [b.personalnummer, b.datum, uhr(b.beginn), b.schicht_id].join("|")));
+  const diffBox = el("p", "hinweisbox");
+  ziel.appendChild(diffBox);
+
+  // ---- Personen (nur mit App-Zugang zuordenbar)
   const personen = stamm
     .filter((s) => zugaenge.has(s.pn))
     .map((s) => ({ pn: s.pn, name: s.name, woerter: nameWoerter(s.name) }))
     .sort((a, b) => a.name.localeCompare(b.name, "de"));
-  const ohneZugang = stamm.length - personen.length;
+  const ohneZugang = stamm
+    .filter((s) => !zugaenge.has(s.pn))
+    .map((s) => ({ pn: s.pn, name: s.name, woerter: nameWoerter(s.name) }));
+  const stammPn = new Set(stamm.map((s) => s.pn));
+  const nurInDb = Array.from(zugaenge).filter((pn) => !stammPn.has(pn));
+  if (nurInDb.length) {
+    ziel.appendChild(el("p", "hinweisbox", nurInDb.length +
+      " aktive Zugänge stehen nicht in der gewählten Stammliste und können nicht zugeordnet werden: " +
+      nurInDb.join(", ") + "."));
+  }
 
-  // Schichten je Dispo-Name
+  const gemerkt = zuordnungLaden();
   const nachName = new Map();
-  for (const e of dispo) {
+  for (const e of dispo.eintraege) {
     if (!nachName.has(e.name)) nachName.set(e.name, []);
     nachName.get(e.name).push(e);
   }
 
-  const zeilen = [];   // {name, eintraege, auswahl(select), status(td)}
-  const kwNr = isoKw(alsDatum(kw));
-
-  const kopf = el("div", "meldung info");
-  ziel.appendChild(kopf);
-  ziel.appendChild(el("p", null,
-    "KW " + kwNr.kw + " · " + tagKurz(kw) + "–" + tagKurz(alsIso(freitag)) + " · " + TEXTE.plan_ersetzt));
-  if (ohneZugang > 0) ziel.appendChild(el("p", "hinweisbox", ohneZugang + TEXTE.plan_nicht_in_db));
-
   const tab = el("table", "liste");
   const th = el("tr");
-  ["Name in der Dispo", "Schichten", "Mitarbeiter"].forEach((t) => th.appendChild(el("th", null, t)));
+  ["Name in der Dispo", "Schichten", "Mitarbeiter", "Status"].forEach((t) => th.appendChild(el("th", null, t)));
   const thead = el("thead"); thead.appendChild(th); tab.appendChild(thead);
   const tbody = el("tbody");
+  const zeilen = [];
 
   for (const [name, eintraege] of nachName) {
     const w = nameWoerter(name);
+    const schluessel0 = nameSchluessel(name);
+    const gleich = personen.filter((p) =>
+      p.woerter.length === w.length && nameBewertung(w, p.woerter).wert === 1);
+    const gleichOhne = ohneZugang.filter((p) =>
+      p.woerter.length === w.length && nameBewertung(w, p.woerter).wert === 1);
     const bewertet = personen
       .map((p) => ({ p: p, b: nameBewertung(w, p.woerter) }))
       .filter((x) => x.b.wert >= 0.5 || x.b.alle)
       .sort((a, b) => b.b.wert - a.b.wert);
 
-    // sicher: gleiche Woerter in beliebiger Reihenfolge, genau ein Treffer
-    const gleich = personen.filter((p) =>
-      p.woerter.length === w.length && nameBewertung(w, p.woerter).wert === 1);
-    let vorauswahl = null, hinweis = "";
-    if (gleich.length === 1) vorauswahl = gleich[0].pn;
-    else if (bewertet.length && (bewertet.length === 1 || bewertet[0].b.wert > bewertet[1].b.wert)
-             && bewertet[0].b.alle) {
-      vorauswahl = bewertet[0].p.pn;
-      hinweis = TEXTE.plan_vorschlag;
-    }
+    // Automatisch NUR bei eindeutigem Treffer oder frueher bestaetigter Schreibweise.
+    let vorauswahl = "?", status = "unklar";
+    const bekannt = gemerkt[schluessel0];
+    if (bekannt && personen.some((p) => p.pn === bekannt)) { vorauswahl = bekannt; status = "gemerkt"; }
+    else if (gleich.length === 1 && gleichOhne.length === 0) { vorauswahl = gleich[0].pn; status = "sicher"; }
+    else if (gleich.length === 0 && gleichOhne.length >= 1) { vorauswahl = "-"; status = "keine_app"; }
 
     const sel = document.createElement("select");
-    const leer = document.createElement("option");
-    leer.value = ""; leer.textContent = TEXTE.plan_ueberspringen;
-    sel.appendChild(leer);
-    const vorn = new Set();
-    for (const x of bewertet) {
+    const addOption = (wert, text) => {
       const o = document.createElement("option");
-      o.value = x.p.pn;
-      o.textContent = x.p.name + " (" + x.p.pn + ")" + (x.p.pn === vorauswahl ? hinweis : "");
-      sel.appendChild(o);
-      vorn.add(x.p.pn);
+      o.value = wert; o.textContent = text; sel.appendChild(o);
+    };
+    addOption("?", TEXTE.plan_bitte_waehlen);
+    addOption("-", TEXTE.plan_ueberspringen);
+    const vorn = new Set();
+    // Vorschlaege stehen oben, sind aber nie vorausgewaehlt.
+    for (const x of gleich.concat(bewertet.map((b) => b.p))) {
+      if (vorn.has(x.pn)) continue;
+      vorn.add(x.pn);
+      addOption(x.pn, x.name + " (" + x.pn + ")" + TEXTE.plan_vorschlag);
     }
     for (const p of personen) {
       if (vorn.has(p.pn)) continue;
-      const o = document.createElement("option");
-      o.value = p.pn; o.textContent = p.name + " (" + p.pn + ")";
-      sel.appendChild(o);
+      addOption(p.pn, p.name + " (" + p.pn + ")");
     }
-    sel.value = vorauswahl || "";
+    sel.value = vorauswahl;
 
     const tr = el("tr");
     tr.appendChild(el("td", null, name));
     tr.appendChild(el("td", null, String(eintraege.length)));
     const tdSel = el("td"); tdSel.appendChild(sel); tr.appendChild(tdSel);
+    const tdStatus = el("td");
+    tr.appendChild(tdStatus);
     tbody.appendChild(tr);
-    zeilen.push({ eintraege: eintraege, sel: sel, tr: tr });
+    zeilen.push({ name: name, eintraege: eintraege, sel: sel, tr: tr, tdStatus: tdStatus,
+                  status: status, schluessel: schluessel0 });
   }
   tab.appendChild(tbody);
+
+  const kopf = el("div", "meldung info");
+  ziel.appendChild(kopf);
   ziel.appendChild(tab);
 
-  const aktualisieren = () => {
-    let zugeordnet = 0, schichten = 0, offen = 0;
-    for (const z of zeilen) {
-      const ok = z.sel.value !== "";
-      z.tr.className = ok ? "" : "status-nein";
-      if (ok) { zugeordnet++; schichten += z.eintraege.length; } else offen++;
-    }
-    kopf.textContent = schichten + " Schichten für " + zugeordnet + " Personen · " +
-      offen + " Namen übersprungen/ungeklärt";
+  const skipBox = el("div", "meldung schlecht");
+  skipBox.style.whiteSpace = "pre-line";
+  ziel.appendChild(skipBox);
+
+  const mache = (text) => {
+    const l = el("label");
+    l.style.display = "block"; l.style.margin = "10px 0";
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.style.marginRight = "8px";
+    l.appendChild(cb); l.appendChild(document.createTextNode(text));
+    ziel.appendChild(l);
+    return cb;
   };
-  zeilen.forEach((z) => { z.sel.onchange = aktualisieren; });
-  aktualisieren();
+  const cbWoche = mache("Die Woche KW " + kwNr.kw + " (" + tagKurz(kw) + "–" + tagKurz(freitag) + ") ist richtig.");
+  const cbSkip = mache("Ich habe gesehen, dass die oben genannten Personen KEINE Planung bekommen.");
+
+  const kontrolle = el("div");
+  ziel.appendChild(kontrolle);
 
   const btn = el("button", "knopf-mittel", TEXTE.plan_uebernehmen);
   btn.type = "button";
   btn.style.width = "100%";
   btn.style.marginTop = "12px";
-  btn.onclick = async () => {
+  ziel.appendChild(btn);
+  const nachher = el("div");
+  nachher.style.marginTop = "14px";
+  ziel.appendChild(nachher);
+
+  const eintraegeFuer = () => {
     const liste = [];
     for (const z of zeilen) {
-      if (!z.sel.value) continue;
+      if (z.sel.value === "?" || z.sel.value === "-") continue;
       for (const e of z.eintraege) {
         liste.push({ personalnummer: z.sel.value, datum: e.datum, schicht_id: e.schicht_id,
                      beginn: e.beginn, ende: e.ende });
       }
     }
+    return liste;
+  };
+
+  const aktualisieren = () => {
+    let unklar = 0, uebersprungen = 0, zugeordnet = 0, schichten = 0;
+    const skipTexte = [];
+    for (const z of zeilen) {
+      const v = z.sel.value;
+      if (v === "?") unklar++;
+      else if (v === "-") {
+        uebersprungen++;
+        skipTexte.push("• " + z.name + (z.status === "keine_app" ? " (nicht in der App)" : "") +
+          ": " + z.eintraege.length + " Schicht(en) – " + z.eintraege.map(schichtText).join("; "));
+      } else { zugeordnet++; schichten += z.eintraege.length; }
+
+      const gewaehlt = v !== "?" && v !== "-";
+      z.tr.className = (v === "?" || z.status === "keine_app") ? "status-nein" : "";
+      z.tdStatus.textContent =
+        v === "?" ? TEXTE.plan_status_klaeren
+        : v === "-" ? (z.status === "keine_app" ? TEXTE.plan_status_keine_app : TEXTE.plan_status_skip)
+        : z.status === "sicher" ? TEXTE.plan_status_sicher
+        : z.status === "gemerkt" ? TEXTE.plan_status_gemerkt
+        : TEXTE.plan_status_manuell;
+      z.tdStatus.style.fontWeight = gewaehlt ? "" : "700";
+    }
+    kopf.textContent = schichten + " Schichten für " + zugeordnet + " Personen · " +
+      unklar + " Namen noch ungeklärt · " + uebersprungen + " ohne Planung";
+
+    const liste = eintraegeFuer();
+    const neu = new Set(liste.map((e) => [e.personalnummer, e.datum, e.beginn, e.schicht_id].join("|")));
+    let dazu = 0, weg = 0;
+    neu.forEach((k) => { if (!schluesselAlt.has(k)) dazu++; });
+    schluesselAlt.forEach((k) => { if (!neu.has(k)) weg++; });
+    diffBox.textContent = schluesselAlt.size === 0
+      ? TEXTE.plan_erste_planung
+      : TEXTE.plan_ersetzt + " Bisher " + schluesselAlt.size + " Schichten; neu: +" + dazu + ", entfernt: −" + weg + ".";
+
+    skipBox.textContent = skipTexte.length
+      ? "Diese Personen bekommen KEINE Planung in der App:\n" + skipTexte.join("\n")
+      : "";
+    skipBox.style.display = skipTexte.length ? "" : "none";
+    cbSkip.parentNode.style.display = skipTexte.length ? "block" : "none";
+
+    kontrolle.textContent = "";
+    kontrolle.appendChild(kontrollListe("Kontrollliste zum Gegenlesen gegen die Excel",
+      zeilen.filter((z) => z.sel.value !== "?" && z.sel.value !== "-")
+            .map((z) => ({ name: z.name, pn: z.sel.value, eintraege: z.eintraege }))));
+
+    btn.disabled = !(unklar === 0 && zugeordnet > 0 && cbWoche.checked &&
+                     (uebersprungen === 0 || cbSkip.checked));
+  };
+  zeilen.forEach((z) => { z.sel.onchange = aktualisieren; });
+  cbWoche.onchange = aktualisieren;
+  cbSkip.onchange = aktualisieren;
+  aktualisieren();
+
+  btn.onclick = async () => {
+    const liste = eintraegeFuer();
     btn.disabled = true;
     btn.textContent = TEXTE.laedt;
     const { data, error } = await sb.rpc("planung_ersetzen", { kw: kw, eintraege: liste });
-    btn.disabled = false;
     btn.textContent = TEXTE.plan_uebernehmen;
-    if (error) { adminMeldung("schlecht", error.message); return; }
-    adminMeldung("gut", data + TEXTE.plan_fertig);
+    if (error) {
+      btn.disabled = false;
+      adminMeldung("schlecht", "NICHT gespeichert: " + error.message);
+      return;
+    }
+
+    // Gegenprobe: aus der Datenbank zuruecklesen und mit der beabsichtigten Liste vergleichen
+    const soll = new Set(liste.map((e) => [e.personalnummer, e.datum, e.beginn, e.schicht_id].join("|")));
+    const r = await sb.from("planung")
+      .select("personalnummer, datum, schicht_id, beginn").eq("kw_start_datum", kw);
+    const ist = new Set((r.data || []).map((p) =>
+      [p.personalnummer, p.datum, uhr(p.beginn), p.schicht_id].join("|")));
+    let gleich = 0;
+    soll.forEach((k) => { if (ist.has(k)) gleich++; });
+    const stimmt = !r.error && gleich === soll.size && ist.size === soll.size;
+
+    nachher.textContent = "";
+    const box = el("div", "meldung " + (stimmt ? "gut" : "schlecht"));
+    box.textContent = stimmt
+      ? "✓ Gegenprobe: " + gleich + " von " + soll.size + " Schichten stimmen mit der Datenbank überein."
+      : "✗ Gegenprobe FEHLGESCHLAGEN: " + gleich + " von " + soll.size + " stimmen überein (in der Datenbank: " +
+        ist.size + "). Bitte Planung erneut einlesen und melden.";
+    nachher.appendChild(box);
+    if (data && data.eingefuegt !== undefined) {
+      nachher.appendChild(el("p", null, "Server: " + data.eingefuegt + " von " + data.erwartet + " Schichten gespeichert."));
+    }
+
+    // Bestaetigte Zuordnungen merken (nur manuelle; nur lokal)
+    const merk = zuordnungLaden();
+    for (const z of zeilen) {
+      if (z.sel.value !== "?" && z.sel.value !== "-" && z.status !== "sicher") merk[z.schluessel] = z.sel.value;
+    }
+    zuordnungSpeichern(merk);
+
+    const informieren = zeilen.filter((z) => z.sel.value === "-");
+    if (informieren.length) {
+      nachher.appendChild(kontrollListe("Bitte persönlich informieren (keine Planung in der App)",
+        informieren.map((z) => ({ name: z.name, pn: "", eintraege: z.eintraege }))));
+    }
+    adminMeldung(stimmt ? "gut" : "schlecht", stimmt ? TEXTE.plan_fertig_ok : TEXTE.plan_fertig_fehler);
+    if (!stimmt) btn.disabled = false;
   };
-  ziel.appendChild(btn);
 }
 
 /* ---------- Reiter 3: Einzelnes Passwort ---------- */

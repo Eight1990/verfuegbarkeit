@@ -74,6 +74,11 @@ begin
   v_kw := public.aktive_woche();
   perform public.get_or_create_week(v_kw);
 
+  -- Alles Folgende laeuft in einer Unter-Transaktion und wird am Ende zurueckgerollt,
+  -- damit der Test keine echten Daten veraendert (auch nicht die der Testkonten).
+  begin
+  delete from public.availability where personalnummer in (v_a_pn, v_b_pn) and kw_start_datum = v_kw;
+
   -- eine freie Schicht suchen, die noch keiner von beiden gewaehlt hat
   select ws.datum, ws.schicht_id into v_datum, v_schicht
   from public.week_shifts ws
@@ -312,14 +317,42 @@ begin
   insert into public.planung (personalnummer, datum, schicht_id, beginn, ende, kw_start_datum)
   values (v_a_pn, v_kw, 'FRUEH', '04:00', '07:00', v_kw),
          (v_b_pn, v_kw, 'FRUEH', '04:00', '07:00', v_kw);
+  -- Testzeilen in einer weit entfernten Woche (beruehrt keine echten Daten)
+  insert into public.planung_stand (kw_start_datum, anzahl) values ('2000-01-03', 1);
+  insert into public.planung_historie (kw_start_datum, daten) values ('2000-01-03', '[]'::jsonb);
 
   execute 'set local role authenticated';
 
-  select count(*) into v_zahl from public.planung;
+  select count(*) into v_zahl from public.planung_stand where kw_start_datum = '2000-01-03';
   v_nr := v_nr + 1;
   return query select v_nr,
-    'Mitarbeiter sieht Zeilen in planung'::text,
-    'genau 1 (nur eigene)'::text, v_zahl::text, (v_zahl = 1);
+    'Mitarbeiter liest planung_stand'::text,
+    '1 Zeile'::text, v_zahl::text, (v_zahl = 1);
+
+  select count(*) into v_zahl from public.planung_historie;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter sieht planung_historie'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+
+  begin
+    insert into public.planung_stand (kw_start_datum, anzahl) values ('2000-01-10', 1);
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter schreibt planung_stand'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter schreibt planung_stand'::text,
+      'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  select count(*) into v_zahl from public.planung where personalnummer <> v_a_pn;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter sieht fremde Zeilen in planung'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
 
   begin
     insert into public.planung (personalnummer, datum, schicht_id, beginn, ende, kw_start_datum)
@@ -350,6 +383,8 @@ begin
 
   execute 'reset role';
   delete from public.planung where kw_start_datum = v_kw and personalnummer in (v_a_pn, v_b_pn);
+  delete from public.planung_stand    where kw_start_datum = '2000-01-03';
+  delete from public.planung_historie where kw_start_datum = '2000-01-03';
 
   -- ------------------------------------------------------------------
   -- 14) Deaktivierte Personalnummer kann nichts mehr speichern
@@ -384,6 +419,10 @@ begin
      set aktiv = true, muss_pw_aendern = v_a_flag
    where personalnummer = v_a_pn;
   perform set_config('request.jwt.claims', '', true);
+  raise exception using errcode = 'ZZ001', message = 'Testende (alles zurueckgerollt)';
+  exception when sqlstate 'ZZ001' then
+    null;
+  end;
 
   return;
 end;

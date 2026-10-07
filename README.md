@@ -550,6 +550,35 @@ Mitarbeitende sehen nach dem Login oben "Meine Planung" (ihre Schichten ab heute
 
 ---
 
+### Planung absichern (Migration 0007)
+
+Grundsatz: **kein stiller Fehler.** Vor dem Übernehmen muss alles Unklare geklärt sein.
+
+- Zusätzlich `supabase/migrations/0007_planung_absicherung.sql` im SQL Editor ausführen
+  (strenge `planung_ersetzen`, Tabellen `planung_historie` und `planung_stand`).
+- **Fehler** (z. B. Datum fehlt oder ist Text, Position doppelt, keine fünf Tage Mo–Fr) blockieren
+  die Übernahme. **Warnungen** (unbekannte Position, Name ohne Zeit, Doppelbuchung, Woche weit von
+  heute) müssen gelesen werden.
+- Nur **eindeutige** Namenstreffer und früher bestätigte Schreibweisen sind vorausgewählt.
+  Alles andere steht auf "KLÄREN" und muss zugeordnet oder ausdrücklich übersprungen werden.
+  Namen ohne App-Zugang (neue Mitarbeitende) stehen als "Nicht in der App" in der Liste.
+- Übernehmen erst nach Bestätigung der Woche (und, falls Personen übersprungen wurden, dieser Personen).
+- Nach dem Speichern liest die App die Woche zurück: **"✓ n von n"** muss erscheinen.
+  Die Kontrollliste (Name, Personalnummer, Schichten) dient zum Gegenlesen gegen die Excel.
+- Die alte Planung einer Woche wird vor dem Ersetzen in `planung_historie` gesichert.
+- Mitarbeitende sehen "Stand: Datum, Uhrzeit" je Woche; ein Ladefehler wird als Fehler angezeigt,
+  nie als "keine Schicht".
+
+**Checkliste für jede Woche:**
+1. Neue Mitarbeitende zuerst in die Stammliste aufnehmen und importieren, dann die Dispo einlesen.
+2. Alle Warnungen und "KLÄREN"-Zeilen abarbeiten, niemanden überspringen, der arbeiten soll.
+3. Woche bestätigen, Planung übernehmen, auf "✓ n von n" warten.
+4. 3–5 Personen aus der Kontrollliste gegen die Excel gegenlesen; Personen aus
+   "Nicht in der App" persönlich informieren.
+5. In der Dispo möglichst die Schreibweise der Stammliste verwenden.
+
+---
+
 ## Was die App bewusst nicht kann
 
 Diese Punkte sind **kein Teil** dieses Projekts — die Struktur ist aber so
