@@ -559,8 +559,7 @@ Mitarbeitende sehen nach dem Login oben "Meine Planung" (ihre Schichten ab heute
   vier Reserve-Stile (Stern, Wolke, Dreieck, Raute) sind für spätere Schichtarten vorbereitet. Für eine
   neue Schichtart braucht es zusätzlich eine Anpassung der Datenbank (`planung.schicht_id`) und der Erkennung im Import.
 - **Büro ("ZiG Office") wird nicht importiert** und nicht angezeigt.
-- Der Button **"In meinen Kalender übernehmen"** erzeugt eine `.ics`-Datei im Browser des Mitarbeiters. Termine
-  haben feste IDs (erneuter Import aktualisiert sie), entfallene Schichten werden aber nicht gelöscht.
+- Unten steht "Stimmt etwas nicht? Bitte im Büro melden" mit der Büro-Telefonnummer als Link (Tippen startet den Anruf).
 
 ### Planung absichern (Migration 0007)
 

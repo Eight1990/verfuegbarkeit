@@ -195,6 +195,7 @@
   .st-r1{background:#b8ece3;} .st-r2{background:#f9c9dd;} .st-r3{background:#e6cdb5;} .st-r4{background:#dbe39a;}
   .st-n{background:#dcdcd6;}
   .kal-detail{margin:12px 0;padding:12px 14px;border-radius:10px;background:#f6f6f2;font-size:16px;min-height:24px;}
+  a.telefon{color:inherit;font-weight:bold;text-decoration:underline;white-space:nowrap;padding:8px 2px;}
   .kal-summe{margin:6px 0 12px;font-size:15px;color:var(--grau-hell);}
   .zurueck{
     background:none;border:0;padding:12px 0;margin:6px 0;font:inherit;font-weight:bold;
@@ -278,16 +279,17 @@
     display:flex;align-items:flex-end;justify-content:center;
   }
   #recht .box{
-    background:#fff;width:100%;max-width:640px;max-height:90vh;
+    background:#fff;width:100%;max-width:640px;
+    max-height:calc(100% - 72px - env(safe-area-inset-top,0px));
     border-radius:var(--radius) var(--radius) 0 0;
     display:flex;flex-direction:column;
   }
   #recht .box-kopf{
     display:flex;align-items:center;justify-content:space-between;
-    padding:12px 16px;border-bottom:1px solid var(--rand);
+    padding:14px 16px;border-bottom:1px solid var(--rand);flex:0 0 auto;
   }
   #recht .box-kopf h2{margin:0;font-size:20px;}
-  #recht .box-inhalt{overflow-y:auto;padding:4px 16px 24px;font-size:15px;line-height:1.5;}
+  #recht .box-inhalt{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:4px 16px calc(24px + env(safe-area-inset-bottom,0px));font-size:15px;line-height:1.5;}
   #recht h3{font-size:16px;margin:18px 0 4px;}
   #recht p{margin:0 0 8px;}
 
@@ -695,11 +697,11 @@ const TEXTE = {
   ma_plan_fehler_kurz:   "Planung konnte nicht geladen werden",
   ma_tag_antippen:       "Tippe auf einen Tag für Details.",
   ma_frei:               "keine Schicht",
-  ma_kalender_btn:       "In meinen Kalender übernehmen",
-  ma_kalender_hinweis:   "Erstellt eine Kalenderdatei mit den Schichten dieser und der nächsten Woche. Bei einer Änderung der Planung bitte die Termine im Kalender prüfen: Entfallene Schichten werden nicht automatisch gelöscht.",
   ma_plan_fehler:        "Die Planung konnte nicht geladen werden. Bitte neu laden oder im Büro melden.",
   ma_plan_neu_laden:     "Neu laden",
-  ma_plan_hinweis:       "Stimmt etwas nicht? Bitte im Büro melden.",
+  ma_plan_hinweis:       "Stimmt etwas nicht? Bitte im Büro melden: ",
+  ma_telefon:            "08122 553300",
+  ma_telefon_href:       "tel:+498122553300",
   schicht_namen:         { FRUEH: "Früh", SPAET: "Spät", LANG: "Lang", BUERO: "Büro" },
   admin_woche:           "Woche",
   admin_abgaben_titel:   "Abgabestatus",
@@ -1208,6 +1210,15 @@ async function planungDatenLaden() {
   if (ma.ansicht === "planung") planungZeichnen();
 }
 
+// Hinweis mit Telefonnummer: Tippen startet auf dem Handy direkt den Anruf
+function hinweisBuero() {
+  const p = el("p", "hinweisbox", TEXTE.ma_plan_hinweis);
+  const a = el("a", "telefon", TEXTE.ma_telefon);
+  a.href = TEXTE.ma_telefon_href;
+  p.appendChild(a);
+  return p;
+}
+
 const hatPlanung = (w) => !!(w.stand || w.schichten.length);
 
 // "Naechste Schicht" fuer die Startseite
@@ -1287,7 +1298,7 @@ function planungZeichnen() {
 
   if (!hatPlanung(w)) {
     liste.appendChild(el("p", null, TEXTE.ma_plan_noch_nichts));
-    liste.appendChild(el("p", "hinweisbox", TEXTE.ma_plan_hinweis));
+    liste.appendChild(hinweisBuero());
     return;
   }
 
@@ -1349,42 +1360,7 @@ function planungZeichnen() {
   liste.appendChild(el("div", "kal-summe",
     w.schichten.length + (w.schichten.length === 1 ? " Schicht" : " Schichten") + " · " + stundenText(minGesamt / 60)));
 
-  const kal = el("button", "knopf-mittel grau", TEXTE.ma_kalender_btn);
-  kal.type = "button";
-  kal.style.width = "100%";
-  kal.onclick = kalenderExport;
-  liste.appendChild(kal);
-  liste.appendChild(el("p", "hinweisbox", TEXTE.ma_kalender_hinweis));
-  liste.appendChild(el("p", "hinweisbox", TEXTE.ma_plan_hinweis));
-}
-
-// Kalenderdatei (.ics) mit den Schichten der geladenen Wochen. Entsteht nur im Browser.
-function icsText(s) {
-  return String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
-}
-function icsBauen(schichten, jetzt) {
-  const z = (iso, zeit) => iso.replace(/-/g, "") + "T" + zeit.slice(0, 2) + zeit.slice(3, 5) + "00";
-  const stamp = jetzt.getUTCFullYear() + pad2(jetzt.getUTCMonth() + 1) + pad2(jetzt.getUTCDate()) + "T" +
-    pad2(jetzt.getUTCHours()) + pad2(jetzt.getUTCMinutes()) + pad2(jetzt.getUTCSeconds()) + "Z";
-  const zeilen = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Zeit ist Geld//FedEx Schichten//DE",
-                  "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
-  for (const p of schichten) {
-    const endeTag = p.ende <= p.beginn ? addTage(p.datum, 1) : p.datum;
-    zeilen.push("BEGIN:VEVENT",
-      "UID:" + p.datum + "-" + uhr(p.beginn).replace(":", "") + "-" + p.schicht_id + "@zig-schichten",
-      "DTSTAMP:" + stamp,
-      "DTSTART:" + z(p.datum, p.beginn),
-      "DTEND:" + z(endeTag, p.ende),
-      "SUMMARY:" + icsText("FedEx " + schichtName(p.schicht_id)),
-      "END:VEVENT");
-  }
-  zeilen.push("END:VCALENDAR");
-  return zeilen.join("\r\n") + "\r\n";
-}
-function kalenderExport() {
-  const alle = [];
-  for (const k of ma.planung.kws) alle.push.apply(alle, ma.planung.wochen[k].schichten);
-  datenSpeichern(icsBauen(alle, new Date()), "meine-schichten.ics", "text/calendar;charset=utf-8");
+  liste.appendChild(hinweisBuero());
 }
 
 /* ---------- Startseite mit zwei Wegen ---------- */
