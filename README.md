@@ -550,6 +550,18 @@ Mitarbeitende sehen nach dem Login oben "Meine Planung" (ihre Schichten ab heute
 
 ---
 
+### Mitarbeiteransicht (Startseite, Wochenkalender)
+
+- Nach dem Login gibt es zwei Wege: **"Meine Planung"** und **"Verfügbarkeit eintragen"**. Auf dem
+  Planungs-Button steht schon die nächste Schicht ("Heute · Spät · 18:30–22:30").
+- Die Planung zeigt einen **Wochenkalender Mo–Fr** mit Umschalter "Diese Woche | Nächste Woche".
+  Schichtarten haben feste Farben und Symbole (Früh gelb/Sonne, Spät blau/Mond, Lang violett/Mond mit Pfeil);
+  vier Reserve-Stile (Stern, Wolke, Dreieck, Raute) sind für spätere Schichtarten vorbereitet. Für eine
+  neue Schichtart braucht es zusätzlich eine Anpassung der Datenbank (`planung.schicht_id`) und der Erkennung im Import.
+- **Büro ("ZiG Office") wird nicht importiert** und nicht angezeigt.
+- Der Button **"In meinen Kalender übernehmen"** erzeugt eine `.ics`-Datei im Browser des Mitarbeiters. Termine
+  haben feste IDs (erneuter Import aktualisiert sie), entfallene Schichten werden aber nicht gelöscht.
+
 ### Planung absichern (Migration 0007)
 
 Grundsatz: **kein stiller Fehler.** Vor dem Übernehmen muss alles Unklare geklärt sein.

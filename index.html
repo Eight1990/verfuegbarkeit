@@ -170,6 +170,32 @@
   .start-knopf:active{background:var(--gruen);}
   .start-knopf .start-titel{display:block;font-weight:bold;font-size:20px;}
   .start-knopf .start-info{display:block;margin-top:6px;font-size:15px;color:#4d4d4d;}
+  .wtabs{display:flex;gap:8px;margin:10px 0 14px;}
+  .wtabs button{
+    flex:1;padding:12px 6px;border:2px solid var(--grau-hell);background:#fff;border-radius:12px;
+    font:inherit;font-weight:bold;cursor:pointer;line-height:1.25;color:var(--grau);min-height:56px;
+  }
+  .wtabs button small{display:block;font-weight:normal;font-size:13px;}
+  .wtabs button[aria-selected="true"]{background:var(--gruen);border-color:var(--gruen-dunkel);}
+  .kal{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;}
+  .kal-kopf{text-align:center;font-weight:bold;font-size:14px;line-height:1.2;}
+  .kal-kopf span{display:block;font-weight:normal;font-size:12px;color:var(--grau-hell);}
+  .kal-tag{
+    min-height:104px;border:2px solid transparent;border-radius:10px;padding:5px 2px;background:#f0f0ec;
+    font:inherit;font-size:13px;line-height:1.2;color:#333;cursor:pointer;
+    display:flex;flex-direction:column;gap:4px;align-items:stretch;justify-content:flex-start;text-align:center;
+  }
+  .kal-tag.frei{color:var(--grau-hell);justify-content:center;}
+  .kal-tag.heute{border:4px solid var(--grau);padding:3px 0;}
+  .kal-tag.offen{outline:3px solid var(--gruen-dunkel);outline-offset:1px;}
+  .kal-s{border-radius:6px;padding:4px 1px;}
+  .kal-s svg{width:20px;height:20px;display:block;margin:0 auto 2px;}
+  .kal-s b{display:block;font-size:13px;}
+  .st-fr{background:#ffe08a;} .st-sp{background:#bfd7ff;} .st-la{background:#dcc6f5;}
+  .st-r1{background:#b8ece3;} .st-r2{background:#f9c9dd;} .st-r3{background:#e6cdb5;} .st-r4{background:#dbe39a;}
+  .st-n{background:#dcdcd6;}
+  .kal-detail{margin:12px 0;padding:12px 14px;border-radius:10px;background:#f6f6f2;font-size:16px;min-height:24px;}
+  .kal-summe{margin:6px 0 12px;font-size:15px;color:var(--grau-hell);}
   .zurueck{
     background:none;border:0;padding:12px 0;margin:6px 0;font:inherit;font-weight:bold;
     cursor:pointer;color:inherit;text-decoration:underline;
@@ -663,6 +689,14 @@ const TEXTE = {
   ma_naechste_woche:     "Nächste Woche",
   ma_abgegeben:          "✓ abgegeben",
   ma_offen:              "noch nicht abgegeben",
+  ma_naechste_schicht:   "Nächste Schicht: ",
+  ma_keine_weitere:      "Keine weitere Schicht in diesen zwei Wochen",
+  ma_plan_noch_nichts_kurz: "Noch keine Planung eingelesen",
+  ma_plan_fehler_kurz:   "Planung konnte nicht geladen werden",
+  ma_tag_antippen:       "Tippe auf einen Tag für Details.",
+  ma_frei:               "keine Schicht",
+  ma_kalender_btn:       "In meinen Kalender übernehmen",
+  ma_kalender_hinweis:   "Erstellt eine Kalenderdatei mit den Schichten dieser und der nächsten Woche. Bei einer Änderung der Planung bitte die Termine im Kalender prüfen: Entfallene Schichten werden nicht automatisch gelöscht.",
   ma_plan_fehler:        "Die Planung konnte nicht geladen werden. Bitte neu laden oder im Büro melden.",
   ma_plan_neu_laden:     "Neu laden",
   ma_plan_hinweis:       "Stimmt etwas nicht? Bitte im Büro melden.",
@@ -957,9 +991,10 @@ async function weiterNachAnmeldung() {
 
   verbirg($("screen-pw-aendern"));
   zeige($("screen-ma"));
+  ma.planung = null;
   maStartAufbauen();
   maAnsicht("start");
-  await wocheLaden();
+  await Promise.all([wocheLaden(), planungDatenLaden()]);
 }
 
 function zeigeLogin() {
@@ -1100,8 +1135,37 @@ async function wocheLaden() {
   maAufbauen();
 }
 
-/* ---------- Eigene geplante Schichten: laufende und naechste Woche ---------- */
+/* ---------- Eigene geplante Schichten: Wochenkalender ---------- */
 const WOCHENTAGE = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+const WOCHENTAGE_LANG = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+// Farbe + Symbol + Text je Schichtart (nie nur Farbe). Vier Reserve-Stile fuer spaetere Schichtarten.
+const SYMBOLE_EXTRA = {};
+SYMBOLE_EXTRA.stern   = '<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.7 7-6.3-3.8-6.3 3.8 1.7-7L2 9.5l7.1-.6z" fill="#4D4D4D"/></svg>';
+SYMBOLE_EXTRA.wolke   = '<svg viewBox="0 0 24 24"><path d="M7 19a4.2 4.2 0 0 1-.7-8.3A5.6 5.6 0 0 1 17 9a4.8 4.8 0 0 1 .6 10z" fill="#4D4D4D"/></svg>';
+SYMBOLE_EXTRA.dreieck = '<svg viewBox="0 0 24 24"><path d="M12 3l10 18H2z" fill="#4D4D4D"/></svg>';
+SYMBOLE_EXTRA.raute   = '<svg viewBox="0 0 24 24"><path d="M12 2l9 10-9 10-9-10z" fill="#4D4D4D"/></svg>';
+SYMBOLE_EXTRA.punkt   = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="5" fill="#4D4D4D"/></svg>';
+const SCHICHT_STIL = {
+  FRUEH: { klasse: "st-fr", symbol: "sonne" },
+  SPAET: { klasse: "st-sp", symbol: "mond" },
+  LANG:  { klasse: "st-la", symbol: "mond_lang" }
+};
+const RESERVE_STIL = [
+  { klasse: "st-r1", symbol: "stern" },
+  { klasse: "st-r2", symbol: "wolke" },
+  { klasse: "st-r3", symbol: "dreieck" },
+  { klasse: "st-r4", symbol: "raute" }
+];
+// Bekannte Schichtart -> fester Stil; BUERO neutral; Unbekanntes -> Reserve-Stil (stabil nach Name).
+function stilFuer(schichtId) {
+  if (SCHICHT_STIL[schichtId]) return SCHICHT_STIL[schichtId];
+  if (schichtId === "BUERO") return { klasse: "st-n", symbol: "punkt" };
+  let h = 0;
+  for (const c of String(schichtId)) h = (h * 31 + c.charCodeAt(0)) % 4;
+  return RESERVE_STIL[h];
+}
+const schichtName = (id) => TEXTE.schicht_namen[id] || id;
 
 // Montag der Woche, in der "d" liegt (lokale Zeit, ISO "2026-10-05")
 function montagIso(d) {
@@ -1109,24 +1173,19 @@ function montagIso(d) {
   m.setDate(m.getDate() - ((m.getDay() + 6) % 7));
   return alsIso(m);
 }
+const addTage = (iso, n) => { const d = alsDatum(iso); d.setDate(d.getDate() + n); return alsIso(d); };
+const dauerMin = (p) => {
+  const a = minuten(p.beginn); let b = minuten(p.ende);
+  if (b <= a) b += 24 * 60;
+  return b - a;
+};
 
-async function planungLaden() {
-  const karte = $("karte-planung");
-  const liste = $("planung-liste");
-  $("titel-planung").textContent = TEXTE.ma_plan_titel;
-  liste.textContent = "";
-  zeige(karte);
+const ma = { ansicht: "start", planung: null, woche: 0, tag: null };
 
-  const heute = new Date();
-  const diese = montagIso(heute);
-  const naechste = new Date(alsDatum(diese));
-  naechste.setDate(naechste.getDate() + 7);
-  const wochenListe = [
-    { kw: diese, titel: TEXTE.ma_diese_woche },
-    { kw: alsIso(naechste), titel: TEXTE.ma_naechste_woche }
-  ];
-  const kws = wochenListe.map((w) => w.kw);
-
+// Laedt laufende und naechste Woche. Ergebnis wird fuer Startseite und Kalender gemeinsam genutzt.
+async function planungDatenLaden() {
+  const diese = montagIso(new Date());
+  const kws = [diese, addTage(diese, 7)];
   const [plan, stand] = await Promise.all([
     sb.from("planung")
       .select("datum, schicht_id, beginn, ende, kw_start_datum")
@@ -1136,59 +1195,199 @@ async function planungLaden() {
       .select("kw_start_datum, aktualisiert_am")
       .in("kw_start_datum", kws)
   ]);
-
-  // Ein Ladefehler darf nie wie "keine Schicht" aussehen.
   if (plan.error || stand.error) {
+    ma.planung = { fehler: true, kws: kws, wochen: {} };
+  } else {
+    const wochen = {};
+    for (const k of kws) wochen[k] = { stand: null, schichten: [] };
+    for (const s of stand.data || []) if (wochen[s.kw_start_datum]) wochen[s.kw_start_datum].stand = s.aktualisiert_am;
+    for (const p of plan.data || []) if (wochen[p.kw_start_datum]) wochen[p.kw_start_datum].schichten.push(p);
+    ma.planung = { fehler: false, kws: kws, wochen: wochen };
+  }
+  maStartInfo();
+  if (ma.ansicht === "planung") planungZeichnen();
+}
+
+const hatPlanung = (w) => !!(w.stand || w.schichten.length);
+
+// "Naechste Schicht" fuer die Startseite
+function naechsteSchicht() {
+  const jetzt = new Date();
+  let beste = null;
+  for (const k of ma.planung.kws) {
+    for (const p of ma.planung.wochen[k].schichten) {
+      const ende = alsDatum(p.datum);
+      ende.setHours(Number(p.ende.slice(0, 2)), Number(p.ende.slice(3, 5)));
+      if (p.beginn >= p.ende) ende.setDate(ende.getDate() + 1);
+      if (ende < jetzt) continue;
+      if (!beste || (p.datum + p.beginn) < (beste.datum + beste.beginn)) beste = p;
+    }
+  }
+  return beste;
+}
+function tagBezeichnung(iso) {
+  const heute = alsIso(new Date());
+  if (iso === heute) return "Heute";
+  if (iso === addTage(heute, 1)) return "Morgen";
+  return WOCHENTAGE[alsDatum(iso).getDay()] + " " + tagKurz(iso);
+}
+function maStartInfo() {
+  const ziel = $("start-planung-info");
+  if (!ma.planung) { ziel.textContent = TEXTE.laedt; return; }
+  if (ma.planung.fehler) { ziel.textContent = TEXTE.ma_plan_fehler_kurz; return; }
+  const alle = ma.planung.kws.map((k) => ma.planung.wochen[k]);
+  if (!alle.some(hatPlanung)) { ziel.textContent = TEXTE.ma_plan_noch_nichts_kurz; return; }
+  const s = naechsteSchicht();
+  ziel.textContent = s
+    ? TEXTE.ma_naechste_schicht + tagBezeichnung(s.datum) + " · " + schichtName(s.schicht_id) +
+      " · " + uhr(s.beginn) + "–" + uhr(s.ende)
+    : TEXTE.ma_keine_weitere;
+}
+
+function planungZeichnen() {
+  const karte = $("karte-planung");
+  const liste = $("planung-liste");
+  $("titel-planung").textContent = TEXTE.ma_plan_titel;
+  liste.textContent = "";
+  zeige(karte);
+
+  if (!ma.planung) { liste.appendChild(el("p", null, TEXTE.laedt)); return; }
+  if (ma.planung.fehler) {
     liste.appendChild(el("div", "meldung schlecht", TEXTE.ma_plan_fehler));
     const neu = el("button", "knopf-mittel", TEXTE.ma_plan_neu_laden);
     neu.type = "button";
-    neu.onclick = planungLaden;
+    neu.onclick = () => { ma.planung = null; planungZeichnen(); planungDatenLaden(); };
     liste.appendChild(neu);
     return;
   }
 
-  const standNach = {};
-  for (const s of stand.data || []) standNach[s.kw_start_datum] = s.aktualisiert_am;
-  const heuteIso = alsIso(heute);
+  const kw = ma.planung.kws[ma.woche];
+  const w = ma.planung.wochen[kw];
+  const heuteIso = alsIso(new Date());
 
-  for (const w of wochenListe) {
-    const ende = alsDatum(w.kw);
-    ende.setDate(ende.getDate() + 4);
-    liste.appendChild(el("h3", null, w.titel + " · KW " + isoKw(alsDatum(w.kw)).kw + " · " +
-      tagKurz(w.kw) + "–" + tagKurz(alsIso(ende))));
+  // Umschalter Diese Woche / Naechste Woche
+  const tabs = el("div", "wtabs");
+  tabs.setAttribute("role", "tablist");
+  [TEXTE.ma_diese_woche, TEXTE.ma_naechste_woche].forEach((titel, i) => {
+    const k = ma.planung.kws[i];
+    const b = el("button");
+    b.type = "button";
+    b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", i === ma.woche ? "true" : "false");
+    b.appendChild(document.createTextNode(titel));
+    b.appendChild(el("small", null, "KW " + isoKw(alsDatum(k)).kw));
+    b.onclick = () => { ma.woche = i; ma.tag = null; planungZeichnen(); };
+    tabs.appendChild(b);
+  });
+  liste.appendChild(tabs);
 
-    const schichten = (plan.data || []).filter((p) => p.kw_start_datum === w.kw);
-    if (!standNach[w.kw] && schichten.length === 0) {
-      liste.appendChild(el("p", null, TEXTE.ma_plan_noch_nichts));
-      continue;
-    }
-    if (standNach[w.kw]) {
-      liste.appendChild(el("div", "etikett", TEXTE.ma_plan_stand + zeitpunktText(standNach[w.kw]) + " Uhr"));
-    }
-    if (schichten.length === 0) {
-      liste.appendChild(el("p", null, TEXTE.ma_plan_keine));
-      continue;
-    }
-    const tab = el("table", "liste");
-    const tbody = el("tbody");
-    for (const p of schichten) {
-      const tr = el("tr");
-      const tag = WOCHENTAGE[alsDatum(p.datum).getDay()] + " " + tagKurz(p.datum);
-      tr.appendChild(el("td", null, p.datum === heuteIso ? tag + " (heute)" : tag));
-      tr.appendChild(el("td", null, TEXTE.schicht_namen[p.schicht_id] || p.schicht_id));
-      tr.appendChild(el("td", null, uhr(p.beginn) + "–" + uhr(p.ende)));
-      if (p.datum === heuteIso) tr.style.fontWeight = "700";
-      tbody.appendChild(tr);
-    }
-    tab.appendChild(tbody);
-    liste.appendChild(tab);
+  liste.appendChild(el("div", "etikett", "KW " + isoKw(alsDatum(kw)).kw + " · " +
+    tagKurz(kw) + "–" + tagKurz(addTage(kw, 4)) +
+    (w.stand ? " · " + TEXTE.ma_plan_stand + zeitpunktText(w.stand) + " Uhr" : "")));
+
+  if (!hatPlanung(w)) {
+    liste.appendChild(el("p", null, TEXTE.ma_plan_noch_nichts));
+    liste.appendChild(el("p", "hinweisbox", TEXTE.ma_plan_hinweis));
+    return;
   }
+
+  const nachTag = {};
+  for (const p of w.schichten) (nachTag[p.datum] = nachTag[p.datum] || []).push(p);
+
+  const raster = el("div", "kal");
+  const tage = [0, 1, 2, 3, 4].map((i) => addTage(kw, i));
+  for (const iso of tage) {
+    const kopf = el("div", "kal-kopf", WOCHENTAGE[alsDatum(iso).getDay()]);
+    kopf.appendChild(el("span", null, tagKurz(iso)));
+    raster.appendChild(kopf);
+  }
+  const detail = el("div", "kal-detail");
+  detail.setAttribute("aria-live", "polite");
+  const detailText = (iso) => {
+    const sch = nachTag[iso] || [];
+    const kopf = WOCHENTAGE_LANG[alsDatum(iso).getDay()] + ", " + tagKurz(iso) +
+      (iso === heuteIso ? " (heute)" : "");
+    return sch.length
+      ? kopf + " · " + sch.map((p) => schichtName(p.schicht_id) + " " + uhr(p.beginn) + "–" + uhr(p.ende) +
+          " (" + stundenText(dauerMin(p) / 60) + ")").join(" · ")
+      : kopf + " · " + TEXTE.ma_frei;
+  };
+  const kacheln = [];
+  for (const iso of tage) {
+    const sch = nachTag[iso] || [];
+    const b = el("button", "kal-tag" + (sch.length ? "" : " frei") + (iso === heuteIso ? " heute" : ""));
+    b.type = "button";
+    b.setAttribute("aria-label", detailText(iso));
+    if (!sch.length) {
+      b.appendChild(el("span", null, "–"));
+    }
+    for (const p of sch) {
+      const st = stilFuer(p.schicht_id);
+      const s = el("span", "kal-s " + st.klasse);
+      const sym = el("span"); sym.innerHTML = SYMBOLE_EXTRA[st.symbol] || SYMBOLE[st.symbol] || ""; s.appendChild(sym);
+      s.appendChild(el("b", null, schichtName(p.schicht_id)));
+      s.appendChild(document.createTextNode(uhr(p.beginn)));
+      s.appendChild(el("br"));
+      s.appendChild(document.createTextNode(uhr(p.ende)));
+      b.appendChild(s);
+    }
+    b.onclick = () => {
+      ma.tag = ma.tag === iso ? null : iso;
+      kacheln.forEach((x) => x.k.classList.toggle("offen", x.iso === ma.tag));
+      detail.textContent = ma.tag ? detailText(ma.tag) : TEXTE.ma_tag_antippen;
+    };
+    kacheln.push({ k: b, iso: iso });
+    raster.appendChild(b);
+  }
+  liste.appendChild(raster);
+
+  detail.textContent = ma.tag ? detailText(ma.tag) : TEXTE.ma_tag_antippen;
+  kacheln.forEach((x) => x.k.classList.toggle("offen", x.iso === ma.tag));
+  liste.appendChild(detail);
+
+  const minGesamt = w.schichten.reduce((a, p) => a + dauerMin(p), 0);
+  liste.appendChild(el("div", "kal-summe",
+    w.schichten.length + (w.schichten.length === 1 ? " Schicht" : " Schichten") + " · " + stundenText(minGesamt / 60)));
+
+  const kal = el("button", "knopf-mittel grau", TEXTE.ma_kalender_btn);
+  kal.type = "button";
+  kal.style.width = "100%";
+  kal.onclick = kalenderExport;
+  liste.appendChild(kal);
+  liste.appendChild(el("p", "hinweisbox", TEXTE.ma_kalender_hinweis));
   liste.appendChild(el("p", "hinweisbox", TEXTE.ma_plan_hinweis));
 }
 
-/* ---------- Startseite mit zwei Wegen ---------- */
-const ma = { ansicht: "start" };
+// Kalenderdatei (.ics) mit den Schichten der geladenen Wochen. Entsteht nur im Browser.
+function icsText(s) {
+  return String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\n/g, "\\n");
+}
+function icsBauen(schichten, jetzt) {
+  const z = (iso, zeit) => iso.replace(/-/g, "") + "T" + zeit.slice(0, 2) + zeit.slice(3, 5) + "00";
+  const stamp = jetzt.getUTCFullYear() + pad2(jetzt.getUTCMonth() + 1) + pad2(jetzt.getUTCDate()) + "T" +
+    pad2(jetzt.getUTCHours()) + pad2(jetzt.getUTCMinutes()) + pad2(jetzt.getUTCSeconds()) + "Z";
+  const zeilen = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Zeit ist Geld//FedEx Schichten//DE",
+                  "CALSCALE:GREGORIAN", "METHOD:PUBLISH"];
+  for (const p of schichten) {
+    const endeTag = p.ende <= p.beginn ? addTage(p.datum, 1) : p.datum;
+    zeilen.push("BEGIN:VEVENT",
+      "UID:" + p.datum + "-" + uhr(p.beginn).replace(":", "") + "-" + p.schicht_id + "@zig-schichten",
+      "DTSTAMP:" + stamp,
+      "DTSTART:" + z(p.datum, p.beginn),
+      "DTEND:" + z(endeTag, p.ende),
+      "SUMMARY:" + icsText("FedEx " + schichtName(p.schicht_id)),
+      "END:VEVENT");
+  }
+  zeilen.push("END:VCALENDAR");
+  return zeilen.join("\r\n") + "\r\n";
+}
+function kalenderExport() {
+  const alle = [];
+  for (const k of ma.planung.kws) alle.push.apply(alle, ma.planung.wochen[k].schichten);
+  datenSpeichern(icsBauen(alle, new Date()), "meine-schichten.ics", "text/calendar;charset=utf-8");
+}
 
+/* ---------- Startseite mit zwei Wegen ---------- */
 function maAnsicht(name) {
   ma.ansicht = name;
   $("ma-start").classList.toggle("verborgen", name !== "start");
@@ -1201,12 +1400,20 @@ function maAnsicht(name) {
 
 function maStartAufbauen() {
   $("start-planung-titel").textContent = TEXTE.ma_btn_planung;
-  $("start-planung-info").textContent  = TEXTE.ma_btn_planung_info;
+  $("start-planung-info").textContent  = TEXTE.laedt;
   $("start-verf-titel").textContent    = TEXTE.ma_btn_verf;
   $("start-verf-info").textContent     = TEXTE.laedt;
   $("btn-zurueck-planung").textContent = TEXTE.ma_zurueck;
   $("btn-zurueck-verf").textContent    = TEXTE.ma_zurueck;
-  $("btn-start-planung").onclick   = () => { maAnsicht("planung"); planungLaden(); };
+  $("btn-start-planung").onclick   = () => {
+    // Am Wochenende zuerst die naechste Woche zeigen
+    const wt = new Date().getDay();
+    ma.woche = (wt === 0 || wt === 6) ? 1 : 0;
+    ma.tag = null;
+    maAnsicht("planung");
+    if (!ma.planung || ma.planung.fehler) { ma.planung = null; planungZeichnen(); planungDatenLaden(); }
+    else planungZeichnen();
+  };
   $("btn-start-verf").onclick      = () => maAnsicht("verf");
   $("btn-zurueck-planung").onclick = () => maAnsicht("start");
   $("btn-zurueck-verf").onclick    = () => maAnsicht("start");
@@ -1854,7 +2061,6 @@ function bruchAlsUhr(b) {
   return pad2(Math.floor(min / 60) % 24) + ":" + pad2(min % 60);
 }
 function schichtAusZeit(position, beginn) {
-  if (/office/i.test(position)) return "BUERO";
   const min = Number(beginn.slice(0, 2)) * 60 + Number(beginn.slice(3, 5));
   if (min < 12 * 60) return "FRUEH";
   if (min < 17 * 60) return "LANG";
@@ -1914,6 +2120,8 @@ function dispoParsen(mappe) {
       }
       continue;
     }
+    // Buero ("ZiG Office") arbeitet fest Mo-Fr und braucht die App nicht: nicht einlesen.
+    if (/office/i.test(text)) continue;
     if (!datum) { erg.fehler.push("Zeile " + zeile + ': Position "' + text + '" steht vor dem ersten Datum.'); continue; }
 
     const pk = datum + "|" + text.toLowerCase().replace(/\s+/g, " ");
