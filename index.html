@@ -702,6 +702,9 @@ const TEXTE = {
   ma_plan_hinweis:       "Stimmt etwas nicht? Bitte im Büro melden: ",
   ma_telefon:            "08122 553300",
   ma_telefon_href:       "tel:+498122553300",
+  ma_oder:               " oder ",
+  ma_handy:              "0174 9491486",
+  ma_handy_href:         "tel:+491749491486",
   schicht_namen:         { FRUEH: "Früh", SPAET: "Spät", LANG: "Lang", BUERO: "Büro" },
   admin_woche:           "Woche",
   admin_abgaben_titel:   "Abgabestatus",
@@ -1216,6 +1219,10 @@ function hinweisBuero() {
   const a = el("a", "telefon", TEXTE.ma_telefon);
   a.href = TEXTE.ma_telefon_href;
   p.appendChild(a);
+  p.appendChild(document.createTextNode(TEXTE.ma_oder));
+  const m = el("a", "telefon", TEXTE.ma_handy);
+  m.href = TEXTE.ma_handy_href;
+  p.appendChild(m);
   return p;
 }
 
