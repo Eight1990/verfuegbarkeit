@@ -748,6 +748,7 @@ const TEXTE_DE = {
   ma_plan_hinweis:       "Stimmt etwas nicht? Bitte im Büro melden: ",
   ma_telefon:            "08122 553300",
   ma_telefon_href:       "tel:+498122553300",
+  ma_oder:               " oder ",
   schicht_namen:         { FRUEH: "Früh", SPAET: "Spät", LANG: "Lang", BUERO: "Büro" },
   admin_woche:           "Woche",
   admin_abgaben_titel:   "Abgabestatus",
@@ -1762,15 +1763,19 @@ const ma = { ansicht: "start", planung: null, woche: 0, tag: null };
 async function planungDatenLaden() {
   const diese = montagIso(new Date());
   const kws = [diese, addTage(diese, 7)];
-  const [plan, stand] = await Promise.all([
+  const [plan, stand, kontakt] = await Promise.all([
     sb.from("planung")
       .select("datum, schicht_id, beginn, ende, kw_start_datum")
       .in("kw_start_datum", kws)
       .order("datum").order("beginn"),
     sb.from("planung_stand")
       .select("kw_start_datum, aktualisiert_am")
-      .in("kw_start_datum", kws)
+      .in("kw_start_datum", kws),
+    // Handynummer steht bewusst nicht im Code, sondern in Supabase; fehlt sie, bleibt nur die Buero-Nummer
+    sb.from("app_einstellungen").select("wert").eq("schluessel", "kontakt_handy").maybeSingle()
   ]);
+  const handy = kontakt.data && typeof kontakt.data.wert === "string" ? kontakt.data.wert.trim() : "";
+  ma.handy = /^[0-9+ ()\/-]{6,30}$/.test(handy) ? handy : "";
   if (plan.error || stand.error) {
     ma.planung = { fehler: true, kws: kws, wochen: {} };
   } else {
@@ -1790,6 +1795,13 @@ function hinweisBuero() {
   const a = el("a", "telefon", TEXTE.ma_telefon);
   a.href = TEXTE.ma_telefon_href;
   p.appendChild(a);
+  if (ma.handy) {
+    const ziffern = ma.handy.replace(/[^0-9+]/g, "");
+    const b = el("a", "telefon", ma.handy);
+    b.href = "tel:" + (ziffern.startsWith("0") ? "+49" + ziffern.slice(1) : ziffern);
+    p.appendChild(document.createTextNode(TEXTE.ma_oder));
+    p.appendChild(b);
+  }
   return p;
 }
 
