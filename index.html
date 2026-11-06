@@ -262,6 +262,23 @@
   .hinweisbox{font-size:14px;color:var(--grau-hell);margin-top:8px;}
   details.block{border:1px solid var(--rand);border-radius:12px;padding:10px;margin-bottom:10px;background:#fff;}
   details.block > summary{cursor:pointer;font-weight:bold;}
+  /* Auto-Planung: Ansicht wie die Dispo-Excel */
+  .auto-tag{border:1px solid var(--rand);border-radius:12px;margin:14px 0;background:#fff;overflow:hidden;}
+  .auto-tag-kopf{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:10px 12px;background:var(--gruen);font-size:15px;}
+  .auto-abschnitt{padding:6px 12px;background:#f2f2f2;font-weight:bold;font-size:13px;color:var(--grau);}
+  .auto-wrap{overflow-x:auto;}
+  table.auto-tab{width:100%;border-collapse:collapse;font-size:14px;}
+  table.auto-tab td,table.auto-tab th{padding:5px 8px;border-bottom:1px solid var(--rand);text-align:left;vertical-align:top;}
+  table.auto-tab th{font-size:12px;color:var(--grau-hell);text-transform:uppercase;}
+  table.auto-tab select{max-width:15em;font-size:14px;}
+  table.auto-tab tr.auto-frei td{background:#fff4e0;}
+  table.auto-tab tr.auto-fehler td{background:#fde7e7;}
+  .auto-hinweis{font-size:12px;color:var(--rot);}
+  .auto-alt{font-size:13px;color:var(--grau-hell);}
+  .auto-alt button{border:0;background:none;color:var(--grau);text-decoration:underline;cursor:pointer;font-size:13px;padding:0 0 0 4px;}
+  .auto-summe{padding:6px 12px;text-align:right;font-size:13px;color:var(--grau-hell);}
+  .auto-chip{display:inline-block;min-width:2.2em;text-align:center;padding:2px 6px;border-radius:8px;font-weight:bold;font-size:13px;}
+  .auto-f{background:#d9ecff;} .auto-s{background:#ffe3c2;} .auto-fs{background:#e9d5ff;} .auto-o{background:#d4f5d4;}
 
   /* ---------- Fuss ---------- */
   footer.fuss{
@@ -692,7 +709,7 @@ const TEXTE_DE = {
   datenschutz:           "Datenschutz",
 
   // Admin
-  admin_reiter:          ["Abgaben","Stammliste","Passwort","Zeiten","Export","Planung"],
+  admin_reiter:          ["Abgaben","Zugänge","Passwort","Zeiten","Export","Planung","Auto-Planung"],
 
   // Planung (fertige Dispo)
   plan_titel:            "Fertige Planung einlesen",
@@ -758,8 +775,8 @@ const TEXTE_DE = {
   admin_haben_abgegeben: " haben abgegeben",
   admin_keine_ma:        "Es sind noch keine Personalnummern angelegt.",
 
-  admin_stamm_titel:     "Stammliste hochladen",
-  admin_stamm_hinweis:   "Datei mit genau zwei Spalten: Personalnummer, Passwort. Excel (.xlsx) oder CSV.",
+  admin_stamm_titel:     "Zugänge anlegen und Passwörter vergeben",
+  admin_stamm_hinweis:   "Excel (.xlsx) oder CSV mit den Spalten Personalnummer und Passwort. Neue Nummern bekommen einen Zugang. Weitere Spalten (Name, Kategorie ...) werden hier ignoriert und nicht hochgeladen.",
   admin_vorschau:        "Vorschau prüfen",
   admin_uebernehmen:     "Jetzt übernehmen",
   admin_gelesen:         " Zeilen gelesen.",
@@ -768,7 +785,7 @@ const TEXTE_DE = {
   admin_deaktiviert:     "deaktiviert",
   admin_reaktiviert:     "wieder aktiv",
   admin_unveraendert:    "unverändert",
-  admin_import_fertig:   "Stammliste übernommen.",
+  admin_import_fertig:   "Zugänge übernommen.",
 
   admin_pw_titel:        "Passwort zurücksetzen",
   admin_pw_neu:          "Neues Passwort",
@@ -2374,6 +2391,7 @@ function adminZeichnen() {
   if (admin.reiter === 3) adminZeiten(ziel);
   if (admin.reiter === 4) adminExport(ziel);
   if (admin.reiter === 5) adminPlanung(ziel);
+  if (admin.reiter === 6) adminAutoPlanung(ziel);
 }
 
 /* ---------- Reiter 1: Abgabestatus ---------- */
@@ -2391,6 +2409,9 @@ async function adminAbgaben(ziel) {
   ]);
   const liste = ergebnisse[0].data || [];
   const abgaben = ergebnisse[1].data || [];
+  // Klarnamen und Kategorie kommen nur aus der lokal eingespielten Stammliste (nicht aus der DB).
+  const profilNach = stammProfile;
+  const KATEGORIE_TEXT = { teilzeit: "Teilzeit", minijob: "Minijob" };
 
   inhalt.textContent = "";
   if (liste.length === 0) {
@@ -2411,15 +2432,42 @@ async function adminAbgaben(ziel) {
   const tab = el("table", "liste");
   const thead = el("thead");
   const trh = el("tr");
+  trh.appendChild(el("th", null, "Name"));
   trh.appendChild(el("th", null, TEXTE.label_personalnummer));
+  trh.appendChild(el("th", null, "Kategorie"));
   trh.appendChild(el("th", null, "Status"));
   thead.appendChild(trh);
   tab.appendChild(thead);
 
+  const ohneNamen = liste.filter((m) => !(profilNach[m.personalnummer] && profilNach[m.personalnummer].name)).length;
+  if (ohneNamen > 0) {
+    const box = el("div", "hinweisbox");
+    box.appendChild(el("div", null,
+      ohneNamen + " Mitarbeiter ohne Klarnamen: Stammliste einspielen, dann stehen Namen und Kategorie hier. " +
+      "Die Datei wird nur im Browser gelesen, nicht gespeichert."));
+    const datei = document.createElement("input");
+    datei.type = "file"; datei.accept = ".xlsx,.xls";
+    datei.style.marginTop = "8px";
+    datei.onchange = async () => {
+      if (!datei.files[0]) return;
+      try {
+        stammProfileUebernehmen(await stammProfileLesen(datei.files[0]));
+        adminZeichnen();
+      } catch (e) {
+        adminMeldung("schlecht", String(e.message || e));
+      }
+    };
+    box.appendChild(datei);
+    inhalt.appendChild(box);
+  }
+
   const tbody = el("tbody");
   for (const m of liste) {
     const tr = el("tr");
+    const pr = profilNach[m.personalnummer] || {};
+    tr.appendChild(el("td", null, pr.name || "–"));
     tr.appendChild(el("td", null, m.personalnummer));
+    tr.appendChild(el("td", null, KATEGORIE_TEXT[pr.kategorie] || "–"));
     const zeit = zeitNach[m.personalnummer];
     const td = el("td", zeit ? "status-ja" : "status-nein",
       zeit ? "✓ " + zeitpunktText(zeit) : "✗ " + TEXTE.admin_fehlt);
@@ -2430,7 +2478,7 @@ async function adminAbgaben(ziel) {
   inhalt.appendChild(tab);
 }
 
-/* ---------- Reiter 2: Stammliste ---------- */
+/* ---------- Reiter 2: Zugänge (Personalnummer + Passwort aus der Stammliste) ---------- */
 let gelesenListe = null;
 
 function adminStammliste(ziel) {
@@ -2766,7 +2814,88 @@ function dispoParsen(mappe) {
   return erg;
 }
 
-// Stammliste: Spalten Personalnummer + Name (Passwort wird nie gelesen).
+// Stammliste: Spalten Personalnummer + Name, optional Profilspalten (Passwort wird nie gelesen).
+// Alles bleibt nur im Browser-Speicher; nichts davon wird in die Datenbank geschrieben.
+const STAMM_TAGE = { mo: 1, di: 2, mi: 3, do: 4, fr: 5 };
+
+function stammZahl(wert, zeile, spalte) {
+  const t = String(wert).trim().replace(",", ".");
+  if (t === "") return null;
+  const n = Number(t);
+  if (!isFinite(n) || n < 0) throw new Error('Zeile ' + zeile + ', Spalte "' + spalte + '": "' + wert + '" ist keine gültige Zahl.');
+  return n;
+}
+
+function stammProfilZeile(z, sp, zeilenNr) {
+  const roh = (s) => (s ? String(z[s]).trim() : "");
+  const kat = roh(sp.kategorie).toLowerCase();
+  let kategorie = "minijob";
+  if (/^teil/.test(kat)) kategorie = "teilzeit";
+  else if (kat !== "" && !/^mini/.test(kat)) {
+    throw new Error('Zeile ' + zeilenNr + ', Spalte "Kategorie": "' + roh(sp.kategorie) + '" – erlaubt sind Teilzeit oder Minijob.');
+  }
+  const nur = roh(sp.nur_schicht).toLowerCase();
+  let nur_schicht = null;
+  if (/^fr/.test(nur)) nur_schicht = "FRUEH";
+  else if (/^sp/.test(nur)) nur_schicht = "SPAET";
+  else if (nur !== "" && nur !== "-" && nur !== "–") {
+    throw new Error('Zeile ' + zeilenNr + ', Spalte "Nur Schicht": "' + roh(sp.nur_schicht) + '" – erlaubt sind Früh oder Spät.');
+  }
+  const tage = new Set();
+  roh(sp.gesperrte_tage).toLowerCase().split(/[\s,;/]+/).filter(Boolean).forEach((t) => {
+    const nr = STAMM_TAGE[t.slice(0, 2)];
+    if (!nr) throw new Error('Zeile ' + zeilenNr + ', Spalte "Gesperrte Tage": "' + t + '" ist kein Wochentag (Mo, Di, Mi, Do, Fr).');
+    tage.add(nr);
+  });
+  const max = stammZahl(roh(sp.max_schichten_woche), zeilenNr, "Max. Schichten");
+  return {
+    personalnummer: roh(sp.pn),
+    name: roh(sp.name),
+    kategorie,
+    nur_schicht,
+    gesperrte_tage: Array.from(tage).sort(),
+    max_schichten_woche: max === null ? null : Math.round(max),
+    fahrgemeinschaft: roh(sp.fahrgemeinschaft) || null,
+    schnitt_h: stammZahl(roh(sp.schnitt_h), zeilenNr, "Ø h/Wo"),
+    notiz: roh(sp.notiz) || null
+  };
+}
+
+async function stammProfileLesen(datei) {
+  await sheetJsLaden();
+  const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
+  const zeilen = XLSX.utils.sheet_to_json(mappe.Sheets[mappe.SheetNames[0]], { defval: "", raw: false });
+  if (zeilen.length === 0) throw new Error("Die Datei enthält keine Zeilen.");
+  const spalten = Object.keys(zeilen[0]);
+  const finde = (re) => spalten.find((s) => re.test(s));
+  const sp = {
+    pn: finde(/personal/i),
+    name: finde(/^\s*name\s*$/i) || finde(/name/i),
+    kategorie: finde(/kategorie/i),
+    fahrgemeinschaft: finde(/fahrgem/i),
+    max_schichten_woche: finde(/max/i),
+    schnitt_h: finde(/ø|schnitt|durchschn/i),
+    nur_schicht: finde(/^\s*nur/i),
+    gesperrte_tage: finde(/gesperr|nicht an/i),
+    notiz: finde(/notiz|bemerkung/i)
+  };
+  if (!sp.pn) throw new Error('Spalte "Personalnummer" fehlt.');
+  if (!sp.name) throw new Error(TEXTE.plan_kein_name);
+  const liste = [];
+  const gesehen = new Map();
+  zeilen.forEach((z, i) => {
+    if (!String(z[sp.pn]).trim() || !String(z[sp.name]).trim()) return;
+    const p = stammProfilZeile(z, sp, i + 2);
+    if (gesehen.has(p.personalnummer)) {
+      throw new Error("Die Personalnummer " + p.personalnummer + " kommt mehrfach vor (Zeile " + (i + 2) + ").");
+    }
+    gesehen.set(p.personalnummer, true);
+    liste.push(p);
+  });
+  return liste;
+}
+
+// Nur Personalnummer + Name (z. B. fuer den Planungs-Import), ohne die Profilspalten zu pruefen.
 async function stammNamenLesen(datei) {
   await sheetJsLaden();
   const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
@@ -2774,7 +2903,7 @@ async function stammNamenLesen(datei) {
   if (zeilen.length === 0) throw new Error("Die Datei enthält keine Zeilen.");
   const spalten = Object.keys(zeilen[0]);
   const sPn = spalten.find((s) => /personal/i.test(s));
-  const sName = spalten.find((s) => /name/i.test(s));
+  const sName = spalten.find((s) => /^\s*name\s*$/i.test(s)) || spalten.find((s) => /name/i.test(s));
   if (!sPn) throw new Error('Spalte "Personalnummer" fehlt.');
   if (!sName) throw new Error(TEXTE.plan_kein_name);
   const liste = zeilen
@@ -2788,6 +2917,13 @@ async function stammNamenLesen(datei) {
     nachPn.set(z.pn, z.name);
   }
   return liste;
+}
+
+// Profile aus der lokalen Stammliste (nur Speicher, wird beim Neuladen verworfen).
+const stammProfile = {};
+function stammProfileUebernehmen(liste) {
+  Object.keys(stammProfile).forEach((k) => delete stammProfile[k]);
+  liste.forEach((p) => { stammProfile[p.personalnummer] = p; });
 }
 
 // "Nachname, Vorname" / "Nachname Vorname" -> Kleinbuchstaben-Woerter ohne Akzente.
@@ -3537,6 +3673,671 @@ function ausDatetimeLocal(wert) {
 }
 
 /* ---------- Reiter 5: Export ---------- */
+/* ---------- Reiter 7: Auto-Planung (regelbasierter Solver, ohne KI) ---------- */
+const AUTO_TAGE = ["Mo", "Di", "Mi", "Do", "Fr"];
+const AUTO_ART = { FRUEH: "Früh", SPAET: "Spät", LANG: "Office" };
+const skriptGeladen = {};
+function skriptLaden(src) {
+  if (!skriptGeladen[src]) {
+    skriptGeladen[src] = new Promise((fertig, fehler) => {
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = fertig;
+      s.onerror = () => fehler(new Error(src + " konnte nicht geladen werden."));
+      document.head.appendChild(s);
+    });
+  }
+  return skriptGeladen[src];
+}
+const autoBibliothekenLaden = () => Promise.all([
+  skriptLaden("planung-solver.js"),
+  skriptLaden("dispo-export.js"),
+  skriptLaden("vendor/jszip-3.10.1.min.js")
+]);
+
+// Zustand nur im Browser-Speicher: Namen und Entwurf verlassen den Admin-Bereich nicht.
+const auto = {
+  kw: null, d: null, profile: stammProfile, bedarf: null,
+  vorlage: null, eingabe: null, erg: null, zuw: null, verfSet: null, box: null
+};
+
+function autoHatName(pn) {
+  const p = auto.profile[pn];
+  return !!(p && p.name && String(p.name).trim());
+}
+// Klarname; fehlt er, steht die Nummer sichtbar als Warnung da (nie still).
+function nameVon(pn) {
+  return autoHatName(pn) ? String(auto.profile[pn].name).trim() : "⚠ Nr. " + pn + " (kein Name)";
+}
+
+// Stammliste-Leiste: Profile (Name, Kategorie, Wünsche, Fahrgemeinschaft ...) kommen nur aus der
+// lokalen Stammliste und bleiben im Browser-Speicher. Nichts davon geht in die Datenbank.
+function autoNamenLeiste(ziel) {
+  const alle = auto.d.mitarbeiter;
+  const fehlend = alle.filter((pn) => !autoHatName(pn));
+  const leiste = el("div", "meldung " + (fehlend.length ? "info" : "gut"));
+  leiste.style.marginTop = "12px";
+  leiste.appendChild(el("div", null, fehlend.length
+    ? "Stammliste einspielen (Excel mit Personalnummer, Name und optional Kategorie, Fahrgemeinschaft ...). " +
+      "Sie wird nur in diesem Browser gelesen, nicht gespeichert und nicht hochgeladen. " +
+      (fehlend.length < alle.length ? fehlend.length + " von " + alle.length + " Mitarbeitern haben noch keinen Namen." : "")
+    : "✓ Stammliste eingespielt: Für alle " + alle.length + " aktiven Mitarbeiter sind Profile vorhanden. " +
+      "Sie gelten nur bis zum Neuladen der Seite."));
+  const datei = document.createElement("input");
+  datei.type = "file"; datei.accept = ".xlsx,.xls";
+  datei.style.marginTop = "8px";
+  datei.onchange = async () => {
+    if (!datei.files[0]) return;
+    try {
+      const liste = await stammProfileLesen(datei.files[0]);
+      const aktiv = new Set(alle);
+      const passend = liste.filter((p) => aktiv.has(p.personalnummer));
+      if (!passend.length) throw new Error("Keine Personalnummer aus der Datei passt zu aktiven Mitarbeitern.");
+      stammProfileUebernehmen(liste);
+      autoZeichnen();
+      adminMeldung("gut", passend.length + " Profile aus der Stammliste übernommen (nur im Browser).");
+    } catch (e) {
+      adminMeldung("schlecht", String(e.message || e));
+    }
+  };
+  leiste.appendChild(datei);
+  ziel.appendChild(leiste);
+}
+
+function adminAutoPlanung(ziel) {
+  if (auto.kw !== admin.kw) {
+    auto.kw = admin.kw; auto.d = null; auto.erg = null; auto.zuw = null; auto.bedarf = null;
+  }
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, "Auto-Planung"));
+  karte.appendChild(wochenAuswahl(adminZeichnen));
+  karte.appendChild(el("p", "hinweisbox",
+    "Berechnet aus den Abgaben einen Vorschlag nach festen Regeln (ohne KI). " +
+    "Es wird nichts veröffentlicht, bevor du es unten ausdrücklich bestätigst. " +
+    "Klarnamen sind nur in diesem Admin-Bereich sichtbar."));
+  const btn = el("button", "knopf-mittel", "Daten laden");
+  btn.type = "button"; btn.style.width = "100%"; btn.style.marginTop = "10px";
+  karte.appendChild(btn);
+  const box = el("div");
+  karte.appendChild(box);
+  auto.box = box;
+  ziel.appendChild(karte);
+  btn.onclick = () => autoLaden(btn);
+  if (auto.d) autoZeichnen();
+}
+
+async function autoLaden(knopf) {
+  knopf.disabled = true;
+  const text = knopf.textContent;
+  knopf.textContent = TEXTE.laedt;
+  try {
+    await autoBibliothekenLaden();
+    const d = await exportDatenHolen(admin.kw);
+    auto.d = d;
+    auto.bedarf = autoStandardBedarf();
+    auto.erg = null; auto.zuw = null;
+    if (!auto.vorlage) await autoVorlageAusDbLaden();
+    if (auto.vorlage) await autoVorlageAuswerten();
+    autoZeichnen();
+  } catch (e) {
+    adminMeldung("schlecht", String(e.message || e));
+  }
+  knopf.textContent = text;
+  knopf.disabled = false;
+}
+
+// Die Dispo-Vorlage wird einmal hochgeladen und privat in der Datenbank abgelegt (nur Admin).
+function bytesAlsBase64(puffer) {
+  const b = new Uint8Array(puffer);
+  let s = "";
+  for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function base64AlsBytes(text) {
+  const s = atob(text);
+  const b = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+  return b.buffer;
+}
+
+async function autoVorlageAusDbLaden() {
+  const r = await sb.from("app_dateien").select("dateiname, inhalt_base64")
+    .eq("schluessel", "dispo_vorlage");
+  const z = r.error ? null : (r.data || [])[0];
+  if (z && z.inhalt_base64) {
+    auto.vorlage = { name: z.dateiname || "Dispo-Vorlage", bytes: base64AlsBytes(z.inhalt_base64), gespeichert: true };
+  }
+}
+
+async function autoVorlageSpeichern() {
+  const { error } = await sb.from("app_dateien").upsert({
+    schluessel: "dispo_vorlage",
+    dateiname: auto.vorlage.name,
+    inhalt_base64: bytesAlsBase64(auto.vorlage.bytes)
+  }, { onConflict: "schluessel" });
+  if (error) throw new Error("Vorlage nicht gespeichert: " + error.message);
+  auto.vorlage.gespeichert = true;
+}
+
+function autoStandardBedarf() {
+  const b = PlanungSolver.standardBedarf(auto.d.schichten);
+  // Office: Standard 0, wird in der Dispo meist von Hand besetzt
+  Object.keys(b).forEach((datum) => { b[datum].LANG = 0; });
+  return b;
+}
+
+// Vorlage (.xlsm) lesen: Anzahl der Plätze je Tag und Schichtart als Bedarf übernehmen
+async function autoVorlageAuswerten() {
+  const zip = await JSZip.loadAsync(auto.vorlage.bytes);
+  const blatt = zip.file("xl/worksheets/sheet1.xml");
+  if (!blatt) throw new Error("In der Vorlage fehlt das Blatt \"FedEx\".");
+  const ss = zip.file("xl/sharedStrings.xml");
+  const bloecke = DispoExport.vorlageAnalysieren(
+    await blatt.async("string"),
+    DispoExport.geteilteTexte(ss ? await ss.async("string") : ""));
+  const tage = auto.d.tage.map((t) => t.datum).sort();
+  const b = autoStandardBedarf();
+  bloecke.forEach((blk, i) => {
+    const datum = tage[i];
+    if (!datum || !b[datum]) return;
+    let am = 0, pm = 0;
+    Object.keys(blk.positionen).forEach((k) => {
+      if (k.indexOf("AM|") === 0) am++;
+      if (k.indexOf("PM|") === 0) pm++;
+    });
+    b[datum].FRUEH = am;
+    b[datum].SPAET = pm;
+  });
+  auto.bedarf = b;
+  auto.vorlage.bloecke = bloecke.length;
+}
+
+function autoProfilZeile(pn) {
+  const p = auto.profile[pn] || { personalnummer: pn };
+  return {
+    personalnummer: pn,
+    name: (p.name || "").trim() || null,
+    kategorie: p.kategorie === "teilzeit" ? "teilzeit" : "minijob",
+    nur_schicht: p.nur_schicht || null,
+    gesperrte_tage: p.gesperrte_tage || [],
+    max_schichten_woche: p.max_schichten_woche ? Number(p.max_schichten_woche) : null,
+    fahrgemeinschaft: (p.fahrgemeinschaft || "").trim() || null,
+    schnitt_h: (p.schnitt_h === "" || p.schnitt_h === null || p.schnitt_h === undefined) ? null : Number(p.schnitt_h),
+    notiz: p.notiz || null
+  };
+}
+
+// Schreibgeschuetzte Uebersicht: Die Profile werden ausschliesslich in der Stammliste (Excel) gepflegt.
+function autoProfileZeichnen(ziel) {
+  const det = document.createElement("details");
+  det.className = "block";
+  const sum = document.createElement("summary");
+  sum.textContent = "Mitarbeiter-Profile aus der Stammliste (" + auto.d.mitarbeiter.length + " aktiv)";
+  det.appendChild(sum);
+  det.appendChild(el("p", "hinweisbox",
+    "Kategorie, feste Wünsche und der Stundenschnitt der letzten 9 Monate steuern die faire Verteilung. " +
+    "Geändert wird das in der Stammliste (Excel) auf deinem Rechner und dann neu eingespielt. " +
+    "Die Daten liegen nur im Browser, nicht in der Datenbank."));
+
+  const wrap = el("div"); wrap.style.overflowX = "auto";
+  const tab = el("table", "liste");
+  const kopf = el("tr");
+  ["Pers.-Nr.", "Name", "Kategorie", "Nur", "Nicht an", "Max/Wo", "Fahrgem.", "Ø h/Wo"]
+    .forEach((t) => kopf.appendChild(el("th", null, t)));
+  tab.appendChild(kopf);
+  const SCHICHT_TEXT = { FRUEH: "Früh", SPAET: "Spät" };
+  auto.d.mitarbeiter.forEach((pn) => {
+    const p = autoProfilZeile(pn);
+    const tr = el("tr");
+    [
+      pn,
+      p.name || "⚠ kein Name",
+      p.kategorie === "teilzeit" ? "Teilzeit" : "Minijob",
+      SCHICHT_TEXT[p.nur_schicht] || "–",
+      p.gesperrte_tage.map((t) => AUTO_TAGE[t - 1]).join(", ") || "–",
+      p.max_schichten_woche === null ? "–" : String(p.max_schichten_woche),
+      p.fahrgemeinschaft || "–",
+      p.schnitt_h === null ? "–" : String(p.schnitt_h)
+    ].forEach((t) => tr.appendChild(el("td", null, t)));
+    tab.appendChild(tr);
+  });
+  wrap.appendChild(tab);
+  det.appendChild(wrap);
+  ziel.appendChild(det);
+}
+
+function autoBedarfZeichnen(ziel) {
+  const tage = auto.d.tage.map((t) => t.datum).sort();
+  ziel.appendChild(el("div", "etikett", "Bedarf (Personen je Schicht)"));
+  const wrap = el("div"); wrap.style.overflowX = "auto";
+  const tab = el("table", "liste");
+  const kopf = el("tr");
+  ["Tag", "Früh", "Spät", "Office"].forEach((t) => kopf.appendChild(el("th", null, t)));
+  tab.appendChild(kopf);
+  tage.forEach((datum, i) => {
+    const gesperrt = auto.d.tage.some((t) => t.datum === datum && t.gesperrt);
+    const tr = el("tr");
+    tr.appendChild(el("td", null, AUTO_TAGE[i] + " " + tagKurz(datum) + (gesperrt ? " (gesperrt)" : "")));
+    ["FRUEH", "SPAET", "LANG"].forEach((art) => {
+      const c = el("td");
+      const inp = document.createElement("input");
+      inp.type = "number"; inp.min = "0"; inp.max = "40"; inp.style.width = "4.5em";
+      inp.value = (auto.bedarf[datum] && auto.bedarf[datum][art]) || 0;
+      inp.oninput = () => {
+        auto.bedarf[datum] = auto.bedarf[datum] || { FRUEH: 0, SPAET: 0, LANG: 0 };
+        auto.bedarf[datum][art] = Math.max(0, Math.min(40, parseInt(inp.value, 10) || 0));
+      };
+      c.appendChild(inp); tr.appendChild(c);
+    });
+    tab.appendChild(tr);
+  });
+  wrap.appendChild(tab);
+  ziel.appendChild(wrap);
+}
+
+function autoZeichnen() {
+  const box = auto.box;
+  if (!box) return;
+  box.textContent = "";
+  const d = auto.d;
+  const abgegeben = new Set(d.abgaben.map((a) => a.personalnummer));
+  const info = el("p", null,
+    d.mitarbeiter.length + " aktive Mitarbeiter, " +
+    d.mitarbeiter.filter((pn) => abgegeben.has(pn)).length + " haben für diese Woche abgegeben.");
+  info.style.marginTop = "12px";
+  box.appendChild(info);
+
+  autoNamenLeiste(box);
+  autoProfileZeichnen(box);
+
+  // Vorlage: einmal hochladen, danach automatisch aus der Datenbank
+  const vl = el("div", "etikett", "Dispo-Vorlage für den Kunden");
+  vl.style.marginTop = "12px";
+  box.appendChild(vl);
+  const vd = document.createElement("input");
+  vd.type = "file"; vd.accept = ".xlsm,.xlsx";
+  vd.onchange = async () => {
+    if (!vd.files[0]) return;
+    try {
+      const vorher = auto.vorlage;
+      auto.vorlage = { name: vd.files[0].name, bytes: await vd.files[0].arrayBuffer() };
+      try {
+        await autoVorlageAuswerten();
+        await autoVorlageSpeichern();
+      } catch (e) { auto.vorlage = vorher; throw e; }
+      autoZeichnen();
+      adminMeldung("gut", "Vorlage gespeichert (" + auto.vorlage.bloecke + " Tagesblöcke). " +
+        "Sie wird ab jetzt automatisch verwendet.");
+    } catch (e) { adminMeldung("schlecht", String(e.message || e)); }
+  };
+  if (auto.vorlage && auto.vorlage.gespeichert) {
+    box.appendChild(el("div", "meldung gut",
+      "✓ Vorlage gespeichert: " + auto.vorlage.name + " – wird bei jedem Export automatisch verwendet."));
+    const ers = document.createElement("details");
+    ers.className = "block";
+    const es = document.createElement("summary");
+    es.textContent = "Vorlage ersetzen (nur nötig, wenn sich das Layout ändert)";
+    ers.appendChild(es);
+    ers.appendChild(vd);
+    box.appendChild(ers);
+  } else {
+    box.appendChild(el("p", "hinweisbox",
+      "Einmalig die Dispo-Datei (.xlsm) wählen. Sie wird privat gespeichert und danach bei jeder Woche " +
+      "automatisch verwendet; nur Datum, Schichten und Uhrzeiten ändern sich."));
+    box.appendChild(vd);
+  }
+
+  autoBedarfZeichnen(box);
+
+  const rechnen = el("button", "knopf-mittel", "Planung berechnen");
+  rechnen.type = "button"; rechnen.style.width = "100%"; rechnen.style.marginTop = "12px";
+  rechnen.onclick = () => autoBerechnen();
+  box.appendChild(rechnen);
+
+  const ergebnis = el("div"); ergebnis.id = "auto-ergebnis";
+  box.appendChild(ergebnis);
+  if (auto.erg) autoErgebnisZeichnen(ergebnis);
+}
+
+function autoBerechnen() {
+  try {
+    const d = auto.d;
+    const abg = new Map(d.abgaben.map((a) => [a.personalnummer, a]));
+    const verf = new Map();
+    auto.verfSet = new Set();
+    d.verfuegbar.forEach((v) => {
+      if (!verf.has(v.personalnummer)) verf.set(v.personalnummer, []);
+      verf.get(v.personalnummer).push({ datum: v.datum, schicht_id: v.schicht_id });
+      auto.verfSet.add(v.personalnummer + "|" + v.datum + "|" + v.schicht_id);
+    });
+    const json = {
+      tage: d.tage,
+      schichten: d.schichten,
+      mitarbeiter: d.mitarbeiter.map((pn) => {
+        const a = abg.get(pn);
+        return {
+          personalnummer: pn, abgegeben: !!a,
+          max_schichten_woche: a ? a.max_schichten : null,
+          verfuegbar: verf.get(pn) || []
+        };
+      })
+    };
+    const profile = {};
+    d.mitarbeiter.forEach((pn) => { profile[pn] = autoProfilZeile(pn); });
+    auto.eingabe = PlanungSolver.ausExport(json, profile);
+    auto.eingabe.bedarf = auto.bedarf;
+    const t0 = Date.now();
+    auto.erg = PlanungSolver.loese(auto.eingabe);
+    auto.erg.dauerMs = Date.now() - t0;
+    auto.zuw = auto.erg.zuweisung;
+    autoZeichnen();
+    $("auto-ergebnis").scrollIntoView({ behavior: "smooth" });
+  } catch (e) {
+    adminMeldung("schlecht", String(e.message || e));
+  }
+}
+
+function autoNeuPruefen() {
+  auto.erg.verstoesse = PlanungSolver.pruefe(auto.eingabe, auto.erg.slots, auto.zuw);
+  auto.erg.alternativen = PlanungSolver.alternativen(auto.eingabe, auto.erg.slots, auto.zuw);
+  const ziel = $("auto-ergebnis");
+  ziel.textContent = "";
+  autoErgebnisZeichnen(ziel);
+}
+
+function autoSlotText(s) {
+  return AUTO_TAGE[PlanungSolver.wochentagVon(s.datum) - 1] + " " + AUTO_ART[s.schicht_id] + " " + s.nr;
+}
+
+function autoStunden() {
+  const h = {}, n = {};
+  auto.erg.slots.forEach((s) => {
+    const pn = auto.zuw[s.id];
+    if (!pn) return;
+    h[pn] = (h[pn] || 0) + (s.end - s.start) / 60;
+    n[pn] = (n[pn] || 0) + 1;
+  });
+  return { h, n };
+}
+
+function autoErgebnisZeichnen(ziel) {
+  const erg = auto.erg;
+  const fehler = erg.verstoesse.filter((v) => v.art === "fehler");
+  const unbesetzt = erg.slots.filter((s) => !auto.zuw[s.id]);
+  const gut = fehler.length === 0;
+
+  const kopf = el("div", "meldung " + (gut && unbesetzt.length === 0 ? "gut" : gut ? "info" : "schlecht"));
+  kopf.textContent =
+    erg.slots.length + " Plätze, " + (erg.slots.length - unbesetzt.length) + " besetzt, " +
+    unbesetzt.length + " unbesetzt, " + fehler.length + " Regelverstöße." +
+    (erg.dauerMs !== undefined ? " (berechnet in " + erg.dauerMs + " ms)" : "");
+  kopf.style.marginTop = "12px";
+  ziel.appendChild(kopf);
+
+  const verstoesse = erg.verstoesse.filter((v) => v.typ !== "unbesetzt");
+  if (verstoesse.length) {
+    const ul = el("ul");
+    verstoesse.forEach((v) => {
+      const s = v.slot ? erg.slots.filter((x) => x.id === v.slot)[0] : null;
+      const li = el("li", null,
+        (v.art === "fehler" ? "✗ " : "• ") + (v.pn ? nameVon(v.pn) + ": " : "") + v.text +
+        (s ? " (" + autoSlotText(s) + ")" : ""));
+      if (v.art === "fehler") li.style.color = "var(--rot)";
+      ul.appendChild(li);
+    });
+    ziel.appendChild(ul);
+  }
+
+  // Plan je Tag, aufgebaut wie die Dispo-Excel
+  const TAGNAMEN = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
+  const ARTEN = [["FRUEH", "ZiG AM", "ZiG AM · Früh"], ["SPAET", "ZiG PM", "ZiG PM · Spät"], ["LANG", "ZiG Office", "ZiG Office"]];
+  const tage = Array.from(new Set(erg.slots.map((s) => s.datum))).sort();
+  const verfuegbarFuer = (pn, s) =>
+    auto.verfSet.has(pn + "|" + s.datum + "|" + s.schicht_id) ||
+    (s.schicht_id === "SPAET" && auto.verfSet.has(pn + "|" + s.datum + "|LANG"));
+  const stdText = (min) => dauerText(min / 60);
+
+  tage.forEach((datum) => {
+    const tagSlots = erg.slots.filter((s) => s.datum === datum);
+    const zaehle = (sid) => {
+      const l = tagSlots.filter((s) => s.schicht_id === sid);
+      return l.filter((s) => auto.zuw[s.id]).length + "/" + l.length;
+    };
+    const block = el("div", "auto-tag");
+    const kopfZeile = el("div", "auto-tag-kopf");
+    kopfZeile.appendChild(el("strong", null,
+      TAGNAMEN[PlanungSolver.wochentagVon(datum) - 1].toUpperCase() + " " + tagKurz(datum)));
+    let zusammen = "Früh " + zaehle("FRUEH") + " · Spät " + zaehle("SPAET");
+    if (tagSlots.some((s) => s.schicht_id === "LANG")) zusammen += " · Office " + zaehle("LANG");
+    kopfZeile.appendChild(el("span", null, zusammen));
+    block.appendChild(kopfZeile);
+
+    ARTEN.forEach((a) => {
+      const liste = tagSlots.filter((s) => s.schicht_id === a[0]);
+      if (!liste.length) return;
+      block.appendChild(el("div", "auto-abschnitt", a[2] + " · " + liste[0].beginn + "–" + liste[0].ende));
+      const wrap = el("div", "auto-wrap");
+      const tab = el("table", "auto-tab");
+      const th = el("tr");
+      ["Position", "Name", "Von", "Bis", "Std", "Alternativen"].forEach((t) => th.appendChild(el("th", null, t)));
+      tab.appendChild(th);
+      let summeMin = 0;
+
+      liste.forEach((s) => {
+        const aktuell = auto.zuw[s.id];
+        if (aktuell) summeMin += s.dauer;
+        const tr = el("tr");
+        const fehlerHier = erg.verstoesse.filter((v) => v.slot === s.id && v.art === "fehler");
+        if (fehlerHier.length) tr.className = "auto-fehler";
+        else if (!aktuell) tr.className = "auto-frei";
+
+        tr.appendChild(el("td", null, a[1] + " " + s.nr));
+
+        const cName = el("td");
+        const sel = document.createElement("select");
+        const opt = (v, t) => { const o = document.createElement("option"); o.value = v; o.textContent = t; return o; };
+        sel.appendChild(opt("", "— frei —"));
+        const grp = (titel, pns) => {
+          if (!pns.length) return;
+          const g = document.createElement("optgroup"); g.label = titel;
+          pns.forEach((pn) => g.appendChild(opt(pn, nameVon(pn))));
+          sel.appendChild(g);
+        };
+        const alt = (erg.alternativen[s.id] || []).filter((pn) => pn !== aktuell);
+        const altSet = new Set(alt);
+        const weitere = auto.eingabe.personen.map((p) => p.personalnummer)
+          .filter((pn) => pn !== aktuell && !altSet.has(pn) && verfuegbarFuer(pn, s));
+        if (aktuell) grp("Aktuell", [aktuell]);
+        grp("Alternativen (Regeln eingehalten)", alt);
+        grp("Weitere (verfügbar, Regeln prüfen)", weitere);
+        sel.value = aktuell || "";
+        sel.onchange = () => { auto.zuw[s.id] = sel.value || null; autoNeuPruefen(); };
+        cName.appendChild(sel);
+        const hinweise = erg.verstoesse.filter((v) => v.slot === s.id && v.typ !== "unbesetzt");
+        hinweise.forEach((v) => cName.appendChild(el("div", "auto-hinweis", (v.art === "fehler" ? "✗ " : "• ") + v.text)));
+        tr.appendChild(cName);
+
+        tr.appendChild(el("td", null, s.beginn));
+        tr.appendChild(el("td", null, s.ende));
+        tr.appendChild(el("td", null, aktuell ? stdText(s.dauer) : "–"));
+
+        // Alternativen als Namensliste (frei: alle, sonst die ersten 3 + aufklappbar)
+        const cAlt = el("td", "auto-alt");
+        const namen = alt.map(nameVon);
+        const zeigeAlle = !aktuell || namen.length <= 3;
+        const text = el("span", null, namen.length
+          ? (zeigeAlle ? namen.join(", ") : namen.slice(0, 3).join(", "))
+          : (aktuell ? "–" : (weitere.length
+            ? "Niemand ohne Regelkonflikt. Verfügbar, aber schon eingeplant bzw. Konflikt: " +
+              weitere.map(nameVon).join(", ")
+            : "niemand verfügbar")));
+        cAlt.appendChild(text);
+        if (!zeigeAlle) {
+          const mehr = document.createElement("button");
+          mehr.type = "button";
+          mehr.textContent = "+" + (namen.length - 3);
+          let offen = false;
+          mehr.onclick = () => {
+            offen = !offen;
+            text.textContent = offen ? namen.join(", ") : namen.slice(0, 3).join(", ");
+            mehr.textContent = offen ? "weniger" : "+" + (namen.length - 3);
+          };
+          cAlt.appendChild(mehr);
+        }
+        tr.appendChild(cAlt);
+        tab.appendChild(tr);
+      });
+      wrap.appendChild(tab);
+      block.appendChild(wrap);
+      block.appendChild(el("div", "auto-summe", "Summe " + a[2].replace("ZiG ", "") + ": " + stdText(summeMin) + " h"));
+    });
+    ziel.appendChild(block);
+  });
+
+  // Wochenübersicht: Person × Tag (F = Früh, S = Spät, O = Office)
+  ziel.appendChild(el("h3", null, "Wochenübersicht"));
+  const wrapM = el("div", "auto-wrap");
+  const mat = el("table", "auto-tab");
+  const mk = el("tr");
+  ["Name"].concat(tage.map((d) => TAGNAMEN[PlanungSolver.wochentagVon(d) - 1].slice(0, 2)))
+    .concat(["Schichten", "Std", "Kategorie", "Ø 9 Mon."]).forEach((t) => mk.appendChild(el("th", null, t)));
+  mat.appendChild(mk);
+  const nachPn = {};
+  erg.slots.forEach((s) => {
+    const pn = auto.zuw[s.id];
+    if (!pn) return;
+    (nachPn[pn] = nachPn[pn] || []).push(s);
+  });
+  auto.eingabe.personen.map((p) => p.personalnummer)
+    .sort((x, y) => nameVon(x).localeCompare(nameVon(y), "de"))
+    .forEach((pn) => {
+      const mine = nachPn[pn] || [];
+      const pr = auto.profile[pn] || {};
+      const tr = el("tr");
+      tr.appendChild(el("td", null, nameVon(pn)));
+      tage.forEach((d) => {
+        const c = el("td");
+        const arten = mine.filter((s) => s.datum === d).map((s) => s.schicht_id);
+        if (arten.length) {
+          const f = arten.indexOf("FRUEH") >= 0, sp = arten.indexOf("SPAET") >= 0, o = arten.indexOf("LANG") >= 0;
+          const txt = [f ? "F" : "", sp ? "S" : "", o ? "O" : ""].filter(Boolean).join("+");
+          c.appendChild(el("span", "auto-chip " + (f && sp ? "auto-fs" : f ? "auto-f" : sp ? "auto-s" : "auto-o"), txt));
+        } else {
+          c.textContent = "–";
+        }
+        tr.appendChild(c);
+      });
+      const min = mine.reduce((m, s) => m + s.dauer, 0);
+      tr.appendChild(el("td", null, String(mine.length)));
+      tr.appendChild(el("td", null, stdText(min)));
+      tr.appendChild(el("td", null, pr.kategorie === "teilzeit" ? "Teilzeit" : "Minijob"));
+      tr.appendChild(el("td", null, pr.schnitt_h ? String(pr.schnitt_h).replace(".", ",") : "–"));
+      mat.appendChild(tr);
+    });
+  wrapM.appendChild(mat);
+  ziel.appendChild(wrapM);
+
+  // Export und Veröffentlichen
+  const exp = el("button", "knopf-mittel", "Als Dispo-Datei (.xlsm) herunterladen");
+  exp.type = "button"; exp.style.width = "100%"; exp.style.marginTop = "14px";
+  exp.disabled = !auto.vorlage;
+  exp.onclick = () => autoExportieren(exp);
+  ziel.appendChild(exp);
+  if (!auto.vorlage) ziel.appendChild(el("p", "hinweisbox", "Für den Export bitte oben die Vorlage (.xlsm) wählen."));
+
+  const cb = document.createElement("input"); cb.type = "checkbox";
+  const lb = el("label"); lb.style.display = "block"; lb.style.marginTop = "14px";
+  lb.appendChild(cb);
+  lb.appendChild(document.createTextNode(
+    " Ich habe die Planung geprüft. Sie ersetzt die bisherige Planung dieser Woche und ist für die Mitarbeiter sofort sichtbar."));
+  ziel.appendChild(lb);
+  const pub = el("button", "knopf-mittel", "Planung für Mitarbeiter veröffentlichen");
+  pub.type = "button"; pub.style.width = "100%"; pub.style.marginTop = "10px";
+  pub.disabled = true;
+  cb.onchange = () => { pub.disabled = !(cb.checked && gut); };
+  if (!gut) ziel.appendChild(el("p", "hinweisbox", "Veröffentlichen ist gesperrt, solange Regelverstöße (✗) bestehen."));
+  pub.onclick = () => autoVeroeffentlichen(pub);
+  ziel.appendChild(pub);
+  const nachher = el("div"); nachher.id = "auto-nachher";
+  ziel.appendChild(nachher);
+}
+
+async function autoExportieren(knopf) {
+  // Die Kundendatei darf nie Personalnummern statt Namen enthalten.
+  const benoetigt = new Set();
+  auto.erg.slots.forEach((s) => {
+    if (auto.zuw[s.id]) benoetigt.add(auto.zuw[s.id]);
+    (auto.erg.alternativen[s.id] || []).forEach((pn) => benoetigt.add(pn));
+  });
+  const ohneName = Array.from(benoetigt).filter((pn) => !autoHatName(pn));
+  if (ohneName.length) {
+    adminMeldung("schlecht", "Export gesperrt: Für " + ohneName.length + " Personen fehlt der Name (Nr. " +
+      ohneName.slice(0, 8).join(", ") + (ohneName.length > 8 ? " …" : "") +
+      "). Bitte oben die Stammliste mit Namen wählen.");
+    return;
+  }
+  knopf.disabled = true;
+  try {
+    await autoBibliothekenLaden();
+    const erg = auto.erg;
+    const tage = auto.d.tage.map((t) => t.datum).sort();
+    const eintraege = erg.slots.map((s) => ({
+      datum: s.datum, art: s.art, nr: s.nr,
+      name: auto.zuw[s.id] ? nameVon(auto.zuw[s.id]) : "",
+      beginn: s.beginn, ende: s.ende,
+      alternativen: (erg.alternativen[s.id] || []).map(nameVon)
+    }));
+    const r = await DispoExport.fuelleVorlage(JSZip, auto.vorlage.bytes, { tage, eintraege });
+    datenSpeichern(r.bytes, "Dispo_" + kwEtikett(admin.kw) + ".xlsm",
+      "application/vnd.ms-excel.sheet.macroEnabled.12");
+    let text = "Dispo-Datei erstellt (" + r.belegt + " Plätze belegt).";
+    if (r.nichtUntergebracht.length) {
+      text += " Achtung: In der Vorlage fehlen Zeilen für " + r.nichtUntergebracht.length +
+        " Plätze (" + r.nichtUntergebracht.slice(0, 5).join(", ") + ") – bitte von Hand ergänzen.";
+    }
+    adminMeldung(r.nichtUntergebracht.length ? "info" : "gut", text);
+  } catch (e) {
+    adminMeldung("schlecht", String(e.message || e));
+  }
+  knopf.disabled = false;
+}
+
+async function autoVeroeffentlichen(btn) {
+  const kw = admin.kw;
+  const liste = [];
+  auto.erg.slots.forEach((s) => {
+    const pn = auto.zuw[s.id];
+    if (pn) liste.push({ personalnummer: pn, datum: s.datum, schicht_id: s.schicht_id, beginn: s.beginn, ende: s.ende });
+  });
+  btn.disabled = true;
+  const { data, error } = await sb.rpc("planung_ersetzen", { kw: kw, eintraege: liste });
+  if (error) {
+    btn.disabled = false;
+    adminMeldung("schlecht", "NICHT gespeichert: " + error.message);
+    return;
+  }
+  // Gegenprobe: aus der Datenbank zurücklesen
+  const soll = new Set(liste.map((e) => [e.personalnummer, e.datum, e.beginn, e.schicht_id].join("|")));
+  const r = await sb.from("planung")
+    .select("personalnummer, datum, schicht_id, beginn").eq("kw_start_datum", kw);
+  const ist = new Set((r.data || []).map((p) =>
+    [p.personalnummer, p.datum, uhr(p.beginn), p.schicht_id].join("|")));
+  let gleich = 0;
+  soll.forEach((k) => { if (ist.has(k)) gleich++; });
+  const stimmt = !r.error && gleich === soll.size && ist.size === soll.size;
+  const nachher = $("auto-nachher");
+  nachher.textContent = "";
+  nachher.appendChild(el("div", "meldung " + (stimmt ? "gut" : "schlecht"),
+    stimmt
+      ? "✓ Gegenprobe: " + gleich + " von " + soll.size + " Schichten stimmen mit der Datenbank überein."
+      : "✗ Gegenprobe FEHLGESCHLAGEN: " + gleich + " von " + soll.size + " stimmen überein (Datenbank: " + ist.size + ")."));
+  if (data && data.eingefuegt !== undefined) {
+    nachher.appendChild(el("p", null, "Server: " + data.eingefuegt + " von " + data.erwartet + " Schichten gespeichert."));
+  }
+  adminMeldung(stimmt ? "gut" : "schlecht", stimmt ? TEXTE.plan_fertig_ok : TEXTE.plan_fertig_fehler);
+  if (!stimmt) btn.disabled = false;
+}
+
 function adminExport(ziel) {
   const karte = el("div", "karte");
   karte.appendChild(el("h2", null, TEXTE.admin_export_titel));
@@ -3556,6 +4357,21 @@ function adminExport(ziel) {
   ziel.appendChild(karte);
 }
 
+// Supabase liefert höchstens 1000 Zeilen je Abfrage: seitenweise nachladen, damit nichts fehlt.
+async function verfuegbarkeitenSeitenweise(kw) {
+  const alle = [];
+  for (let von = 0; von < 20000; von += 1000) {
+    const r = await sb.from("availability").select("personalnummer, datum, schicht_id")
+      .eq("kw_start_datum", kw)
+      .order("personalnummer").order("datum").order("schicht_id")
+      .range(von, von + 999);
+    if (r.error) return { data: null, error: r.error };
+    alle.push(...(r.data || []));
+    if (!r.data || r.data.length < 1000) break;
+  }
+  return { data: alle, error: null };
+}
+
 async function exportDatenHolen(kw) {
   const r = await Promise.all([
     sb.from("week_days").select("datum, wochentag, gesperrt, grund")
@@ -3566,7 +4382,7 @@ async function exportDatenHolen(kw) {
     sb.from("employees").select("personalnummer").eq("aktiv", true).order("personalnummer"),
     sb.from("submissions").select("personalnummer, max_schichten, hinweis, abgegeben_am")
       .eq("kw_start_datum", kw),
-    sb.from("availability").select("personalnummer, datum, schicht_id").eq("kw_start_datum", kw)
+    verfuegbarkeitenSeitenweise(kw)
   ]);
 
   for (const teil of r) {
