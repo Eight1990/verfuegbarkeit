@@ -95,7 +95,7 @@ begin
   limit 1;
 
   if v_datum is null then
-    raise exception 'Keine freie Schicht zum Testen gefunden. Bitte im Admin-Bereich eine neue Woche anlegen.';
+    raise exception 'Keine freie Schicht zum Testen gefunden. Bitte im Admin-Bereich pruefen, ob in der Bearbeitungswoche Schichten aktiv sind.';
   end if;
 
   -- eigene Eintraege von A zaehlen (Vergleichswert fuer Test 5)
@@ -415,6 +415,43 @@ begin
 
   -- Aufraeumen
   execute 'reset role';
+
+  -- ------------------------------------------------------------------
+  -- Automatische Wochen (Migration 0011), als Datenbank-Admin geprueft
+  -- ------------------------------------------------------------------
+  v_text := case
+    when has_function_privilege('authenticated', 'public.woche_anlegen_intern(date)', 'execute')
+      or has_function_privilege('anon', 'public.woche_anlegen_intern(date)', 'execute')
+    then 'aufrufbar' else 'gesperrt' end;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'woche_anlegen_intern von aussen aufrufbar'::text,
+    'gesperrt'::text, v_text, (v_text = 'gesperrt');
+
+  v_text := case
+    when has_function_privilege('anon', 'public.wochen_vorausanlegen()', 'execute')
+    then 'aufrufbar' else 'gesperrt' end;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'wochen_vorausanlegen ohne Login aufrufbar'::text,
+    'gesperrt'::text, v_text, (v_text = 'gesperrt');
+
+  perform public.wochen_vorausanlegen();
+  select count(*) into v_zahl
+  from public.weeks w
+  where w.kw_start_datum in (v_kw, v_kw + 7, v_kw + 14, v_kw + 21);
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Bearbeitungswoche + 3 Folgewochen angelegt'::text,
+    '4'::text, v_zahl::text, (v_zahl = 4);
+
+  select count(*) into v_zahl
+  from cron.job j where j.jobname = 'wochen-vorausanlegen';
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Taeglicher Cron-Job wochen-vorausanlegen vorhanden'::text,
+    '1'::text, v_zahl::text, (v_zahl = 1);
+
   update public.employees
      set aktiv = true, muss_pw_aendern = v_a_flag
    where personalnummer = v_a_pn;
