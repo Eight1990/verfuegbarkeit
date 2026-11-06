@@ -1,9 +1,15 @@
 # =====================================================================
 # Keep-alive fuer das Supabase-Projekt
 #
-# Der kostenlose Supabase-Tarif pausiert Projekte nach 7 Tagen ohne
-# Aktivitaet. Dieser Ablauf ruft alle 3 Tage die Datenbankfunktion
-# ping() auf. Das ist eine echte Abfrage, kein blosses Anpingen der URL.
+# Der kostenlose Supabase-Tarif pausiert Projekte, die laut Supabase
+# "nicht genug Aktivitaet" haben (Pruefzeitraum 7 Tage).
+#
+# Erfahrung vom 20.10.2026: Ein einzelner lesender Aufruf alle 3 Tage
+# hat NICHT gereicht, das Projekt wurde trotzdem pausiert. Deshalb jetzt:
+#   - taeglich statt alle 3 Tage
+#   - mehrere verschiedene Aufrufe (Datenbank, REST-API, Auth)
+#   - ping() schreibt seit Migration 0010 einen Zeitstempel in die
+#     Datenbank (echte Schreibaktivitaet)
 #
 # Vorher einmalig in GitHub einrichten:
 #   Settings -> Secrets and variables -> Actions -> New repository secret
@@ -20,8 +26,8 @@ name: Keep-alive Supabase
 
 on:
   schedule:
-    # Minute Stunde Tag Monat Wochentag -> alle 3 Tage um 06:17 UTC
-    - cron: "17 6 */3 * *"
+    # Minute Stunde Tag Monat Wochentag -> taeglich um 06:17 UTC
+    - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -30,40 +36,70 @@ permissions:
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Datenbankfunktion ping() aufrufen
+      - name: Supabase-Projekt ansprechen
         env:
           URL: ${{ secrets.SUPABASE_URL }}
           KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
 
           if [ -z "${URL}" ] || [ -z "${KEY}" ]; then
-            echo "Die Secrets SUPABASE_URL und SUPABASE_ANON_KEY fehlen."
+            echo "::error::Die Secrets SUPABASE_URL und SUPABASE_ANON_KEY fehlen."
             exit 1
           fi
 
           # Abschliessenden Schraegstrich entfernen, falls vorhanden
           BASIS="${URL%/}"
 
-          echo "Rufe ${BASIS}/rest/v1/rpc/ping auf ..."
+          # aufruf <Name> <Methode> <Pfad> [Body]  -> setzt STATUS
+          aufruf () {
+            local name="$1" methode="$2" pfad="$3" body="${4:-}"
+            local args=(--silent --show-error --output antwort.txt
+                        --write-out "%{http_code}"
+                        --retry 3 --retry-delay 15 --retry-all-errors
+                        --max-time 40
+                        -X "${methode}" "${BASIS}${pfad}"
+                        -H "apikey: ${KEY}"
+                        -H "Authorization: Bearer ${KEY}")
+            if [ -n "${body}" ]; then
+              args+=(-H "Content-Type: application/json" -d "${body}")
+            fi
+            STATUS=$(curl "${args[@]}" || true)
+            echo "${name}: HTTP ${STATUS}"
+          }
 
-          STATUS=$(curl --silent --show-error \
-            --output antwort.json --write-out "%{http_code}" \
-            --retry 3 --retry-delay 10 --max-time 30 \
-            -X POST "${BASIS}/rest/v1/rpc/ping" \
-            -H "apikey: ${KEY}" \
-            -H "Authorization: Bearer ${KEY}" \
-            -H "Content-Type: application/json" \
-            -d '{}')
-
-          echo "HTTP-Status: ${STATUS}"
-          cat antwort.json
-          echo
-
-          if [ "${STATUS}" != "200" ]; then
-            echo "Keep-alive fehlgeschlagen."
-            exit 1
+          # 1) Datenbankfunktion ping() -- schreibt seit Migration 0010
+          aufruf "ping()" POST /rest/v1/rpc/ping '{}'
+          PING_STATUS="${STATUS}"
+          if [ "${PING_STATUS}" = "200" ]; then
+            cat antwort.txt; echo
           fi
 
-          echo "Keep-alive erfolgreich."
+          # 2) REST-API und 3) Auth-Dienst (nur fuer Aktivitaet,
+          #    das Ergebnis ist egal)
+          aufruf "REST-API" GET /rest/v1/
+          aufruf "Auth"     GET /auth/v1/health
+
+          if [ "${PING_STATUS}" = "200" ]; then
+            echo "Keep-alive erfolgreich."
+            exit 0
+          fi
+
+          case "${PING_STATUS}" in
+            522|540|544|000)
+              echo "::error::Supabase antwortet nicht (HTTP ${PING_STATUS}). Das Projekt ist sehr wahrscheinlich PAUSIERT. Im Supabase-Dashboard anmelden und 'Restore project' druecken. Keep-alive kann ein pausiertes Projekt NICHT wieder aufwecken."
+              ;;
+            401|403)
+              echo "::error::Zugriff verweigert (HTTP ${PING_STATUS}). Secret SUPABASE_ANON_KEY pruefen."
+              ;;
+            404)
+              echo "::error::Funktion ping() nicht gefunden (HTTP 404). Migrationen 0002/0010 im SQL-Editor ausfuehren."
+              ;;
+            *)
+              echo "::error::Keep-alive fehlgeschlagen (HTTP ${PING_STATUS})."
+              head -c 500 antwort.txt; echo
+              ;;
+          esac
+          exit 1
