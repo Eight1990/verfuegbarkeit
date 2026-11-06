@@ -333,7 +333,11 @@ Passwort können Mitarbeitende nicht selbst zurücksetzen; sie melden sich bei d
 | Freitag nach 12:00 bis Sonntag | Nichts ist änderbar. Du exportierst und planst |
 | Montag | Die App schaltet automatisch auf die nächste Woche um |
 
-Die Woche wird beim ersten Öffnen automatisch angelegt. Du musst nichts starten.
+Wochen werden **automatisch 4 Wochen im Voraus** aus den Standardzeiten angelegt
+(täglich um 01:05 bzw. 02:05 Uhr deutscher Zeit, zusätzlich beim Öffnen des Admin-Bereichs).
+Du musst nichts starten. So kannst du Feiertage oder abweichende Zeiten schon
+Wochen vorher eintragen. Voraussetzung: Migration `0011_wochen_automatisch.sql`
+wurde einmal im SQL Editor ausgeführt.
 
 **Frist ändern:** Reiter **Zeiten** → Woche wählen → **Abgabefrist dieser Woche**
 → Zeitpunkt setzen → **Speichern**. Die Angabe ist deutsche Zeit; Sommer- und
@@ -346,8 +350,10 @@ Winterzeit werden berücksichtigt.
 
 Beim Anlegen einer Woche werden die Standardzeiten in die Woche **kopiert und
 eingefroren**. Änderst du später die Standardzeiten, bleiben alte Wochen und
-alte Exporte unverändert richtig. Willst du eine bestehende Woche doch
-nachziehen: **Zeiten aus Standard neu laden**.
+alte Exporte unverändert richtig. Weil die kommenden Wochen schon angelegt sind,
+erscheint nach dem Speichern der Standardzeiten der Knopf **Auf die schon
+angelegten kommenden Wochen übertragen** (gesperrte Tage und Abgaben bleiben
+erhalten). Eine einzelne Woche ziehst du mit **Zeiten aus Standard neu laden** nach.
 
 **Eine Schicht ganz abschalten:** Reiter **Zeiten** → **Standardzeiten** → bei
 der Schicht den Haken *„Schicht wird angeboten"* entfernen. Wirkt auf neue
@@ -614,6 +620,8 @@ supabase/migrations/0002_rls.sql              Schutzregeln, Rechte, RPC-Funktion
 supabase/migrations/0003_standard_schichten.sql   Standard-Schichten, erste Woche
 supabase/migrations/0004_loeschfrist.sql          Löschfrist (optional, siehe Datenschutz)
 supabase/migrations/0005_passwort_aendern.sql     eigenes Passwort nach dem Startpasswort
+supabase/migrations/0010_keepalive_schreiben.sql  Keep-alive schreibt in die Datenbank
+supabase/migrations/0011_wochen_automatisch.sql   Wochen 4 Wochen im Voraus anlegen (Cron)
 vendor/                                       lokale Kopien von supabase-js und SheetJS
 
 supabase/functions/import-stammliste/index.ts     Stammliste einlesen (Server)
