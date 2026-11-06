@@ -783,7 +783,9 @@ const TEXTE_DE = {
   admin_tag_sperren:     "Tag sperren",
   admin_speichern:       "Speichern",
   admin_neu_laden:       "Zeiten aus Standard neu laden",
-  admin_woche_anlegen:   "Woche anlegen",
+  admin_wochen_auto:     "Wochen werden automatisch 4 Wochen im Voraus aus den Standardzeiten angelegt. Einmalige Änderungen (Feiertag, andere Zeiten) trägst du unten für die gewählte Woche ein.",
+  admin_std_uebertragen: "Auf die schon angelegten kommenden Wochen übertragen",
+  admin_std_uebertragen_fertig: "Standardzeiten übertragen auf Wochen: ",
   admin_gespeichert:     "Gespeichert.",
   admin_schicht_an:      "Schicht wird angeboten",
   admin_grund:           "Grund (optional)",
@@ -2311,6 +2313,11 @@ async function adminStarten() {
 }
 
 async function wochenLaden() {
+  // Bearbeitungswoche + 3 Folgewochen sicherstellen (macht auch ein
+  // taeglicher Cron-Job; hier als Rueckfallebene). Fehler nicht fatal.
+  const { error: vorausFehler } = await sb.rpc("wochen_vorausanlegen");
+  if (vorausFehler) console.warn("wochen_vorausanlegen:", vorausFehler.message);
+
   const { data } = await sb.from("weeks")
     .select("kw_start_datum, abgabefrist")
     .order("kw_start_datum", { ascending: false })
@@ -3272,29 +3279,11 @@ function adminPasswort(ziel) {
 
 /* ---------- Reiter 4: Zeiten und Frist ---------- */
 async function adminZeiten(ziel) {
-  // --- Woche waehlen / anlegen ---
+  // --- Woche waehlen (Wochen werden automatisch angelegt) ---
   const karteWoche = el("div", "karte");
   karteWoche.appendChild(el("h2", null, TEXTE.admin_zeiten_titel));
   karteWoche.appendChild(wochenAuswahl(adminZeichnen));
-
-  const neuZeile = el("div", "zeile-paar");
-  const iNeu = document.createElement("input");
-  iNeu.type = "date";
-  neuZeile.appendChild(iNeu);
-  const btnNeu = el("button", "knopf-mittel grau", TEXTE.admin_woche_anlegen);
-  btnNeu.type = "button";
-  btnNeu.onclick = async () => {
-    if (!iNeu.value) return;
-    const { data, error } = await sb.rpc("get_or_create_week", { p_kw_start: iNeu.value });
-    if (error) { adminMeldung("schlecht", error.message); return; }
-    // Die Funktion liefert den Montag der Woche zurueck - direkt anzeigen.
-    admin.kw = data;
-    await wochenLaden();
-    adminZeichnen();
-    adminMeldung("gut", TEXTE.admin_gespeichert);
-  };
-  neuZeile.appendChild(btnNeu);
-  karteWoche.appendChild(neuZeile);
+  karteWoche.appendChild(el("p", "hinweisbox", TEXTE.admin_wochen_auto));
   ziel.appendChild(karteWoche);
 
   if (!admin.kw) return;
@@ -3489,12 +3478,40 @@ async function adminZeiten(ziel) {
       if (error) { adminMeldung("schlecht", error.message); btnStd.disabled = false; return; }
     }
     btnStd.disabled = false;
+    btnUebertragen.style.display = "";
     adminMeldung("gut", TEXTE.admin_gespeichert);
   };
   stdInhalt.appendChild(btnStd);
+
+  // Nach dem Speichern: Standard auf die schon angelegten kommenden Wochen
+  // uebertragen (gesperrte Tage und Abgaben bleiben erhalten).
+  const btnUebertragen = el("button", "knopf-mittel grau", TEXTE.admin_std_uebertragen);
+  btnUebertragen.type = "button";
+  btnUebertragen.style.width = "100%";
+  btnUebertragen.style.marginTop = "8px";
+  btnUebertragen.style.display = "none";
+  btnUebertragen.onclick = async () => {
+    btnUebertragen.disabled = true;
+    const { data: aktiv, error: aFehler } = await sb.rpc("aktive_woche");
+    if (aFehler) { adminMeldung("schlecht", aFehler.message); btnUebertragen.disabled = false; return; }
+    const kommende = admin.wochen
+      .map((w) => w.kw_start_datum)
+      .filter((kw) => kw >= aktiv)
+      .sort();
+    for (const kw of kommende) {
+      const { error } = await sb.rpc("woche_aus_standard_neu_laden", { p_kw_start: kw });
+      if (error) { adminMeldung("schlecht", error.message); btnUebertragen.disabled = false; return; }
+    }
+    btnUebertragen.disabled = false;
+    btnUebertragen.style.display = "none";
+    adminMeldung("gut", TEXTE.admin_std_uebertragen_fertig + kommende.map(tagKurz).join(", "));
+  };
+  stdInhalt.appendChild(btnUebertragen);
+
   stdInhalt.appendChild(el("p", "hinweisbox",
     "Standardzeiten gelten für Wochen, die neu angelegt werden. Bereits angelegte " +
-    "Wochen behalten ihre Zeiten, bis oben „" + TEXTE.admin_neu_laden + "“ gedrückt wird."));
+    "Wochen behalten ihre Zeiten – nach dem Speichern kannst du sie mit „" +
+    TEXTE.admin_std_uebertragen + "“ angleichen. Gesperrte Tage bleiben dabei erhalten."));
 }
 
 function fuerDatetimeLocal(isoZeit) {
