@@ -387,6 +387,37 @@ begin
   delete from public.planung_historie where kw_start_datum = '2000-01-03';
 
   -- ------------------------------------------------------------------
+  -- 13c) Dispo-Vorlage (Migration 0009): nur fuer Admins
+  -- ------------------------------------------------------------------
+  insert into public.app_dateien (schluessel, dateiname, inhalt_base64)
+  values ('selbsttest', 'x.xlsm', 'AAAA');
+
+  execute 'set local role authenticated';
+
+  select count(*) into v_zahl from public.app_dateien;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter sieht app_dateien (Vorlage)'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+
+  begin
+    insert into public.app_dateien (schluessel, dateiname, inhalt_base64)
+    values ('selbsttest2', 'y.xlsm', 'BBBB');
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter schreibt app_dateien'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter schreibt app_dateien'::text,
+      'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  execute 'reset role';
+  delete from public.app_dateien where schluessel in ('selbsttest', 'selbsttest2');
+
+  -- ------------------------------------------------------------------
   -- 14) Deaktivierte Personalnummer kann nichts mehr speichern
   -- ------------------------------------------------------------------
   update public.employees set aktiv = false where personalnummer = v_a_pn;
@@ -451,7 +482,6 @@ begin
   return query select v_nr,
     'Taeglicher Cron-Job wochen-vorausanlegen vorhanden'::text,
     '1'::text, v_zahl::text, (v_zahl = 1);
-
   update public.employees
      set aktiv = true, muss_pw_aendern = v_a_flag
    where personalnummer = v_a_pn;
