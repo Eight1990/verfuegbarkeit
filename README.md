@@ -295,7 +295,7 @@ funktionieren beide.
 
 **So läuft der Import:**
 1. Auf der Seite unten **Admin-Anmeldung** → mit E-Mail und Passwort anmelden.
-2. Reiter **Stammliste** → Datei auswählen → **Vorschau prüfen**.
+2. Reiter **Zugänge** → Datei auswählen → **Vorschau prüfen**.
 3. Es erscheint z. B. *„3 neu · 0 geändert · 0 deaktiviert"*. Die Listen darunter
    lassen sich aufklappen. **Bis hierhin ist nichts verändert.**
 4. Stimmt es, auf **Jetzt übernehmen**.
