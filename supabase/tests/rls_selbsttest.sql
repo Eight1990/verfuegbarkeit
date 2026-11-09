@@ -9,7 +9,9 @@
 --   5. der Passwort-Fingerabdruck fuer niemanden lesbar ist,
 --   6. bei offenem Passwortwechsel (Migration 0005) nichts gespeichert wird,
 --   7. geplante Schichten (Migration 0006) nur der Betroffene sieht und nur
---      Admins aendern koennen.
+--      Admins aendern koennen,
+--   8. die Loeschfrist (Migration 0012) als Cron-Job eingerichtet und die
+--      Loeschfunktion von aussen nicht aufrufbar ist.
 --
 -- VORHER: es muessen mindestens ZWEI aktive Personalnummern angelegt sein.
 --         Am einfachsten: im Admin-Bereich die Datei
@@ -482,6 +484,26 @@ begin
   return query select v_nr,
     'Taeglicher Cron-Job wochen-vorausanlegen vorhanden'::text,
     '1'::text, v_zahl::text, (v_zahl = 1);
+
+  -- ------------------------------------------------------------------
+  -- Loeschfrist (Migration 0012), als Datenbank-Admin geprueft
+  -- ------------------------------------------------------------------
+  select count(*) into v_zahl
+  from cron.job j where j.jobname = 'loeschfrist';
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Monatlicher Cron-Job loeschfrist vorhanden'::text,
+    '1'::text, v_zahl::text, (v_zahl = 1);
+
+  v_text := case
+    when has_function_privilege('authenticated', 'public.loeschfrist_anwenden(int)', 'execute')
+      or has_function_privilege('anon', 'public.loeschfrist_anwenden(int)', 'execute')
+    then 'aufrufbar' else 'gesperrt' end;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'loeschfrist_anwenden von aussen aufrufbar'::text,
+    'gesperrt'::text, v_text, (v_text = 'gesperrt');
+
   update public.employees
      set aktiv = true, muss_pw_aendern = v_a_flag
    where personalnummer = v_a_pn;
