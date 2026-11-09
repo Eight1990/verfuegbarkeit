@@ -155,11 +155,13 @@ Die Namen müssen genau so geschrieben sein, sonst findet die App sie nicht.
 > Beim ersten Veröffentlichen steht der Schalter auf AN — also nach dem Deploy
 > einmal nachsehen.
 
-> **Optional, etwas sicherer:** Unter **Edge Functions → Secrets** kannst du
-> `ERLAUBTE_ORIGIN` auf die Adresse deiner Seite setzen
-> (z. B. `https://deinname.github.io`). Dann nehmen die Funktionen nur noch
-> Anfragen von dieser Seite an. Ohne diese Einstellung sind sie trotzdem
-> geschützt: sie prüfen bei jedem Aufruf, ob ein Admin angemeldet ist.
+> **Empfohlen:** Unter **Edge Functions → Secrets** `ERLAUBTE_ORIGIN` auf die
+> Adresse deiner Seite setzen, ohne Pfad (z. B. `https://deinname.github.io`).
+> Dann beantworten die Funktionen Browser-Anfragen nur noch von dieser Seite
+> (CORS). Ohne diese Einstellung antworten sie jedem Origin (`*`); geschützt
+> sind sie trotzdem, weil sie bei jedem Aufruf prüfen, wer angemeldet ist.
+> Prüfen: `curl -i -X OPTIONS https://<ref>.supabase.co/functions/v1/passwort-setzen -H "Origin: https://beispiel.invalid"`
+> muss `Access-Control-Allow-Origin: https://deinname.github.io` zeigen.
 
 ### Schritt 6 — Deinen Admin-Zugang anlegen
 
@@ -526,10 +528,11 @@ Was du selbst beachten musst:
   Webseite).
 - **Löschfrist:** Die Datenschutzerklärung in der App nennt 12 Monate (Verfügbarkeiten:
   12 Monate nach Ende der Woche; deaktivierte Zugänge: 12 Monate nach Deaktivierung).
-  Umgesetzt wird das mit `supabase/migrations/0004_loeschfrist.sql`. Einmal im SQL Editor
-  ausführen, danach entweder monatlich von Hand `select public.loeschfrist_anwenden();` oder
-  per pg_cron automatisieren (Anleitung am Ende der Datei). Ändert ihr die Frist, den Text in
-  `index.html` mit anpassen.
+  Umgesetzt wird das mit `supabase/migrations/0004_loeschfrist.sql` (Funktion) und
+  `supabase/migrations/0012_loeschfrist_cron.sql` (monatlicher Cron-Job am 1. um 03:00 UTC,
+  Protokolltabelle `loeschlauf`). Beide einmal im SQL Editor ausführen. Ob gelöscht wurde,
+  zeigt `select * from public.loeschlauf order by gelaufen_am desc;` (nur Anzahlen, keine
+  Personendaten). Ändert ihr die Frist, den Text in `index.html` mit anpassen.
 - **Auftragsverarbeitungsvertrag:** Das unterschriebene Supabase-DPA aus dem Dashboard
   in den eigenen Datenschutzunterlagen ablegen. Für GitHub (Hosting) ebenfalls einen
   Vertrag (DPA) in den GitHub-Einstellungen der Organisation bzw. des Kontos prüfen.
@@ -618,7 +621,8 @@ README.md                                    diese Anleitung
 supabase/migrations/0001_init.sql             Tabellen, Hilfsfunktionen, Trigger
 supabase/migrations/0002_rls.sql              Schutzregeln, Rechte, RPC-Funktionen
 supabase/migrations/0003_standard_schichten.sql   Standard-Schichten, erste Woche
-supabase/migrations/0004_loeschfrist.sql          Löschfrist (optional, siehe Datenschutz)
+supabase/migrations/0004_loeschfrist.sql          Löschfrist: Funktion (siehe Datenschutz)
+supabase/migrations/0012_loeschfrist_cron.sql     Löschfrist: monatlicher Cron-Job + Protokoll
 supabase/migrations/0005_passwort_aendern.sql     eigenes Passwort nach dem Startpasswort
 supabase/migrations/0010_keepalive_schreiben.sql  Keep-alive schreibt in die Datenbank
 supabase/migrations/0011_wochen_automatisch.sql   Wochen 4 Wochen im Voraus anlegen (Cron)
