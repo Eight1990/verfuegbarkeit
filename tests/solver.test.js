@@ -11,8 +11,8 @@ function test(name, fn) {
   catch (e) { console.error("FAIL " + name + "\n     " + e.message); process.exitCode = 1; }
 }
 
-const json = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "Testdaten",
-  "verfuegbarkeit_2026-W43_TESTDATEN.json"), "utf8"));
+// Erfundene Daten (tests/synthetisch.js) statt der frueheren Testdaten-Datei
+const json = require("./synthetisch.js").exportJson("2026-10-19");
 
 function bedarf(f, s) {
   const b = {};
@@ -26,7 +26,7 @@ function lauf(opts) {
 }
 const fehler = (erg) => erg.verstoesse.filter((v) => v.art === "fehler");
 
-test("keine harten Verstöße auf den Testdaten", () => {
+test("keine harten Verstöße auf den erfundenen Daten", () => {
   const { erg } = lauf();
   assert.deepStrictEqual(fehler(erg), []);
 });

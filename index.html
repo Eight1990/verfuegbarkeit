@@ -476,6 +476,7 @@
 
   <div class="huelle">
     <div class="reiter" id="admin-reiter"></div>
+    <div id="admin-woche" class="verborgen"></div>
     <div id="admin-meldung" class="meldung verborgen"></div>
     <div id="admin-inhalt"></div>
   </div>
@@ -531,7 +532,10 @@
         <h3>Welche Daten verarbeitet werden</h3>
         <p>Personalnummer und Passwort zur Anmeldung (das Passwort wird nur als nicht umkehrbarer
            Hashwert gespeichert), Ihre Verfügbarkeiten pro Woche, die gewünschte Höchstzahl an
-           Schichten sowie der Zeitpunkt Ihrer Abgabe. Klarnamen werden in dieser Anwendung nicht gespeichert.</p>
+           Schichten sowie der Zeitpunkt Ihrer Abgabe. Ihr Name und planungsrelevante Angaben aus der Stammliste
+           (Beschäftigungskategorie, Schichtwünsche und -sperren, Fahrgemeinschaft, interne Notiz) werden ausschließlich
+           verschlüsselt (AES-256) gespeichert; der Schlüssel liegt nur bei den für die Einsatzplanung zuständigen
+           Personen, nicht beim Datenbank-Anbieter.</p>
 
         <h3>Rechtsgrundlage</h3>
         <p>Art. 6 Abs. 1 lit. b DSGVO in Verbindung mit § 26 BDSG (Durchführung des Beschäftigungsverhältnisses).</p>
@@ -555,17 +559,20 @@
         <h3>Cookies und Tracking</h3>
         <p>Es gibt kein Tracking, keine Analyse- und keine Werbe-Cookies. Gespeichert wird nur die für die
            Anmeldung technisch notwendige Sitzung im Speicher Ihres Geräts; sie wird beim Abmelden entfernt.
+           Auf Geräten der Einsatzplaner kann zusätzlich der Entschlüsselungsschlüssel für die Namen gespeichert werden;
+           Geräte der Mitarbeitenden sind davon nicht betroffen.
            Außerdem merkt sich Ihr Gerät die von Ihnen gewählte Anzeigesprache; diese Einstellung wird nicht
            an uns übermittelt.</p>
 
         <h3>Speicherdauer</h3>
         <p>Zusätzlich speichern wir Ihre geplanten Schichten (Datum, Schichtart, Uhrzeiten), damit Sie
            Ihren Einsatz in der App sehen können. Sie sind nur für Sie und die für die Einsatzplanung
-           zuständigen Personen einsehbar; Ihr Name wird dafür nicht gespeichert.</p>
+           zuständigen Personen einsehbar; Ihr Name ist dafür nur verschlüsselt hinterlegt (siehe oben).</p>
         <p>Ihre Verfügbarkeitsangaben und geplanten Schichten werden 12 Monate nach Ende der jeweiligen Kalenderwoche gelöscht,
            soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ihr Zugang (Personalnummer)
            wird deaktiviert, sobald Sie nicht mehr in der Einsatzplanung geführt werden, und mit den
-           zugehörigen Angaben spätestens nach Ablauf dieser Frist gelöscht.</p>
+           zugehörigen Angaben spätestens nach Ablauf dieser Frist gelöscht. Ihr Name wird aus dem verschlüsselten Bestand
+           entfernt, sobald Sie nicht mehr in der Stammliste geführt werden, spätestens beim nächsten Einspielen der Liste.</p>
 
         <h3>Ihre Rechte</h3>
         <p>Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
@@ -709,13 +716,11 @@ const TEXTE_DE = {
   datenschutz:           "Datenschutz",
 
   // Admin
-  admin_reiter:          ["Abgaben","Zugänge","Passwort","Zeiten","Export","Planung","Auto-Planung"],
 
   // Planung (fertige Dispo)
   plan_titel:            "Fertige Planung einlesen",
-  plan_hinweis:          "Beide Dateien werden nur in diesem Browser gelesen. Der Abgleich Name → Personalnummer passiert hier; zum Server gehen nur Personalnummer, Datum, Schicht und Zeiten – keine Namen.",
+  plan_hinweis:          "Nur für den Ausnahmefall, dass die Dispo außerhalb der App erstellt oder geändert wurde. Die Dispo wird nur in diesem Browser gelesen; Namen kommen aus dem Tresor. Zum Server gehen nur Personalnummer, Datum, Schicht und Zeiten.",
   plan_label_dispo:      "Dispo (.xlsm / .xlsx)",
-  plan_label_stamm:      "Stammliste mit Namensspalte (.xlsx)",
   plan_pruefen:          "Planung prüfen",
   plan_uebernehmen:      "Planung übernehmen",
   plan_ueberspringen:    "– überspringen (keine Planung) –",
@@ -728,10 +733,7 @@ const TEXTE_DE = {
   plan_status_gemerkt:   "bestätigt (gemerkt)",
   plan_status_manuell:   "manuell gewählt",
   plan_erste_planung:    "Für diese Woche gibt es noch keine gespeicherte Planung.",
-  plan_zuordnung_sichern: "Zuordnungsliste sichern",
-  plan_zuordnung_laden:  "Zuordnungsliste laden",
-  plan_zuordnung_geladen: "Zuordnungsliste geladen.",
-  plan_zuordnung_hinweis: "Bestätigte Zuordnungen (Schreibweise in der Dispo → Personalnummer) merkt sich dieser Browser. Die Datei enthält Namen: nur lokal aufbewahren, nicht weitergeben.",
+  plan_zuordnung_hinweis: "Bestätigte Zuordnungen (Schreibweise in der Dispo → Personalnummer) werden verschlüsselt im Tresor gespeichert und gelten auf allen Geräten.",
   plan_fertig_ok:        "Planung übernommen und geprüft.",
   plan_fertig_fehler:    "Planung gespeichert, aber die Gegenprobe stimmt NICHT. Bitte nicht verlassen, sondern erneut einlesen.",
   plan_fertig:           " Schichten übernommen.",
@@ -775,8 +777,8 @@ const TEXTE_DE = {
   admin_haben_abgegeben: " haben abgegeben",
   admin_keine_ma:        "Es sind noch keine Personalnummern angelegt.",
 
-  admin_stamm_titel:     "Zugänge anlegen und Passwörter vergeben",
-  admin_stamm_hinweis:   "Excel (.xlsx) oder CSV mit den Spalten Personalnummer und Passwort. Neue Nummern bekommen einen Zugang. Weitere Spalten (Name, Kategorie ...) werden hier ignoriert und nicht hochgeladen.",
+  admin_stamm_titel:     "Stammliste einspielen",
+  admin_stamm_hinweis:   "Eine Excel (.xlsx) oder CSV mit den Spalten Personalnummer, Passwort und Name; optional Kategorie, Fahrgemeinschaft, Max. Schichten, Ø h/Wo, Nur Schicht, Gesperrte Tage, Notiz. Zum Server gehen nur Personalnummer und Passwort (für die Zugänge); Passwörter werden nirgends gespeichert. Name und Profil werden in diesem Browser verschlüsselt und im Tresor abgelegt. Nummern, die in der Datei fehlen, werden deaktiviert. Eine Datei ohne Passwortspalte ändert nur Namen und Profile.",
   admin_vorschau:        "Vorschau prüfen",
   admin_uebernehmen:     "Jetzt übernehmen",
   admin_gelesen:         " Zeilen gelesen.",
@@ -1542,6 +1544,13 @@ async function anmeldenAdmin() {
 }
 
 async function abmelden() {
+  // Admin: gemerkten Tresor-Schluessel auf diesem Geraet loeschen (nie blockierend).
+  // Mitarbeiter: tresor bleibt "unbekannt", IndexedDB wird dort nie angefasst.
+  const istAdmin = !$("screen-admin").classList.contains("verborgen");
+  if (istAdmin) {
+    try { await Promise.race([tresorSperren(true), new Promise((r) => setTimeout(r, 1500))]); }
+    catch (e) { console.warn("Tresor-Schluessel nicht geloescht:", e); }
+  }
   await sb.auth.signOut();
   location.reload();
 }
@@ -2310,22 +2319,863 @@ function bestaetigungZeigen(zeitpunkt) {
 /* =====================================================================
    10. ADMIN-BEREICH
 ===================================================================== */
-const admin = { reiter: 0, wochen: [], kw: null };
+const admin = { ansicht: "start", wochen: [], kw: null, status: null, userId: null };
+
+/* =====================================================================
+   STAMMLISTEN-TRESOR
+   Klarnamen und Profile liegen verschluesselt in app_dateien (Schluessel
+   'stammliste_tresor'). Ver- und Entschluesselung passiert nur hier im
+   Browser (tresor.js, WebCrypto). Der Server sieht nur die Huelle.
+   Ein Geraet kann den (nicht exportierbaren) Schluessel in IndexedDB
+   merken; dann oeffnet sich der Tresor beim naechsten Start von selbst.
+===================================================================== */
+const TRESOR_SCHLUESSEL = "stammliste_tresor";
+const TRESOR_DATEINAME = "stammliste_tresor.json";
+const TRESOR_IDB = "zig_tresor";
+const TRESOR_KONFLIKT = "Der Tresor wurde inzwischen auf einem anderen Gerät geändert. Bitte die Seite neu laden und noch einmal beginnen.";
+const tresor = {
+  zustand: "unbekannt",   // unbekannt | leer | gesperrt | offen | fehler
+  huelle: null,           // zuletzt gelesene Huelle (ohne Klartext)
+  version: null,          // app_dateien.version der gelesenen Zeile (null = keine Zeile)
+  aktualisiert: null,
+  dateiname: null,
+  key: null,              // CryptoKey, nicht exportierbar, nur im Speicher
+  salt: null,             // base64, gehoert zum key
+  inhalt: null,           // entschluesselter Klartext {profile, zuordnung, quelle}
+  gemerkt: false,         // Schluessel kam aus IndexedDB dieses Geraets
+  fehler: null,           // Hinweistext fuer die Oberflaeche
+  hinweis: null,          // einmalige Info (z. B. uebernommene Zuordnungen)
+  laeuft: null            // laufendes tresorStarten (andere Aufrufer warten darauf)
+};
+
+async function tresorModul() {
+  await skriptLaden("tresor.js");
+  if (!window.Tresor) throw new Error("tresor.js konnte nicht geladen werden.");
+  return window.Tresor;
+}
+
+// ---------- IndexedDB: gemerkter Geraeteschluessel ----------
+function idbOeffnen() {
+  return new Promise((fertig, fehler) => {
+    if (!window.indexedDB) { fehler(new Error("IndexedDB ist nicht verfügbar.")); return; }
+    const anfrage = indexedDB.open(TRESOR_IDB, 1);
+    anfrage.onupgradeneeded = () => { anfrage.result.createObjectStore("schluessel", { keyPath: "id" }); };
+    anfrage.onsuccess = () => fertig(anfrage.result);
+    anfrage.onerror = () => fehler(anfrage.error || new Error("IndexedDB ist nicht verfügbar."));
+    anfrage.onblocked = () => fehler(new Error("IndexedDB ist blockiert."));
+  });
+}
+function idbAktion(modus, arbeit) {
+  return idbOeffnen().then((db) => new Promise((fertig, fehler) => {
+    const tx = db.transaction("schluessel", modus);
+    const anfrage = arbeit(tx.objectStore("schluessel"));
+    tx.oncomplete = () => { db.close(); fertig(anfrage ? anfrage.result : undefined); };
+    tx.onerror = () => { db.close(); fehler(tx.error || new Error("IndexedDB-Fehler")); };
+    tx.onabort = tx.onerror;
+  }));
+}
+const geraeteSchluesselLesen = () => idbAktion("readonly", (s) => s.get("aktiv")).catch(() => null);
+const geraeteSchluesselSpeichern = (key, salt) =>
+  idbAktion("readwrite", (s) => s.put({ id: "aktiv", key: key, salt: salt, gemerkt_am: new Date().toISOString() }));
+const geraeteSchluesselLoeschen = () => idbAktion("readwrite", (s) => s.delete("aktiv")).catch(() => null);
+
+// ---------- Zeile in app_dateien ----------
+async function tresorZeileLesen(mitInhalt) {
+  const spalten = "schluessel, dateiname, version, aktualisiert_am" + (mitInhalt ? ", inhalt_base64" : "");
+  const r = await sb.from("app_dateien").select(spalten).eq("schluessel", TRESOR_SCHLUESSEL);
+  if (r.error) {
+    if (/version/i.test(r.error.message || "")) {
+      throw new Error("Die Datenbank kennt die Spalte \"version\" noch nicht: bitte supabase/migrations/0013_app_dateien_version.sql im SQL Editor ausführen.");
+    }
+    throw new Error(r.error.message);
+  }
+  // .find statt [0]: robust, falls mehrere Zeilen zurueckkommen (Vorschau)
+  return (r.data || []).find((z) => z.schluessel === TRESOR_SCHLUESSEL) || null;
+}
+
+function tresorKlartextUebernehmen(inhalt) {
+  tresor.inhalt = inhalt;
+  stammProfileUebernehmen(inhalt.profile);
+}
+
+function tresorZuruecksetzenGesperrt() {
+  tresor.key = null; tresor.salt = null; tresor.inhalt = null; tresor.gemerkt = false;
+  stammProfileUebernehmen([]);
+  tresor.zustand = tresor.huelle ? "gesperrt" : "leer";
+}
+
+// Beim Admin-Start: Zeile lesen und, wenn dieses Geraet den Schluessel kennt,
+// sofort entschluesseln. Wirft nie; Fehler landen sichtbar in tresor.fehler.
+function tresorStarten() {
+  tresor.laeuft = tresorStartenIntern().finally(() => { tresor.laeuft = null; });
+  return tresor.laeuft;
+}
+async function tresorStartenIntern() {
+  tresor.fehler = null;
+  try {
+    const T = await tresorModul();
+    const zeile = await tresorZeileLesen(true);
+    if (!zeile) {
+      tresor.huelle = null; tresor.version = null; tresor.aktualisiert = null; tresor.dateiname = null;
+      tresorZuruecksetzenGesperrt();
+      return;
+    }
+    // Version zuerst merken: auch ein beschaedigter Tresor kann dann ueberschrieben werden
+    tresor.version = zeile.version;
+    tresor.aktualisiert = zeile.aktualisiert_am;
+    tresor.dateiname = zeile.dateiname;
+    tresor.huelle = T.huelleDekodieren(zeile.inhalt_base64);
+    if (tresor.key && tresor.salt === tresor.huelle.salt) {
+      tresorKlartextUebernehmen(await T.entschluesseln(tresor.key, tresor.huelle));
+      tresor.zustand = "offen";
+      return;
+    }
+    const gemerkt = await geraeteSchluesselLesen();
+    if (gemerkt && gemerkt.key && gemerkt.salt === tresor.huelle.salt) {
+      try {
+        tresorKlartextUebernehmen(await T.entschluesseln(gemerkt.key, tresor.huelle));
+        tresor.key = gemerkt.key; tresor.salt = gemerkt.salt; tresor.gemerkt = true;
+        tresor.zustand = "offen";
+        await zuordnungAltMigrieren();
+        return;
+      } catch (e) {
+        await geraeteSchluesselLoeschen();
+        tresor.fehler = "Der auf diesem Gerät gemerkte Schlüssel passt nicht mehr. Bitte das Tresor-Passwort eingeben.";
+      }
+    } else if (gemerkt && gemerkt.key) {
+      await geraeteSchluesselLoeschen();
+      tresor.fehler = "Das Tresor-Passwort wurde geändert oder der Tresor neu angelegt. Bitte das aktuelle Tresor-Passwort eingeben.";
+    }
+    tresorZuruecksetzenGesperrt();
+  } catch (e) {
+    tresor.zustand = "fehler";
+    tresor.fehler = String(e.message || e);
+  }
+}
+
+async function tresorEntsperren(passwort, merken) {
+  const T = await tresorModul();
+  if (tresor.zustand !== "gesperrt" || !tresor.huelle) throw new Error("Es gibt keinen gesperrten Tresor.");
+  const key = await T.schluesselAbleiten(passwort, T.vonB64(tresor.huelle.salt), tresor.huelle.kdf.iter);
+  const inhalt = await T.entschluesseln(key, tresor.huelle); // wirft bei falschem Passwort
+  tresor.key = key; tresor.salt = tresor.huelle.salt; tresor.gemerkt = false; tresor.fehler = null;
+  tresorKlartextUebernehmen(inhalt);
+  tresor.zustand = "offen";
+  if (merken) await tresorMerken();
+  await zuordnungAltMigrieren();
+}
+
+async function tresorMerken() {
+  try { await geraeteSchluesselSpeichern(tresor.key, tresor.salt); tresor.gemerkt = true; }
+  catch (e) {
+    tresor.gemerkt = false;
+    tresor.fehler = "Merken ist in diesem Browser nicht möglich (privater Modus?). Nach dem Neuladen wird das Tresor-Passwort wieder abgefragt.";
+  }
+}
+
+async function tresorSperren(vergessen) {
+  if (vergessen) await geraeteSchluesselLoeschen();
+  tresor.fehler = null;
+  tresorZuruecksetzenGesperrt();
+}
+
+// Frische-Pruefung: Hat ein anderes Geraet den Tresor inzwischen geaendert?
+// Liefert true, wenn sich etwas geaendert hat. Bei gleichem Passwort wird
+// still neu entschluesselt; bei neuem Passwort wird der Tresor gesperrt.
+async function tresorAktualisieren() {
+  if (tresor.laeuft) await tresor.laeuft;
+  if (tresor.zustand === "unbekannt" || tresor.zustand === "fehler") return false;
+  const T = await tresorModul();
+  const zeile = await tresorZeileLesen(true);
+  if (!zeile) {
+    if (tresor.version === null) return false;
+    tresor.huelle = null; tresor.version = null; tresor.aktualisiert = null; tresor.dateiname = null;
+    tresorZuruecksetzenGesperrt();
+    tresor.fehler = "Der Tresor wurde auf einem anderen Gerät entfernt.";
+    return true;
+  }
+  if (zeile.version === tresor.version) return false;
+  const huelle = T.huelleDekodieren(zeile.inhalt_base64);
+  const uebernehmen = () => { tresor.huelle = huelle; tresor.version = zeile.version; tresor.aktualisiert = zeile.aktualisiert_am; tresor.dateiname = zeile.dateiname; };
+  if (tresor.key && tresor.salt === huelle.salt) {
+    // gleiches Passwort: erst entschluesseln, dann alles zusammen uebernehmen
+    let inhalt;
+    try { inhalt = await T.entschluesseln(tresor.key, huelle); }
+    catch (e) {
+      uebernehmen();
+      tresorZuruecksetzenGesperrt();
+      tresor.fehler = "Der Tresor wurde auf einem anderen Gerät geändert und kann hier nicht gelesen werden: " + String(e.message || e);
+      return true;
+    }
+    uebernehmen();
+    tresorKlartextUebernehmen(inhalt);
+    tresor.zustand = "offen";
+    return true;
+  }
+  uebernehmen();
+  if (tresor.key) {
+    // Schluessel vorhanden, Salz anders: Passwort wurde auf einem anderen Geraet geaendert
+    tresorZuruecksetzenGesperrt();
+    await geraeteSchluesselLoeschen();
+    tresor.fehler = "Der Tresor wurde auf einem anderen Gerät mit neuem Passwort gespeichert. Bitte das aktuelle Tresor-Passwort eingeben.";
+  } else {
+    // war schon gesperrt: der gemerkte Geraeteschluessel bleibt (er koennte noch passen)
+    tresorZuruecksetzenGesperrt();
+  }
+  return true;
+}
+
+// Schreiben mit Versionspruefung (zwei Admins ueberschreiben sich nicht gegenseitig)
+// und Gegenprobe: zurueckgelesen, entschluesselt, verglichen.
+//   opt.neuesPasswort  neuen Schluessel ableiten (Anlegen, Passwort aendern, Passwort vergessen)
+//   opt.merken         Schluessel danach auf diesem Geraet merken
+async function tresorSchreiben(inhalt, opt) {
+  opt = opt || {};
+  const T = await tresorModul();
+  const geprueft = T.inhaltPruefen(inhalt);
+  let key = tresor.key, salt = tresor.salt;
+  let iter = tresor.huelle ? tresor.huelle.kdf.iter : T.KDF.iter;
+  if (opt.neuesPasswort !== undefined) {
+    const meldung = T.passwortPruefen(opt.neuesPasswort);
+    if (meldung) throw new Error(meldung);
+    const salzBytes = T.salzNeu();
+    salt = T.b64(salzBytes);
+    iter = T.KDF.iter;
+    key = await T.schluesselAbleiten(opt.neuesPasswort, salzBytes, iter);
+  }
+  if (!key || !salt) throw new Error("Der Tresor ist gesperrt. Bitte zuerst entsperren.");
+  const sitzung = await sb.auth.getSession();
+  const by = sitzung && sitzung.data && sitzung.data.session && sitzung.data.session.user
+    ? String(sitzung.data.session.user.id) : "";
+  const huelle = await T.verschluesseln(key, salt, iter, geprueft, { updated_at: new Date().toISOString(), by: by });
+  const inhaltBase64 = T.huelleKodieren(huelle);
+  let r;
+  if (tresor.version === null) {
+    r = await sb.from("app_dateien")
+      .insert({ schluessel: TRESOR_SCHLUESSEL, dateiname: TRESOR_DATEINAME, inhalt_base64: inhaltBase64 })
+      .select("version, aktualisiert_am");
+    if (r.error && String(r.error.code) === "23505") throw new Error(TRESOR_KONFLIKT);
+  } else {
+    r = await sb.from("app_dateien")
+      .update({ dateiname: TRESOR_DATEINAME, inhalt_base64: inhaltBase64 })
+      .eq("schluessel", TRESOR_SCHLUESSEL).eq("version", tresor.version)
+      .select("version, aktualisiert_am");
+  }
+  if (r.error) throw new Error("Tresor nicht gespeichert: " + r.error.message);
+  if (!r.data || r.data.length !== 1) throw new Error(TRESOR_KONFLIKT);
+  // Gegenprobe
+  const zurueck = await tresorZeileLesen(true);
+  if (!zurueck) throw new Error("Gegenprobe fehlgeschlagen: Der Tresor ist nach dem Speichern nicht mehr vorhanden.");
+  const huelle2 = T.huelleDekodieren(zurueck.inhalt_base64);
+  const inhalt2 = await T.entschluesseln(key, huelle2);
+  if (JSON.stringify(inhalt2) !== JSON.stringify(geprueft)) {
+    throw new Error("Gegenprobe fehlgeschlagen: Der gespeicherte Tresor weicht vom Gesendeten ab.");
+  }
+  tresor.key = key; tresor.salt = salt; tresor.huelle = huelle2;
+  tresor.version = zurueck.version; tresor.aktualisiert = zurueck.aktualisiert_am; tresor.dateiname = zurueck.dateiname;
+  tresorKlartextUebernehmen(inhalt2);
+  tresor.zustand = "offen"; tresor.fehler = null;
+  if (opt.merken) await tresorMerken();
+  else if (opt.neuesPasswort !== undefined) { await geraeteSchluesselLoeschen(); tresor.gemerkt = false; }
+  return tresor;
+}
+
+// ---------- Namenszuordnung (Dispo-Schreibweise -> Personalnummer) ----------
+// Lag frueher im Klartext in localStorage; jetzt Teil des Tresors (verschluesselt,
+// auf allen Geraeten gleich).
+const ZUORDNUNG_KEY = "zig_namenzuordnung_v1";
+function zuordnungLaden() {
+  return tresor.zustand === "offen" && tresor.inhalt ? Object.assign({}, tresor.inhalt.zuordnung) : {};
+}
+// delta: nur die soeben bestaetigten Schreibweisen; sie werden in den aktuellen Tresor-Stand gemischt.
+async function zuordnungSpeichern(delta) {
+  if (tresor.zustand !== "offen" || !tresor.inhalt) throw new Error("Der Tresor ist gesperrt.");
+  const T = await tresorModul();
+  const bauen = () => T.inhaltBauen(tresor.inhalt.profile, Object.assign({}, tresor.inhalt.zuordnung, delta), tresor.inhalt.quelle);
+  try {
+    await tresorSchreiben(bauen());
+  } catch (e) {
+    if (String(e.message) !== TRESOR_KONFLIKT) throw e;
+    // Ein anderes Geraet hat inzwischen geschrieben: neu lesen, Delta erneut einmischen, einmal erneut schreiben.
+    await tresorAktualisieren();
+    if (tresor.zustand !== "offen") {
+      throw new Error("Der Tresor wurde auf einem anderen Gerät mit neuem Passwort gespeichert. Die Zuordnung konnte nicht abgelegt werden.");
+    }
+    await tresorSchreiben(bauen());
+  }
+  return true;
+}
+// Fruehere Zuordnungsliste aus localStorage einmalig in den Tresor uebernehmen, danach loeschen.
+async function zuordnungAltMigrieren() {
+  let alt = null;
+  try { alt = JSON.parse(localStorage.getItem(ZUORDNUNG_KEY) || "null"); } catch (_) { alt = null; }
+  if (!alt || typeof alt !== "object" || Array.isArray(alt)) return;
+  if (tresor.zustand !== "offen" || !tresor.inhalt) return;
+  try {
+    const vorher = Object.keys(tresor.inhalt.zuordnung).length;
+    const delta = {};
+    Object.keys(alt).forEach((k) => { if (!(k in tresor.inhalt.zuordnung) && typeof alt[k] === "string") delta[k] = alt[k]; }); // Tresor hat Vorrang
+    if (Object.keys(delta).length) await zuordnungSpeichern(delta);
+    try { localStorage.removeItem(ZUORDNUNG_KEY); } catch (_) { /* egal */ }
+    const dazu = Object.keys(tresor.inhalt.zuordnung).length - vorher;
+    if (dazu > 0) tresor.hinweis = dazu + " gemerkte Dispo-Schreibweisen aus diesem Browser in den Tresor übernommen.";
+  } catch (e) {
+    tresor.fehler = "Gemerkte Dispo-Schreibweisen konnten nicht in den Tresor übernommen werden: " + String(e.message || e);
+  }
+}
+
+/* =====================================================================
+   ADMIN-OBERFLAECHE: Navigation, Startseite, Tresor-Karten, "Mehr"
+   Statt sieben Reitern: Startseite mit drei Knoepfen (Wochenplanung,
+   Mitarbeiter, Mehr), eine globale Wochenzeile, Tresor-Karte nur wenn
+   etwas zu tun ist. Jede Ansicht hat eine id; ADMIN_ANSICHTEN ordnet ihr
+   die Zeichenfunktion zu. Meldungen (adminMeldung) immer NACH
+   adminZeichnen setzen, weil adminZeichnen sie zuerst loescht.
+===================================================================== */
+const WOCHEN_ANSICHTEN = new Set(["start", "woche", "zeiten", "export"]);
+const MEHR_ANSICHTEN = new Set(["zeiten", "vorlage", "dispo", "export", "tresor"]);
+const ANSICHT_TITEL = {
+  woche: "Wochenplanung", mitarbeiter: "Mitarbeiter", mehr: "Mehr", zeiten: "Zeiten und Frist",
+  vorlage: "Dispo-Vorlage", dispo: "Fertige Dispo einlesen", export: "Verfügbarkeiten exportieren", tresor: "Tresor"
+};
+// Funktionsdeklarationen sind gehoisted, deshalb darf die Zuordnung hier oben stehen.
+const ADMIN_ANSICHTEN = {
+  start: adminStart, woche: adminWoche, mitarbeiter: adminMitarbeiter, mehr: adminMehr,
+  zeiten: adminZeiten, vorlage: adminVorlage, dispo: adminPlanung, export: adminExport, tresor: adminTresor
+};
+
+function adminAnsicht(id) {
+  admin.ansicht = id;
+  adminZeichnen();
+  window.scrollTo({ top: 0 });
+}
+
+// Globale Wochenzeile (#admin-woche): genau eine Wochenauswahl fuer alle Ansichten
+function wochenZeileAufbauen() {
+  const wz = $("admin-woche");
+  wz.textContent = "";
+  wz.appendChild(wochenAuswahl(() => { admin.status = null; adminZeichnen(); }));
+}
+function wochenZeileSperren(an) {
+  const s = $("admin-woche").querySelector("select");
+  if (s) s.disabled = !!an;
+}
+
+function kwText(kw) { return "KW " + isoKw(alsDatum(kw)).kw; }
+function kwZeitraum(kw) { return tagKurz(kw) + "–" + tagKurz(addTage(kw, 4)); }
+function warnSpan(text) { return el("span", "status-nein", text); }
+function kleinerKnopf(text, beiKlick) {
+  const b = el("button", "knopf-klein", text);
+  b.type = "button";
+  b.onclick = beiKlick;
+  b.style.marginLeft = "8px";
+  return b;
+}
+function mittlererKnopf(text, grau) {
+  const b = el("button", "knopf-mittel" + (grau ? " grau" : ""), text);
+  b.type = "button";
+  b.style.width = "100%";
+  b.style.marginTop = "10px";
+  return b;
+}
+function passwortFeld(platzhalter, autocomplete) {
+  const f = document.createElement("input");
+  f.type = "password";
+  f.placeholder = platzhalter;
+  f.autocomplete = autocomplete || "off";
+  f.style.marginBottom = "10px";
+  return f;
+}
+function kontrollKaestchen(text, an) {
+  const lab = el("label", "feld");
+  lab.style.display = "block";
+  lab.style.margin = "6px 0 10px";
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = !!an;
+  cb.style.marginRight = "8px";
+  lab.appendChild(cb);
+  lab.appendChild(document.createTextNode(text));
+  return { label: lab, cb: cb };
+}
+function startKnopf(titel, info, beiKlick) {
+  const b = el("button", "start-knopf");
+  b.type = "button";
+  b.appendChild(el("span", "start-titel", titel));
+  const i = el("span", "start-info", info || TEXTE.laedt);
+  b.appendChild(i);
+  b.onclick = beiKlick;
+  b.style.marginBottom = "10px";
+  return { knopf: b, info: i };
+}
+function stammAusTresor() {
+  return Object.values(stammProfile).map((p) => ({ pn: p.personalnummer, name: p.name }));
+}
+
+// ---------- Status fuer Startseite und "Mehr" (ohne Blob-Inhalte) ----------
+async function adminStatusLaden() {
+  if (admin.status && admin.status.kw === admin.kw) return admin.status;
+  const kw = admin.kw;
+  const heute = montagIso(new Date());
+  const kws = Array.from(new Set([kw, heute]));
+  const r = await Promise.all([
+    sb.from("employees").select("personalnummer").eq("aktiv", true),
+    sb.from("submissions").select("personalnummer").eq("kw_start_datum", kw),
+    sb.from("planung_stand").select("kw_start_datum, aktualisiert_am, anzahl").in("kw_start_datum", kws),
+    sb.from("planung").select("kw_start_datum, personalnummer").in("kw_start_datum", kws),
+    sb.from("app_dateien").select("schluessel, dateiname, aktualisiert_am, version")
+  ]);
+  for (const teil of r) {
+    if (teil.error) {
+      if (/version/i.test(teil.error.message || "")) {
+        throw new Error("Die Datenbank kennt die Spalte \"version\" noch nicht: bitte supabase/migrations/0013_app_dateien_version.sql im SQL Editor ausführen.");
+      }
+      throw new Error(teil.error.message);
+    }
+  }
+  const aktive = (r[0].data || []).map((e) => e.personalnummer).sort();
+  const abgaben = new Set((r[1].data || []).map((s) => s.personalnummer));
+  const stand = {};
+  (r[2].data || []).forEach((s) => { stand[s.kw_start_datum] = s; });
+  const zeilen = {};
+  (r[3].data || []).forEach((p) => { zeilen[p.kw_start_datum] = (zeilen[p.kw_start_datum] || 0) + 1; });
+  const dateien = {};
+  (r[4].data || []).forEach((d) => { dateien[d.schluessel] = d; });
+  const woche = admin.wochen.find((w) => w.kw_start_datum === kw) || null;
+  const status = {
+    kw: kw, heute: heute, aktive: aktive,
+    abgegeben: aktive.filter((pn) => abgaben.has(pn)).length,
+    frist: woche ? woche.abgabefrist : null,
+    stand: stand, zeilen: zeilen,
+    vorlage: dateien.dispo_vorlage || null,
+    tresorZeile: dateien[TRESOR_SCHLUESSEL] || null
+  };
+  if (kw === admin.kw) admin.status = status;
+  return status;
+}
+
+function naechsterSchritt(st) {
+  const zuMitarbeiter = () => adminAnsicht("mitarbeiter");
+  const zuWoche = () => adminAnsicht("woche");
+  if (tresor.zustand === "fehler") return { text: "Nächster Schritt: Tresor neu laden (oben)." };
+  if (tresor.zustand === "leer") return { text: "Nächster Schritt: Tresor anlegen (oben), danach Stammliste einspielen (Mitarbeiter)." };
+  if (tresor.zustand === "gesperrt") return { text: "Nächster Schritt: Tresor öffnen (oben)." };
+  if (!st.aktive.length) return { text: "Nächster Schritt: Stammliste einspielen (Mitarbeiter).", knopf: "→ Mitarbeiter", aktion: zuMitarbeiter };
+  const ohneNamen = st.aktive.filter((pn) => !(stammProfile[pn] && stammProfile[pn].name)).length;
+  if (ohneNamen) {
+    return { text: "Nächster Schritt: Stammliste einspielen – " + ohneNamen + " Mitarbeiter " + (ohneNamen === 1 ? "hat" : "haben") + " noch keinen Namen.",
+      knopf: "→ Mitarbeiter", aktion: zuMitarbeiter };
+  }
+  const laufendeBekannt = admin.wochen.some((w) => w.kw_start_datum === st.heute);
+  if (st.heute !== st.kw && laufendeBekannt && !st.stand[st.heute] && !st.zeilen[st.heute]) {
+    return { text: "⚠ " + kwText(st.heute) + " läuft und ist nicht veröffentlicht.", warnung: true,
+      knopf: "→ " + kwText(st.heute) + " planen", aktion: () => { admin.kw = st.heute; admin.status = null; adminAnsicht("woche"); } };
+  }
+  const veroeff = st.stand[st.kw];
+  if (!veroeff && st.zeilen[st.kw]) {
+    return { text: "Planung für " + kwText(st.kw) + " vorhanden (" + st.zeilen[st.kw] + " Schichten, Stand unbekannt).", knopf: "→ Wochenplanung", aktion: zuWoche };
+  }
+  if (!veroeff) {
+    const fristVorbei = st.frist && new Date(st.frist) < new Date();
+    if (fristVorbei) return { text: "Nächster Schritt: Planung für " + kwText(st.kw) + " berechnen und veröffentlichen.", knopf: "→ Wochenplanung", aktion: zuWoche };
+    return { text: "Warten auf Abgaben: " + st.abgegeben + " von " + st.aktive.length + (st.frist ? ", Frist " + zeitpunktText(st.frist) : "") + ". Du kannst schon jetzt planen.",
+      knopf: "→ Wochenplanung", aktion: zuWoche };
+  }
+  const naechste = admin.wochen.map((w) => w.kw_start_datum).filter((k) => k > st.kw).sort()[0];
+  return { text: "Erledigt: " + kwText(st.kw) + " ist seit " + zeitpunktText(veroeff.aktualisiert_am) + " veröffentlicht (" + veroeff.anzahl + " Schichten).",
+    knopf: naechste ? "→ Weiter mit " + kwText(naechste) : null,
+    aktion: naechste ? () => { admin.kw = naechste; admin.status = null; wochenZeileAufbauen(); adminZeichnen(); } : null };
+}
+
+function tresorKurz() {
+  if (tresor.zustand === "offen") return "Tresor offen" + (tresor.gemerkt ? " (gemerkt)" : "");
+  if (tresor.zustand === "gesperrt") return "Tresor gesperrt";
+  if (tresor.zustand === "leer") return "Tresor noch nicht angelegt";
+  if (tresor.zustand === "fehler") return "Tresor: Fehler";
+  return "Tresor wird geladen";
+}
+function tresorQuelleText() {
+  const q = tresor.inhalt && tresor.inhalt.quelle;
+  if (!q || !q.dateiname) return "";
+  return " · Stammliste " + q.dateiname + (q.eingelesen_am ? " vom " + zeitpunktText(q.eingelesen_am) : "");
+}
+
+// ---------- Startseite ----------
+function adminStart(ziel) {
+  tresorKarte(ziel, "start");
+  const schritt = el("div", "meldung info", "Status wird geladen …");
+  schritt.style.marginBottom = "12px";
+  ziel.appendChild(schritt);
+  const k1 = startKnopf("Wochenplanung", null, () => adminAnsicht("woche"));
+  const k2 = startKnopf("Mitarbeiter", null, () => adminAnsicht("mitarbeiter"));
+  const k3 = startKnopf("Mehr", null, () => adminAnsicht("mehr"));
+  ziel.appendChild(k1.knopf); ziel.appendChild(k2.knopf); ziel.appendChild(k3.knopf);
+  ziel.appendChild(el("p", "hinweisbox",
+    "Namen und Profile liegen verschlüsselt im Tresor. Lesen kann sie nur, wer das Tresor-Passwort kennt – nicht der Datenbank-Anbieter."));
+  const meinKw = admin.kw;
+  adminStatusLaden().then((st) => {
+    if (admin.ansicht !== "start" || admin.kw !== meinKw) return;
+    startFuellen(st, schritt, k1.info, k2.info, k3.info);
+  }).catch((e) => {
+    if (admin.ansicht !== "start") return;
+    schritt.className = "meldung schlecht";
+    schritt.textContent = "Status konnte nicht geladen werden: " + String(e.message || e) + " ";
+    schritt.appendChild(kleinerKnopf("Neu laden", () => { admin.status = null; adminZeichnen(); }));
+    [k1, k2, k3].forEach((k) => { k.info.textContent = "Status konnte nicht geladen werden"; });
+  });
+}
+
+function startFuellen(st, schritt, i1, i2, i3) {
+  const n = naechsterSchritt(st);
+  schritt.className = "meldung " + (n.warnung ? "schlecht" : "info");
+  schritt.textContent = n.text;
+  if (n.knopf && n.aktion) schritt.appendChild(kleinerKnopf(n.knopf, n.aktion));
+
+  i1.textContent = "";
+  const veroeff = st.stand[st.kw];
+  const fristVorbei = st.frist && new Date(st.frist) < new Date();
+  i1.appendChild(document.createTextNode(kwText(st.kw) + " · " + st.abgegeben + " von " + st.aktive.length + " abgegeben · " +
+    (st.frist ? (fristVorbei ? "Frist vorbei" : "Frist " + zeitpunktText(st.frist)) : "keine Frist") + " · "));
+  if (veroeff) i1.appendChild(document.createTextNode("✓ veröffentlicht " + zeitpunktText(veroeff.aktualisiert_am) + " (" + veroeff.anzahl + " Schichten)"));
+  else if (st.zeilen[st.kw]) i1.appendChild(document.createTextNode("Planung vorhanden (" + st.zeilen[st.kw] + " Schichten, Stand unbekannt)"));
+  else i1.appendChild(document.createTextNode("noch nicht veröffentlicht"));
+  if (auto.erg && auto.kw === st.kw && !auto.veroeffentlicht) i1.appendChild(document.createTextNode(" · Entwurf im Speicher"));
+
+  i2.textContent = "";
+  if (!st.aktive.length) {
+    i2.appendChild(warnSpan("Noch keine Zugänge – Stammliste einspielen"));
+  } else {
+    i2.appendChild(document.createTextNode(st.aktive.length + " aktive Zugänge · "));
+    if (tresor.zustand === "offen") {
+      const ohne = st.aktive.filter((pn) => !(stammProfile[pn] && stammProfile[pn].name)).length;
+      const ohneZugang = Object.keys(stammProfile).filter((pn) => st.aktive.indexOf(pn) < 0).length;
+      if (ohne) i2.appendChild(warnSpan("⚠ " + ohne + " ohne Namen – Stammliste einspielen"));
+      else i2.appendChild(document.createTextNode("Namen " + st.aktive.length + " von " + st.aktive.length + " ✓"));
+      if (ohneZugang) i2.appendChild(document.createTextNode(" · " + ohneZugang + (ohneZugang === 1 ? " Name" : " Namen") + " ohne Zugang"));
+      i2.appendChild(document.createTextNode(tresorQuelleText()));
+    } else if (tresor.zustand === "gesperrt") {
+      i2.appendChild(warnSpan("⚠ Tresor gesperrt – Namen fehlen"));
+    } else if (tresor.zustand === "leer") {
+      i2.appendChild(document.createTextNode("noch kein Tresor"));
+    } else {
+      i2.appendChild(warnSpan("Tresor: Fehler"));
+    }
+  }
+
+  i3.textContent = "";
+  i3.appendChild(document.createTextNode("Zeiten & Frist · "));
+  if (st.vorlage) i3.appendChild(document.createTextNode("Dispo-Vorlage ✓"));
+  else i3.appendChild(warnSpan("⚠ Dispo-Vorlage fehlt"));
+  i3.appendChild(document.createTextNode(" · Dispo einlesen · Export · " + tresorKurz()));
+}
+
+// ---------- "Mehr": zweite Startseite ----------
+function adminMehr(ziel) {
+  const st = admin.status && admin.status.kw === admin.kw ? admin.status : null;
+  const fristInfo = st && st.frist ? "Frist " + kwText(admin.kw) + ": " + zeitpunktText(st.frist) : "Frist und Zeiten der gewählten Woche";
+  ziel.appendChild(startKnopf("Zeiten und Frist", fristInfo + " · Standardzeiten", () => adminAnsicht("zeiten")).knopf);
+  const kv = startKnopf("Dispo-Vorlage", null, () => adminAnsicht("vorlage"));
+  kv.info.textContent = "";
+  if (st && st.vorlage) kv.info.appendChild(document.createTextNode("✓ " + (st.vorlage.dateiname || "Vorlage") + " · Stand " + zeitpunktText(st.vorlage.aktualisiert_am)));
+  else if (st) kv.info.appendChild(warnSpan("⚠ fehlt – wird für den Dispo-Export gebraucht"));
+  else kv.info.textContent = "Vorlage für den Dispo-Export";
+  ziel.appendChild(kv.knopf);
+  ziel.appendChild(startKnopf("Fertige Dispo einlesen (Ausnahme)", "Nur wenn die Dispo außerhalb der App geändert wurde", () => adminAnsicht("dispo")).knopf);
+  ziel.appendChild(startKnopf("Verfügbarkeiten exportieren (CSV/JSON)", "Für Excel oder eine externe Planung", () => adminAnsicht("export")).knopf);
+  ziel.appendChild(startKnopf("Tresor", tresorKurz() + (tresor.zustand === "offen" ? " · Passwort ändern, Gerät vergessen" : ""), () => adminAnsicht("tresor")).knopf);
+  if (!st) adminStatusLaden().then(() => { if (admin.ansicht === "mehr") adminZeichnen(); }).catch(() => { /* Infos bleiben allgemein */ });
+}
+
+// ---------- Mehr > Dispo-Vorlage ----------
+function adminVorlage(ziel) {
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, "Dispo-Vorlage für den Kunden"));
+  karte.appendChild(el("p", "hinweisbox",
+    "Einmalig die leere Dispo-Datei (.xlsm) wählen. Sie wird privat in der Datenbank gespeichert (ohne Namen) und bei jedem " +
+    "Dispo-Export automatisch verwendet; nur Datum, Schichten und Uhrzeiten ändern sich."));
+  const status = el("div", null, TEXTE.laedt);
+  karte.appendChild(status);
+  ziel.appendChild(karte);
+  adminStatusLaden().then((st) => {
+    status.textContent = "";
+    if (st.vorlage) {
+      status.appendChild(el("div", "meldung gut", "✓ Vorlage gespeichert: " + (st.vorlage.dateiname || "Vorlage") + " · Stand " + zeitpunktText(st.vorlage.aktualisiert_am)));
+      const ers = el("details", "block");
+      ers.style.marginTop = "10px";
+      ers.appendChild(el("summary", null, "Vorlage ersetzen (nur nötig, wenn sich das Layout ändert)"));
+      ers.appendChild(vorlageEingabe());
+      status.appendChild(ers);
+    } else {
+      status.appendChild(el("div", "meldung info", "⚠ Noch keine Vorlage gespeichert. Ohne Vorlage gibt es keinen Dispo-Export."));
+      status.appendChild(vorlageEingabe());
+    }
+  }).catch((e) => {
+    status.textContent = "";
+    status.appendChild(el("div", "meldung schlecht", "Status konnte nicht geladen werden: " + String(e.message || e)));
+    const b = kleinerKnopf("Neu laden", () => { admin.status = null; adminZeichnen(); });
+    status.appendChild(b);
+    status.appendChild(el("p", "hinweisbox", "Eine Vorlage kann trotzdem gewählt werden:"));
+    status.appendChild(vorlageEingabe());
+  });
+}
+function vorlageEingabe() {
+  const wrap = el("div");
+  wrap.appendChild(el("div", "etikett", "Vorlage (.xlsm) wählen"));
+  const vd = document.createElement("input");
+  vd.type = "file"; vd.accept = ".xlsm,.xlsx"; vd.style.marginTop = "6px";
+  vd.onchange = async () => {
+    if (!vd.files[0]) return;
+    vd.disabled = true;
+    try {
+      await vorlageUebernehmen(vd.files[0]);
+      adminZeichnen();
+      adminMeldung("gut", "Vorlage gespeichert (" + auto.vorlage.bloecke + " Tagesblöcke). Sie wird ab jetzt automatisch verwendet.");
+    } catch (e) {
+      vd.disabled = false; vd.value = "";
+      adminMeldung("schlecht", String(e.message || e));
+    }
+  };
+  wrap.appendChild(vd);
+  return wrap;
+}
+// Vorlage lesen, Bloecke zaehlen (und, falls Wochendaten geladen sind, den Bedarf ableiten), speichern.
+async function vorlageUebernehmen(datei) {
+  await autoBibliothekenLaden();
+  const vorher = auto.vorlage;
+  auto.vorlage = { name: datei.name, bytes: await datei.arrayBuffer() };
+  try {
+    if (auto.d) {
+      await autoVorlageAuswerten();
+    } else {
+      const zip = await JSZip.loadAsync(auto.vorlage.bytes);
+      const blatt = zip.file("xl/worksheets/sheet1.xml");
+      if (!blatt) throw new Error("In der Vorlage fehlt das Blatt \"FedEx\".");
+      const ss = zip.file("xl/sharedStrings.xml");
+      auto.vorlage.bloecke = DispoExport.vorlageAnalysieren(
+        await blatt.async("string"), DispoExport.geteilteTexte(ss ? await ss.async("string") : "")).length;
+    }
+    await autoVorlageSpeichern();
+  } catch (e) {
+    auto.vorlage = vorher;
+    throw e;
+  }
+  admin.status = null;
+}
+
+// ---------- Tresor-Karten ----------
+// modus "start": nur wenn etwas zu tun ist; "inline": zusaetzlich gruene Statuszeile, wenn offen
+function tresorKarte(ziel, modus, ohneVergessen) {
+  const z = tresor.zustand;
+  if (z === "offen") {
+    if (tresor.hinweis) { ziel.appendChild(el("div", "meldung info", tresor.hinweis)); tresor.hinweis = null; }
+    if (modus === "inline") {
+      const zeile = el("div", "meldung gut", "✓ Tresor offen · " + Object.keys(stammProfile).length + " Profile" + tresorQuelleText());
+      zeile.style.marginBottom = "12px";
+      ziel.appendChild(zeile);
+    }
+    return;
+  }
+  const karte = el("div", "karte");
+  ziel.appendChild(karte);
+  if (z === "unbekannt") { karte.appendChild(el("p", "hinweisbox", "Tresor wird geladen …")); return; }
+  if (z === "fehler") {
+    karte.appendChild(el("h2", null, "Tresor"));
+    karte.appendChild(el("div", "meldung schlecht", "Tresor konnte nicht geladen werden: " + (tresor.fehler || "unbekannter Fehler")));
+    const b = mittlererKnopf("Neu laden");
+    b.onclick = async () => { b.disabled = true; b.textContent = TEXTE.laedt; await tresorStarten(); admin.status = null; adminZeichnen(); };
+    karte.appendChild(b);
+    return;
+  }
+  if (z === "leer") tresorFormularAnlegen(karte);
+  else if (z === "gesperrt") tresorFormularOeffnen(karte, ohneVergessen);
+}
+
+function tresorFormularAnlegen(karte) {
+  karte.appendChild(el("h2", null, "Tresor anlegen"));
+  karte.appendChild(el("p", "hinweisbox",
+    "Namen und Profile der Mitarbeiter werden verschlüsselt gespeichert. Nur wer dieses Tresor-Passwort kennt, sieht Namen – " +
+    "auch der Datenbank-Anbieter nicht. Gib es deiner Vertretung persönlich weiter (nicht per Chat oder E-Mail) und bewahre es im Passwortmanager auf."));
+  const pw1 = passwortFeld("Tresor-Passwort (mindestens 12 Zeichen, am besten ein Satz)", "new-password");
+  const pw2 = passwortFeld("Tresor-Passwort wiederholen", "new-password");
+  const merken = kontrollKaestchen("Auf diesem Gerät merken (bis zum Abmelden)", true);
+  const fehler = el("div");
+  const b = mittlererKnopf("Tresor anlegen");
+  karte.appendChild(pw1); karte.appendChild(pw2); karte.appendChild(merken.label); karte.appendChild(b); karte.appendChild(fehler);
+  b.onclick = async () => {
+    fehler.textContent = "";
+    try {
+      const T = await tresorModul();
+      const m = pw1.value !== pw2.value ? "Die beiden Eingaben sind verschieden." : T.passwortPruefen(pw1.value);
+      if (m) { fehler.appendChild(el("div", "meldung schlecht", m)); return; }
+      b.disabled = true; b.textContent = TEXTE.laedt;
+      await tresorSchreiben({ v: 1, profile: [], zuordnung: {}, quelle: {} }, { neuesPasswort: pw1.value, merken: merken.cb.checked });
+      const hinweis = tresor.fehler;
+      admin.status = null;
+      adminZeichnen();
+      adminMeldung("gut", "Tresor angelegt. Jetzt unter Mitarbeiter die Stammliste einspielen." + (hinweis ? " " + hinweis : ""));
+    } catch (e) {
+      b.disabled = false; b.textContent = "Tresor anlegen";
+      fehler.appendChild(el("div", "meldung schlecht", String(e.message || e)));
+    }
+  };
+}
+
+function tresorFormularOeffnen(karte, ohneVergessen) {
+  karte.appendChild(el("h2", null, "Tresor öffnen"));
+  karte.appendChild(el("p", "hinweisbox",
+    "Die Namen der Mitarbeiter liegen verschlüsselt im Tresor" +
+    (tresor.aktualisiert ? " (zuletzt gespeichert " + zeitpunktText(tresor.aktualisiert) + ")" : "") +
+    ". Ohne Tresor-Passwort zeigt die App nur Personalnummern."));
+  if (tresor.fehler) karte.appendChild(el("div", "meldung info", tresor.fehler));
+  const pw = passwortFeld("Tresor-Passwort", "current-password");
+  const merken = kontrollKaestchen("Auf diesem Gerät merken (bis zum Abmelden)", true);
+  const fehler = el("div");
+  const b = mittlererKnopf("Tresor öffnen");
+  karte.appendChild(pw); karte.appendChild(merken.label); karte.appendChild(b); karte.appendChild(fehler);
+  const oeffnen = async () => {
+    fehler.textContent = "";
+    if (!pw.value) { pw.focus(); return; }
+    b.disabled = true; b.textContent = TEXTE.laedt;
+    try {
+      await tresorEntsperren(pw.value, merken.cb.checked);
+      const hinweis = tresor.fehler;
+      admin.status = null;
+      adminZeichnen();
+      if (hinweis) adminMeldung("info", hinweis);
+    } catch (e) {
+      b.disabled = false; b.textContent = "Tresor öffnen";
+      fehler.appendChild(el("div", "meldung schlecht", String(e.message || e)));
+      pw.focus();
+    }
+  };
+  b.onclick = oeffnen;
+  pw.addEventListener("keydown", (ev) => { if (ev.key === "Enter") oeffnen(); });
+  if (ohneVergessen) return;
+  const d = el("details", "block");
+  d.style.marginTop = "12px";
+  d.appendChild(el("summary", null, "Passwort vergessen?"));
+  d.appendChild(el("p", null,
+    "Unter Mehr › Tresor kannst du den Tresor mit einem neuen Passwort überschreiben und danach die Stammliste unter Mitarbeiter neu einspielen. " +
+    "Zugänge bleiben unverändert; nur die gemerkten Dispo-Schreibweisen gehen verloren."));
+  d.appendChild(kleinerKnopf("→ Mehr › Tresor", () => adminAnsicht("tresor")));
+  karte.appendChild(d);
+}
+
+// ---------- Mehr > Tresor ----------
+function adminTresor(ziel) {
+  const z = tresor.zustand;
+  const st = el("div", "karte");
+  st.appendChild(el("h2", null, "Tresor"));
+  const zeilen = [];
+  zeilen.push(z === "offen" ? "✓ Tresor offen" + (tresor.gemerkt ? " · auf diesem Gerät gemerkt" : " · auf diesem Gerät nicht gemerkt")
+    : z === "gesperrt" ? "Tresor gesperrt" : z === "leer" ? "Noch nicht angelegt" : z === "fehler" ? "Fehler: " + tresor.fehler : "Wird geladen …");
+  if (z === "offen") zeilen.push(Object.keys(stammProfile).length + " Profile" + tresorQuelleText());
+  if (tresor.version !== null && tresor.aktualisiert) {
+    zeilen.push("Zuletzt gespeichert " + zeitpunktText(tresor.aktualisiert) + " · Version " + tresor.version +
+      (tresor.huelle && tresor.huelle.by && admin.userId ? (tresor.huelle.by === admin.userId ? " · von dir" : " · von einem anderen Admin") : ""));
+  }
+  zeilen.forEach((t) => st.appendChild(el("div", null, t)));
+  ziel.appendChild(st);
+
+  if (z !== "offen") { tresorKarte(ziel, "inline", true); }
+  if (z === "offen") {
+    if (tresor.hinweis) { ziel.appendChild(el("div", "meldung info", tresor.hinweis)); tresor.hinweis = null; }
+    // Passwort aendern
+    const ka = el("div", "karte");
+    ka.appendChild(el("h2", null, "Tresor-Passwort ändern"));
+    ka.appendChild(el("p", "hinweisbox", "Danach müssen alle anderen Geräte (auch die Vertretung) das neue Passwort einmal eingeben."));
+    const alt = passwortFeld("Aktuelles Tresor-Passwort", "current-password");
+    const neu1 = passwortFeld("Neues Tresor-Passwort (mindestens 12 Zeichen, am besten ein Satz)", "new-password");
+    const neu2 = passwortFeld("Neues Passwort wiederholen", "new-password");
+    const cbV = kontrollKaestchen("Ich gebe das neue Passwort meiner Vertretung persönlich weiter", false);
+    const fehlerA = el("div");
+    const bA = mittlererKnopf("Passwort ändern");
+    [alt, neu1, neu2, cbV.label, bA, fehlerA].forEach((x) => ka.appendChild(x));
+    bA.onclick = async () => {
+      fehlerA.textContent = "";
+      try {
+        const T = await tresorModul();
+        if (!cbV.cb.checked) throw new Error("Bitte bestätigen, dass die Vertretung das neue Passwort persönlich bekommt.");
+        const m = neu1.value !== neu2.value ? "Die beiden neuen Eingaben sind verschieden." : T.passwortPruefen(neu1.value);
+        if (m) throw new Error(m);
+        bA.disabled = true; bA.textContent = TEXTE.laedt;
+        await tresorAktualisieren();
+        if (tresor.zustand !== "offen") throw new Error("Der Tresor wurde inzwischen auf einem anderen Gerät geändert. Bitte neu öffnen.");
+        const key = await T.schluesselAbleiten(alt.value, T.vonB64(tresor.huelle.salt), tresor.huelle.kdf.iter);
+        try { await T.entschluesseln(key, tresor.huelle); } catch (_) { throw new Error("Aktuelles Tresor-Passwort falsch."); }
+        await tresorSchreiben(tresor.inhalt, { neuesPasswort: neu1.value, merken: tresor.gemerkt });
+        admin.status = null;
+        adminZeichnen();
+        adminMeldung("gut", "Tresor-Passwort geändert. Andere Geräte (Vertretung) müssen das neue Passwort einmal eingeben.");
+      } catch (e) {
+        bA.disabled = false; bA.textContent = "Passwort ändern";
+        fehlerA.appendChild(el("div", "meldung schlecht", String(e.message || e)));
+      }
+    };
+    ziel.appendChild(ka);
+    // Dieses Geraet
+    const kg = el("div", "karte");
+    kg.appendChild(el("h2", null, "Dieses Gerät"));
+    const cbG = kontrollKaestchen("Danach wird das Tresor-Passwort auf diesem Gerät wieder abgefragt.", false);
+    const bG = mittlererKnopf("Tresor auf diesem Gerät vergessen", true);
+    bG.disabled = true;
+    cbG.cb.onchange = () => { bG.disabled = !cbG.cb.checked; };
+    bG.onclick = async () => {
+      bG.disabled = true;
+      await tresorSperren(true);
+      admin.status = null;
+      adminZeichnen();
+      adminMeldung("info", "Der Tresor ist auf diesem Gerät gesperrt. Beim nächsten Öffnen wird das Tresor-Passwort abgefragt.");
+    };
+    kg.appendChild(cbG.label); kg.appendChild(bG);
+    ziel.appendChild(kg);
+  }
+  if (z === "gesperrt" || (z === "fehler" && tresor.version !== null)) {
+    const d = el("details", "block");
+    d.style.marginTop = "12px";
+    d.appendChild(el("summary", null, z === "fehler" ? "Tresor beschädigt? Neu anlegen" : "Passwort vergessen?"));
+    d.appendChild(el("p", null,
+      "Der Tresor wird mit einem neuen Passwort überschrieben und ist danach leer. Anschließend die Stammliste unter Mitarbeiter neu einspielen " +
+      "(am besten eine Kopie ohne Passwortspalte: dann bleiben die Zugänge unverändert). Die gemerkten Dispo-Schreibweisen gehen verloren."));
+    const cbU = kontrollKaestchen("Ich will den Tresor überschreiben", false);
+    const pw1 = passwortFeld("Neues Tresor-Passwort (mindestens 12 Zeichen)", "new-password");
+    const pw2 = passwortFeld("Neues Passwort wiederholen", "new-password");
+    const fehlerU = el("div");
+    const bU = mittlererKnopf("Tresor mit neuem Passwort überschreiben", true);
+    [cbU.label, pw1, pw2, bU, fehlerU].forEach((x) => d.appendChild(x));
+    bU.onclick = async () => {
+      fehlerU.textContent = "";
+      try {
+        const T = await tresorModul();
+        if (!cbU.cb.checked) throw new Error("Bitte zuerst das Kästchen „Ich will den Tresor überschreiben“ anhaken.");
+        const m = pw1.value !== pw2.value ? "Die beiden Eingaben sind verschieden." : T.passwortPruefen(pw1.value);
+        if (m) throw new Error(m);
+        bU.disabled = true; bU.textContent = TEXTE.laedt;
+        await tresorSchreiben({ v: 1, profile: [], zuordnung: {}, quelle: {} }, { neuesPasswort: pw1.value, merken: true });
+        admin.status = null;
+        adminZeichnen();
+        adminMeldung("gut", "Tresor neu angelegt (leer). Jetzt unter Mitarbeiter die Stammliste einspielen.");
+      } catch (e) {
+        bU.disabled = false; bU.textContent = "Tresor mit neuem Passwort überschreiben";
+        fehlerU.appendChild(el("div", "meldung schlecht", String(e.message || e)));
+      }
+    };
+    ziel.appendChild(d);
+  }
+}
 
 async function adminStarten() {
   $("btn-abmelden-admin").textContent = TEXTE.abmelden;
   $("btn-abmelden-admin").onclick     = abmelden;
-
-  const leiste = $("admin-reiter");
-  leiste.textContent = "";
-  TEXTE.admin_reiter.forEach((name, i) => {
-    const b = el("button", i === admin.reiter ? "an" : "", name);
-    b.type = "button";
-    b.onclick = () => { admin.reiter = i; adminZeichnen(); };
-    leiste.appendChild(b);
-  });
-
+  $("admin-inhalt").textContent = TEXTE.laedt;
+  try {
+    const s = await sb.auth.getSession();
+    admin.userId = s && s.data && s.data.session && s.data.session.user ? String(s.data.session.user.id) : null;
+  } catch (_) { admin.userId = null; }
   await wochenLaden();
+  wochenZeileAufbauen();
+  adminZeichnen();          // Startseite sofort zeigen ("Tresor wird geladen …")
+  await tresorStarten();    // Tresor lesen und, wenn das Geraet den Schluessel kennt, still oeffnen
   adminZeichnen();
 }
 
@@ -2376,112 +3226,41 @@ function wochenAuswahl(beiWechsel) {
 }
 
 function adminZeichnen() {
-  const knoepfe = $("admin-reiter").children;
-  for (let i = 0; i < knoepfe.length; i++) {
-    knoepfe[i].className = (i === admin.reiter) ? "an" : "";
+  const leiste = $("admin-reiter");
+  leiste.textContent = "";
+  if (admin.ansicht === "start") {
+    leiste.className = "verborgen";
+  } else {
+    leiste.className = "";
+    leiste.style.cssText = "display:flex;align-items:center;gap:12px;margin:10px 0";
+    const zuMehr = MEHR_ANSICHTEN.has(admin.ansicht);
+    const zurueck = el("button", "zurueck", zuMehr ? "← Mehr" : "← Start");
+    zurueck.type = "button";
+    zurueck.onclick = () => adminAnsicht(zuMehr ? "mehr" : "start");
+    leiste.appendChild(zurueck);
+    leiste.appendChild(el("b", null, ANSICHT_TITEL[admin.ansicht] || ""));
   }
+  const wz = $("admin-woche");
+  wz.classList.toggle("verborgen", !WOCHEN_ANSICHTEN.has(admin.ansicht));
+  const sel = wz.querySelector("select");
+  if (sel && admin.kw) sel.value = admin.kw;
   adminMeldung(null);
 
   const ziel = $("admin-inhalt");
   ziel.textContent = "";
-
-  if (admin.reiter === 0) adminAbgaben(ziel);
-  if (admin.reiter === 1) adminStammliste(ziel);
-  if (admin.reiter === 2) adminPasswort(ziel);
-  if (admin.reiter === 3) adminZeiten(ziel);
-  if (admin.reiter === 4) adminExport(ziel);
-  if (admin.reiter === 5) adminPlanung(ziel);
-  if (admin.reiter === 6) adminAutoPlanung(ziel);
+  const fn = ADMIN_ANSICHTEN[admin.ansicht];
+  if (!fn) { adminMeldung("schlecht", "Unbekannte Ansicht: " + admin.ansicht); return; }
+  fn(ziel);
 }
 
-/* ---------- Reiter 1: Abgabestatus ---------- */
-async function adminAbgaben(ziel) {
-  const karte = el("div", "karte");
-  karte.appendChild(el("h2", null, TEXTE.admin_abgaben_titel));
-  karte.appendChild(wochenAuswahl(adminZeichnen));
-  const inhalt = el("div", null, TEXTE.laedt);
-  karte.appendChild(inhalt);
-  ziel.appendChild(karte);
+/* ---------- Mitarbeiter: Stammliste einspielen (Zugaenge + Tresor), Passwort zuruecksetzen ---------- */
+let gelesenListe = null;     // [{personalnummer, passwort}] nur fuer import-stammliste
+let gelesenProfile = null;   // Profile fuer den Tresor (ohne Passwoerter)
+let gelesenInfo = null;      // {dateiname, zeilen, modus, profilFehler, ohneProfil}
+let stammProfileVersion = 0; // steigt bei jeder Aenderung von stammProfile (Solver-Entwurf veraltet?)
 
-  const ergebnisse = await Promise.all([
-    sb.from("employees").select("personalnummer").eq("aktiv", true).order("personalnummer"),
-    sb.from("submissions").select("personalnummer, abgegeben_am").eq("kw_start_datum", admin.kw)
-  ]);
-  const liste = ergebnisse[0].data || [];
-  const abgaben = ergebnisse[1].data || [];
-  // Klarnamen und Kategorie kommen nur aus der lokal eingespielten Stammliste (nicht aus der DB).
-  const profilNach = stammProfile;
-  const KATEGORIE_TEXT = { teilzeit: "Teilzeit", minijob: "Minijob" };
-
-  inhalt.textContent = "";
-  if (liste.length === 0) {
-    inhalt.appendChild(el("p", null, TEXTE.admin_keine_ma));
-    return;
-  }
-
-  const zeitNach = {};
-  for (const a of abgaben) zeitNach[a.personalnummer] = a.abgegeben_am;
-
-  const anzahl = liste.filter((m) => zeitNach[m.personalnummer]).length;
-  const kopf = el("p");
-  kopf.appendChild(el("b", null, String(anzahl)));
-  kopf.appendChild(document.createTextNode(
-    TEXTE.admin_von + liste.length + TEXTE.admin_haben_abgegeben));
-  inhalt.appendChild(kopf);
-
-  const tab = el("table", "liste");
-  const thead = el("thead");
-  const trh = el("tr");
-  trh.appendChild(el("th", null, "Name"));
-  trh.appendChild(el("th", null, TEXTE.label_personalnummer));
-  trh.appendChild(el("th", null, "Kategorie"));
-  trh.appendChild(el("th", null, "Status"));
-  thead.appendChild(trh);
-  tab.appendChild(thead);
-
-  const ohneNamen = liste.filter((m) => !(profilNach[m.personalnummer] && profilNach[m.personalnummer].name)).length;
-  if (ohneNamen > 0) {
-    const box = el("div", "hinweisbox");
-    box.appendChild(el("div", null,
-      ohneNamen + " Mitarbeiter ohne Klarnamen: Stammliste einspielen, dann stehen Namen und Kategorie hier. " +
-      "Die Datei wird nur im Browser gelesen, nicht gespeichert."));
-    const datei = document.createElement("input");
-    datei.type = "file"; datei.accept = ".xlsx,.xls";
-    datei.style.marginTop = "8px";
-    datei.onchange = async () => {
-      if (!datei.files[0]) return;
-      try {
-        stammProfileUebernehmen(await stammProfileLesen(datei.files[0]));
-        adminZeichnen();
-      } catch (e) {
-        adminMeldung("schlecht", String(e.message || e));
-      }
-    };
-    box.appendChild(datei);
-    inhalt.appendChild(box);
-  }
-
-  const tbody = el("tbody");
-  for (const m of liste) {
-    const tr = el("tr");
-    const pr = profilNach[m.personalnummer] || {};
-    tr.appendChild(el("td", null, pr.name || "–"));
-    tr.appendChild(el("td", null, m.personalnummer));
-    tr.appendChild(el("td", null, KATEGORIE_TEXT[pr.kategorie] || "–"));
-    const zeit = zeitNach[m.personalnummer];
-    const td = el("td", zeit ? "status-ja" : "status-nein",
-      zeit ? "✓ " + zeitpunktText(zeit) : "✗ " + TEXTE.admin_fehlt);
-    tr.appendChild(td);
-    tbody.appendChild(tr);
-  }
-  tab.appendChild(tbody);
-  inhalt.appendChild(tab);
-}
-
-/* ---------- Reiter 2: Zugänge (Personalnummer + Passwort aus der Stammliste) ---------- */
-let gelesenListe = null;
-
-function adminStammliste(ziel) {
+function adminMitarbeiter(ziel) {
+  tresorKarte(ziel, "inline");
   const karte = el("div", "karte");
   karte.appendChild(el("h2", null, TEXTE.admin_stamm_titel));
   karte.appendChild(el("p", "hinweisbox", TEXTE.admin_stamm_hinweis));
@@ -2492,14 +3271,11 @@ function adminStammliste(ziel) {
   eingabe.style.marginBottom = "12px";
   karte.appendChild(eingabe);
 
-  const info = el("div", "hinweisbox");
-  karte.appendChild(info);
+  const lese = el("div", "hinweisbox");
+  karte.appendChild(lese);
 
-  const btnVorschau = el("button", "knopf-mittel", TEXTE.admin_vorschau);
-  btnVorschau.type = "button";
-  btnVorschau.disabled = true;
-  btnVorschau.style.marginTop = "12px";
-  btnVorschau.style.width = "100%";
+  const btnVorschau = mittlererKnopf(TEXTE.admin_vorschau);
+  btnVorschau.disabled = !gelesenInfo;
   karte.appendChild(btnVorschau);
 
   const ergebnis = el("div");
@@ -2507,35 +3283,143 @@ function adminStammliste(ziel) {
   karte.appendChild(ergebnis);
   ziel.appendChild(karte);
 
+  // Einzelnes Passwort zuruecksetzen (aufklappbar)
+  const dPw = el("details", "block");
+  dPw.style.marginTop = "12px";
+  dPw.appendChild(el("summary", null, TEXTE.admin_pw_titel));
+  adminPasswort(dPw);
+  ziel.appendChild(dPw);
+
+  let cbPflicht = null;
+  let cbEntfernt = null;
+
+  const zuruecksetzen = () => {
+    gelesenListe = null; gelesenProfile = null; gelesenInfo = null;
+    eingabe.value = ""; lese.textContent = ""; ergebnis.textContent = "";
+    btnVorschau.disabled = true;
+  };
+
+  const leseZeileZeigen = () => {
+    const i = gelesenInfo;
+    lese.textContent = "";
+    if (!i) return;
+    let t = i.dateiname + ": " + i.zeilen + " Zeilen";
+    if (i.modus === "voll") t += " · " + gelesenProfile.length + " Namen/Profile · Passwörter: ja";
+    else if (i.modus === "nur_zugaenge") t += i.profilFehler ? " · Namen/Profile nicht lesbar: " + i.profilFehler + " – nur Zugänge möglich" : " · Datei ohne Spalte Name: nur Zugänge";
+    else t += " · " + gelesenProfile.length + " Namen/Profile · Datei ohne Passwortspalte: nur Namen";
+    lese.appendChild(document.createTextNode(t + " "));
+    lese.appendChild(kleinerKnopf("Datei verwerfen", zuruecksetzen));
+    if (i.ohneProfil.length) {
+      lese.appendChild(el("div", "status-nein", "⚠ " + i.ohneProfil.length + " Zeilen ohne Namen (" + i.ohneProfil.slice(0, 5).join(", ") +
+        (i.ohneProfil.length > 5 ? " …" : "") + ") – diese Personen bekommen einen Zugang, aber keinen Namen im Tresor."));
+    }
+  };
+  leseZeileZeigen();
+
+  // Schritt 1: Datei lesen (beide Leser; nichts geht zum Server)
   eingabe.onchange = async () => {
-    ergebnis.textContent = "";
     const datei = eingabe.files && eingabe.files[0];
     if (!datei) return;
-    info.textContent = TEXTE.laedt;
+    ergebnis.textContent = "";
+    lese.textContent = TEXTE.laedt;
+    gelesenListe = null; gelesenProfile = null; gelesenInfo = null;
+    btnVorschau.disabled = true;
+    let profilFehler = null, liste = null, profile = null;
+    try { profile = await stammProfileLesen(datei); }
+    catch (e) { if (e && e.code === "KEIN_NAME") profile = null; else profilFehler = String(e.message || e); }
+    try { liste = await dateiLesen(datei); }
+    catch (e) {
+      if (e && e.code === "KEINE_PW_SPALTE") liste = null;
+      else { lese.textContent = ""; eingabe.value = ""; adminMeldung("schlecht", String(e.message || e)); return; }
+    }
+    if (!liste && !profile) {
+      lese.textContent = ""; eingabe.value = "";
+      adminMeldung("schlecht", profilFehler || "Die Datei hat weder eine Spalte \"Passwort\" noch eine Spalte \"Name\".");
+      return;
+    }
+    if (profile) {
+      // Sicherheitspruefung: kein Passwort darf als Profilwert in den Tresor
+      try { const T = await tresorModul(); T.inhaltBauen(profile, {}, {}, liste ? liste.map((z) => z.passwort) : []); }
+      catch (e) { profilFehler = String(e.message || e); profile = null; }
+    }
+    const modus = liste && profile ? "voll" : liste ? "nur_zugaenge" : "nur_namen";
+    const ohneProfil = liste && profile
+      ? liste.filter((z) => z.personalnummer && !profile.some((p) => p.personalnummer === z.personalnummer)).map((z) => z.personalnummer)
+      : [];
+    gelesenListe = liste; gelesenProfile = profile;
+    gelesenInfo = { dateiname: datei.name, zeilen: (liste || profile).length, modus: modus, profilFehler: profilFehler, ohneProfil: ohneProfil };
+    leseZeileZeigen();
+    btnVorschau.disabled = false;
+    adminMeldung(null);
+  };
+
+  const nameMitNummer = (pn) => (stammProfile[pn] && stammProfile[pn].name) ? pn + " – " + stammProfile[pn].name : pn;
+
+  const namenDiff = () => {
+    let neu = 0, geaendert = 0;
+    const gelesen = new Set();
+    gelesenProfile.forEach((p) => {
+      gelesen.add(p.personalnummer);
+      const alt = stammProfile[p.personalnummer];
+      if (!alt) neu++;
+      else if (JSON.stringify(alt) !== JSON.stringify(Object.assign({}, alt, p))) geaendert++;
+    });
+    const entfernt = Object.keys(stammProfile).filter((pn) => !gelesen.has(pn)).length;
+    return { entfernt: entfernt, box: el("div", "meldung " + (entfernt ? "schlecht" : "info"), "Namen/Profile: " + gelesenProfile.length + " gelesen · " +
+      neu + " neu · " + geaendert + " geändert · " + entfernt + " entfernt (gegenüber Tresor)" +
+      (entfernt ? " – diese Personen haben danach keinen Namen mehr in der App." : "")) };
+  };
+
+  // Schritt 2: Vorschau (expliziter Klick)
+  btnVorschau.onclick = async () => {
+    btnVorschau.disabled = true;
+    cbPflicht = null; cbEntfernt = null;
+    ergebnis.textContent = "";
+    ergebnis.appendChild(el("div", null, TEXTE.laedt));
     try {
-      gelesenListe = await dateiLesen(datei);
-      info.textContent = gelesenListe.length + TEXTE.admin_gelesen;
-      btnVorschau.disabled = gelesenListe.length === 0;
+      let frischeFehler = null, geaendert = false;
+      try { geaendert = await tresorAktualisieren(); }
+      catch (e) { frischeFehler = String(e.message || e); }
+      if (geaendert && tresor.zustand !== "offen") {
+        adminZeichnen();
+        adminMeldung("info", "Der Tresor wurde auf einem anderen Gerät geändert – bitte oben öffnen und die Vorschau erneut prüfen.");
+        return;
+      }
+      if (geaendert) adminMeldung("info", "Der Tresor wurde auf einem anderen Gerät geändert und neu geladen.");
+      ergebnis.textContent = "";
+      if (frischeFehler) ergebnis.appendChild(el("div", "meldung schlecht", "Tresor konnte nicht geprüft werden: " + frischeFehler));
+      let antwort = null;
+      if (gelesenInfo.modus !== "nur_namen") {
+        antwort = await funktionRufen("import-stammliste", { modus: "vorschau", eintraege: gelesenListe });
+        if (!antwort.ok) { ergebnis.appendChild(fehlerListe(antwort)); btnVorschau.disabled = false; return; }
+        await vorschauZeichnen(antwort);
+      } else {
+        const r = await sb.from("employees").select("personalnummer").eq("aktiv", true);
+        if (r.error) throw new Error(r.error.message);
+        const aktive = new Set((r.data || []).map((e) => e.personalnummer));
+        const ohneZugang = gelesenProfile.filter((p) => !aktive.has(p.personalnummer));
+        ergebnis.appendChild(el("div", "meldung info", gelesenProfile.length + " Namen/Profile · " + (gelesenProfile.length - ohneZugang.length) +
+          " mit aktivem Zugang" + (ohneZugang.length ? " · " + ohneZugang.length + " ohne Zugang (" + ohneZugang.slice(0, 5).map((p) => p.name).join(", ") +
+          (ohneZugang.length > 5 ? " …" : "") + " – Zugang später mit einer Datei mit Passwortspalte anlegen)" : "")));
+      }
+      if (gelesenProfile && tresor.zustand === "offen") {
+        const nd = namenDiff();
+        ergebnis.appendChild(nd.box);
+        if (nd.entfernt > 0) {
+          cbEntfernt = kontrollKaestchen("Ich habe gesehen: " + nd.entfernt + (nd.entfernt === 1 ? " Name wird" : " Namen werden") +
+            " aus dem Tresor entfernt, weil sie nicht in der Datei stehen.", false);
+          ergebnis.appendChild(cbEntfernt.label);
+        }
+      }
+      uebernehmenKnopf(antwort);
     } catch (e) {
-      info.textContent = "";
-      adminMeldung("schlecht", String(e.message || e));
+      ergebnis.textContent = "";
+      ergebnis.appendChild(el("div", "meldung schlecht", String(e.message || e)));
+      btnVorschau.disabled = false;
     }
   };
 
-  btnVorschau.onclick = async () => {
-    btnVorschau.disabled = true;
-    ergebnis.textContent = TEXTE.laedt;
-    const antwort = await funktionRufen("import-stammliste", {
-      modus: "vorschau", eintraege: gelesenListe
-    });
-    btnVorschau.disabled = false;
-    ergebnis.textContent = "";
-
-    if (!antwort.ok) {
-      ergebnis.appendChild(fehlerListe(antwort));
-      return;
-    }
-
+  async function vorschauZeichnen(antwort) {
     const z = antwort.zusammenfassung;
     const box = el("div", "meldung info");
     box.appendChild(el("b", null, String(z.neu)));
@@ -2549,38 +3433,140 @@ function adminStammliste(ziel) {
       box.appendChild(el("b", null, String(z.reaktiviert)));
       box.appendChild(document.createTextNode(" " + TEXTE.admin_reaktiviert));
     }
-    box.appendChild(document.createTextNode(
-      " · " + z.unveraendert + " " + TEXTE.admin_unveraendert));
+    box.appendChild(document.createTextNode(" · " + z.unveraendert + " " + TEXTE.admin_unveraendert));
     ergebnis.appendChild(box);
-
     ergebnis.appendChild(detailListe(TEXTE.admin_neu, antwort.neu));
     ergebnis.appendChild(detailListe(TEXTE.admin_geaendert, antwort.geaendert));
     ergebnis.appendChild(detailListe(TEXTE.admin_deaktiviert, antwort.deaktiviert));
-
-    const btnAnwenden = el("button", "knopf-mittel", TEXTE.admin_uebernehmen);
-    btnAnwenden.type = "button";
-    btnAnwenden.style.width = "100%";
-    btnAnwenden.onclick = async () => {
-      btnAnwenden.disabled = true;
-      btnAnwenden.textContent = TEXTE.laedt;
-      const res = await funktionRufen("import-stammliste", {
-        modus: "anwenden", eintraege: gelesenListe
-      });
-      if (res.ok) {
-        adminMeldung("gut", TEXTE.admin_import_fertig);
-        ergebnis.textContent = "";
-        gelesenListe = null;
-        eingabe.value = "";
-        info.textContent = "";
-        btnVorschau.disabled = true;
-      } else {
-        btnAnwenden.disabled = false;
-        btnAnwenden.textContent = TEXTE.admin_uebernehmen;
-        ergebnis.appendChild(fehlerListe(res));
+    const deakt = antwort.deaktiviert || [], geae = antwort.geaendert || [];
+    if (deakt.length) {
+      ergebnis.appendChild(el("div", "meldung schlecht", "⚠ Wird deaktiviert (kann sich danach nicht mehr anmelden): " + deakt.map(nameMitNummer).join(", ")));
+      const aktivVorher = (z.geaendert || 0) + (z.unveraendert || 0) + (z.deaktiviert || 0) + (z.reaktiviert || 0);
+      if (deakt.length >= 3 && deakt.length > 0.2 * Math.max(1, aktivVorher)) {
+        ergebnis.appendChild(el("div", "meldung schlecht", "Richtige Datei und richtiges Blatt gewählt? Es wird nur das erste Tabellenblatt gelesen; " +
+          "ausgeblendete Zeilen zählen nicht."));
       }
-    };
-    ergebnis.appendChild(btnAnwenden);
-  };
+      try {
+        const r = await sb.from("planung").select("personalnummer, kw_start_datum").gte("kw_start_datum", montagIso(new Date())).in("personalnummer", deakt);
+        const betroffen = new Set((r.data || []).map((p) => p.personalnummer));
+        if (auto.zuw) Object.values(auto.zuw).forEach((pn) => { if (deakt.indexOf(pn) >= 0) betroffen.add(pn); });
+        if (betroffen.size) {
+          ergebnis.appendChild(el("div", "meldung schlecht", "⚠ Eingeplant ab dieser Woche, obwohl der Zugang deaktiviert wird: " +
+            Array.from(betroffen).map(nameMitNummer).join(", ") + " – Planung danach prüfen."));
+        }
+      } catch (_) { /* Warnung ist optional */ }
+    }
+    if (geae.length) {
+      ergebnis.appendChild(el("div", "meldung schlecht", "⚠ Bekommt ein neues Startpasswort und muss sich neu anmelden: " + geae.map(nameMitNummer).join(", ")));
+    }
+    if (deakt.length + geae.length > 0) {
+      cbPflicht = kontrollKaestchen("Ich habe gesehen: " + deakt.length + (deakt.length === 1 ? " Zugang wird" : " Zugänge werden") + " deaktiviert, " +
+        geae.length + (geae.length === 1 ? " bekommt" : " bekommen") + " ein neues Startpasswort.", false);
+      ergebnis.appendChild(cbPflicht.label);
+    }
+  }
+
+  // Schritt 3: ein Knopf, Beschriftung nach Modus und Tresor-Zustand
+  function uebernehmenKnopf(antwort) {
+    const modus = gelesenInfo.modus;
+    const offen = tresor.zustand === "offen";
+    let text, grund = null;
+    if (modus === "voll") text = offen ? "Jetzt übernehmen: Zugänge und Namen" : "Nur Zugänge übernehmen (Namen werden NICHT gespeichert – Tresor oben " + (tresor.zustand === "leer" ? "anlegen" : "öffnen") + ")";
+    else if (modus === "nur_zugaenge") text = gelesenInfo.profilFehler ? "Nur Zugänge übernehmen (Namen wegen Fehler nicht gespeichert)" : "Nur Zugänge übernehmen (Datei ohne Namen)";
+    else { text = "Namen und Profile übernehmen (Zugänge bleiben unverändert)"; if (!offen) grund = "Zuerst oben den Tresor öffnen oder anlegen."; }
+    const b = mittlererKnopf(text);
+    const pruefen = () => { b.disabled = !!grund || (cbPflicht && !cbPflicht.cb.checked) || (cbEntfernt && !cbEntfernt.cb.checked); };
+    if (cbPflicht) cbPflicht.cb.onchange = pruefen;
+    if (cbEntfernt) cbEntfernt.cb.onchange = pruefen;
+    pruefen();
+    ergebnis.appendChild(b);
+    if (grund) ergebnis.appendChild(el("p", "hinweisbox", grund));
+    else if (cbPflicht || cbEntfernt) ergebnis.appendChild(el("p", "hinweisbox", "Der Knopf wird frei, sobald die Kästchen angehakt sind."));
+    b.onclick = () => uebernehmen(b, text, antwort);
+  }
+
+  // Schritt 4: Uebernehmen - lokal pruefen -> Server -> Tresor; Teilerfolg sichtbar
+  async function uebernehmen(b, text, antwort) {
+    b.disabled = true; b.textContent = TEXTE.laedt;
+    const nach = el("div");
+    ergebnis.appendChild(nach);
+    const modus = gelesenInfo.modus;
+    const mitNamen = !!gelesenProfile && tresor.zustand === "offen";
+    let inhalt = null;
+    try {
+      if (mitNamen) {
+        const T = await tresorModul();
+        inhalt = T.inhaltBauen(gelesenProfile, zuordnungLaden(),
+          { dateiname: gelesenInfo.dateiname, zeilen: gelesenProfile.length, eingelesen_am: new Date().toISOString() },
+          gelesenListe ? gelesenListe.map((z) => z.passwort) : []);
+      }
+    } catch (e) {
+      nach.appendChild(el("div", "meldung schlecht", String(e.message || e)));
+      b.disabled = false; b.textContent = text;
+      return;
+    }
+    let teilweise = false;
+    if (modus !== "nur_namen") {
+      const res = await funktionRufen("import-stammliste", { modus: "anwenden", eintraege: gelesenListe });
+      if (!res.ok && !res.zusammenfassung) {
+        // Validierungsfehler: auf dem Server wurde nichts angewendet
+        nach.appendChild(fehlerListe(res));
+        b.disabled = false; b.textContent = text;
+        return;
+      }
+      gelesenListe = null; // Passwoerter raus aus dem Speicher
+      teilweise = !res.ok || (Array.isArray(res.probleme) && res.probleme.length > 0);
+      const z = res.zusammenfassung || {};
+      nach.appendChild(el("div", "meldung " + (teilweise ? "schlecht" : "gut"),
+        (teilweise ? "⚠ Zugänge nur teilweise übernommen – bitte Liste prüfen und die Datei korrigiert erneut einspielen" : "✓ Zugänge übernommen") +
+        " (" + (z.neu || 0) + " neu · " + (z.geaendert || 0) + " geändert · " + (z.deaktiviert || 0) + " deaktiviert)"));
+      if (teilweise) nach.appendChild(fehlerListe(res));
+      admin.status = null;
+    }
+    if (inhalt) await namenSpeichern(inhalt, nach);
+    else if (gelesenProfile && tresor.zustand !== "offen") {
+      nach.appendChild(el("div", "meldung info", "Namen wurden NICHT gespeichert, weil der Tresor nicht offen ist. Später: Tresor öffnen und die Datei " +
+        "(am besten ohne Passwortspalte) erneut einspielen."));
+    }
+    gelesenProfile = null; gelesenInfo = null;
+    eingabe.value = ""; lese.textContent = "";
+    btnVorschau.disabled = true;
+    b.remove();
+    nach.appendChild(kleinerKnopf("→ Start", () => adminAnsicht("start")));
+  }
+
+  async function namenSpeichern(inhalt, nach) {
+    try {
+      await tresorSchreiben(inhalt);
+      admin.status = null;
+      nach.appendChild(el("div", "meldung gut", "✓ " + inhalt.profile.length + " Namen und Profile verschlüsselt im Tresor gespeichert (" +
+        inhalt.quelle.dateiname + ")."));
+    } catch (e) {
+      const konflikt = String(e.message) === TRESOR_KONFLIKT;
+      if (konflikt) { try { await tresorAktualisieren(); } catch (_) { /* unten sichtbar */ } }
+      const box = el("div", "meldung schlecht", konflikt
+        ? "Der Tresor wurde inzwischen auf einem anderen Gerät geändert. Die Datei ist die Quelle der Wahrheit – noch einmal speichern? "
+        : "✗ Die Namen wurden NICHT im Tresor gespeichert: " + String(e.message || e) + " ");
+      const wieder = kleinerKnopf("Namen erneut speichern", async () => {
+        wieder.disabled = true; box.remove();
+        let neu = inhalt;
+        try {
+          // Die Datei bleibt Quelle fuer Namen/Profile; Dispo-Schreibweisen des anderen Geraets gewinnen
+          const T = await tresorModul();
+          const frisch = tresor.inhalt ? tresor.inhalt.zuordnung : {};
+          neu = T.inhaltBauen(inhalt.profile, Object.assign({}, inhalt.zuordnung, frisch), inhalt.quelle);
+        } catch (_) { /* dann unveraendert erneut */ }
+        await namenSpeichern(neu, nach);
+      });
+      box.appendChild(wieder);
+      nach.appendChild(box);
+    }
+  }
+
+  // Frische-Pruefung im Hintergrund (anderes Geraet koennte geschrieben haben)
+  tresorAktualisieren().then((geaendert) => {
+    if (geaendert && admin.ansicht === "mitarbeiter") { adminZeichnen(); adminMeldung("info", "Der Tresor wurde auf einem anderen Gerät geändert und neu geladen."); }
+  }).catch((e) => { if (admin.ansicht === "mitarbeiter") adminMeldung("schlecht", "Tresor konnte nicht geprüft werden: " + String(e.message || e)); });
 }
 
 function fehlerListe(antwort) {
@@ -2630,8 +3616,11 @@ async function dateiLesen(datei) {
   const spaltePn = spalten.find((s) => /personal/i.test(s));
   const spaltePw = spalten.find((s) => /pass/i.test(s));
 
-  if (!spaltePn || !spaltePw) {
-    throw new Error('Es müssen zwei Spalten mit den Überschriften "Personalnummer" und "Passwort" vorhanden sein.');
+  if (!spaltePn) throw new Error('Die Spalte "Personalnummer" fehlt (Überschrift in Zeile 1).');
+  if (!spaltePw) {
+    const e = new Error('Die Datei hat keine Spalte "Passwort".');
+    e.code = "KEINE_PW_SPALTE";
+    throw e;
   }
 
   return zeilen
@@ -2815,7 +3804,7 @@ function dispoParsen(mappe) {
 }
 
 // Stammliste: Spalten Personalnummer + Name, optional Profilspalten (Passwort wird nie gelesen).
-// Alles bleibt nur im Browser-Speicher; nichts davon wird in die Datenbank geschrieben.
+// Namen/Profile werden verschluesselt im Tresor (app_dateien) gespeichert; Klartext nur im Admin-Browser.
 const STAMM_TAGE = { mo: 1, di: 2, mi: 3, do: 4, fr: 5 };
 
 function stammZahl(wert, zeile, spalte) {
@@ -2880,7 +3869,7 @@ async function stammProfileLesen(datei) {
     notiz: finde(/notiz|bemerkung/i)
   };
   if (!sp.pn) throw new Error('Spalte "Personalnummer" fehlt.');
-  if (!sp.name) throw new Error(TEXTE.plan_kein_name);
+  if (!sp.name) { const e = new Error(TEXTE.plan_kein_name); e.code = "KEIN_NAME"; throw e; }
   const liste = [];
   const gesehen = new Map();
   zeilen.forEach((z, i) => {
@@ -2919,11 +3908,14 @@ async function stammNamenLesen(datei) {
   return liste;
 }
 
-// Profile aus der lokalen Stammliste (nur Speicher, wird beim Neuladen verworfen).
+// Profile aus dem Tresor (im Speicher; beim Start aus dem verschluesselten Tresor gefuellt).
 const stammProfile = {};
 function stammProfileUebernehmen(liste) {
+  const abbild = () => JSON.stringify(Object.keys(stammProfile).sort().map((k) => stammProfile[k]));
+  const vorher = abbild();
   Object.keys(stammProfile).forEach((k) => delete stammProfile[k]);
   liste.forEach((p) => { stammProfile[p.personalnummer] = p; });
+  if (abbild() !== vorher) stammProfileVersion++;
 }
 
 // "Nachname, Vorname" / "Nachname Vorname" -> Kleinbuchstaben-Woerter ohne Akzente.
@@ -2953,17 +3945,6 @@ function nameBewertung(dispoWoerter, stammWoerter) {
 }
 const nameSchluessel = (name) => nameWoerter(name).sort().join(" ");
 
-// Bestaetigte Zuordnungen (Schreibweise -> Personalnummer): nur lokal im Browser.
-const ZUORDNUNG_KEY = "zig_namenzuordnung_v1";
-function zuordnungLaden() {
-  try { return JSON.parse(localStorage.getItem(ZUORDNUNG_KEY) || "{}") || {}; }
-  catch (_) { return {}; }
-}
-function zuordnungSpeichern(objekt) {
-  try { localStorage.setItem(ZUORDNUNG_KEY, JSON.stringify(objekt)); return true; }
-  catch (_) { return false; }
-}
-
 // Kontrollliste zum Gegenlesen gegen die Excel (nur lokal, mit Namen)
 function kontrollListe(titel, zeilen) {
   const d = el("details", "block");
@@ -2989,8 +3970,9 @@ function kontrollListe(titel, zeilen) {
 
 function adminPlanung(ziel) {
   let dispo = null;   // Ergebnis von dispoParsen
-  let stamm = null;   // [{pn, name}]
+  let stamm = stammAusTresor();   // Namen aus dem Tresor (kein zweiter Upload)
 
+  tresorKarte(ziel, "inline");
   const karte = el("div", "karte");
   karte.appendChild(el("h2", null, TEXTE.plan_titel));
   karte.appendChild(el("p", "hinweisbox", TEXTE.plan_hinweis));
@@ -3007,7 +3989,7 @@ function adminPlanung(ziel) {
       ergebnis.textContent = "";
       try { await beiDatei(datei); adminMeldung(null); }
       catch (e) { adminMeldung("schlecht", String(e.message || e)); }
-      knopf.disabled = !(dispo && stamm);
+      knopf.disabled = !dispo;
     };
     karte.appendChild(f);
     const info = el("div", "hinweisbox");
@@ -3027,11 +4009,6 @@ function adminPlanung(ziel) {
       (erg.warnungen.length ? ", " + erg.warnungen.length + " Warnung(en)" : "") + ".";
     dispo = erg;
   });
-  const infoStamm = dateiFeld(TEXTE.plan_label_stamm, ".xlsx,.xls", async (datei) => {
-    stamm = null;
-    stamm = await stammNamenLesen(datei);
-    infoStamm.textContent = stamm.length + " Personen gelesen.";
-  });
 
   const knopf = el("button", "knopf-mittel", TEXTE.plan_pruefen);
   knopf.type = "button";
@@ -3039,29 +4016,6 @@ function adminPlanung(ziel) {
   knopf.style.width = "100%";
   karte.appendChild(knopf);
 
-  // Zuordnungsliste sichern/laden (enthaelt Namen: nur lokal aufbewahren)
-  const zeileZ = el("div", "zeile-paar");
-  zeileZ.style.marginTop = "12px";
-  const btnSichern = el("button", "knopf-klein", TEXTE.plan_zuordnung_sichern);
-  btnSichern.type = "button";
-  btnSichern.onclick = () => datenSpeichern(JSON.stringify(zuordnungLaden(), null, 2),
-    "namenzuordnung.json", "application/json;charset=utf-8");
-  const btnLaden = el("button", "knopf-klein", TEXTE.plan_zuordnung_laden);
-  btnLaden.type = "button";
-  const dateiZ = document.createElement("input");
-  dateiZ.type = "file"; dateiZ.accept = ".json"; dateiZ.style.display = "none";
-  btnLaden.onclick = () => dateiZ.click();
-  dateiZ.onchange = async () => {
-    try {
-      const obj = JSON.parse(await dateiZ.files[0].text());
-      if (!obj || typeof obj !== "object" || Array.isArray(obj)) throw new Error("Ungültige Datei.");
-      zuordnungSpeichern(Object.assign({}, zuordnungLaden(), obj));
-      adminMeldung("gut", TEXTE.plan_zuordnung_geladen);
-    } catch (e) { adminMeldung("schlecht", String(e.message || e)); }
-    dateiZ.value = "";
-  };
-  zeileZ.appendChild(btnSichern); zeileZ.appendChild(btnLaden); zeileZ.appendChild(dateiZ);
-  karte.appendChild(zeileZ);
   karte.appendChild(el("p", "hinweisbox", TEXTE.plan_zuordnung_hinweis));
 
   const ergebnis = el("div");
@@ -3070,6 +4024,11 @@ function adminPlanung(ziel) {
   ziel.appendChild(karte);
 
   knopf.onclick = async () => {
+    if (tresor.zustand !== "offen") {
+      adminMeldung("schlecht", "Der Tresor ist nicht offen – ohne Namen kann die Dispo nicht zugeordnet werden.");
+      return;
+    }
+    stamm = stammAusTresor();
     knopf.disabled = true;
     ergebnis.textContent = TEXTE.laedt;
     const { data: ma, error } = await sb.from("employees").select("personalnummer").eq("aktiv", true);
@@ -3110,6 +4069,10 @@ function planungVorschau(ziel, dispo, stamm, zugaenge, bisher) {
   const kw = dispo.tage[0];
   const freitag = dispo.tage[4];
   const kwNr = isoKw(alsDatum(kw));
+  if (kw !== admin.kw) {
+    ziel.appendChild(el("div", "meldung schlecht", "Achtung: Die Dispo enthält " + kwText(kw) + " (" + kwZeitraum(kw) + "), oben ist " +
+      kwText(admin.kw) + " gewählt. Übernommen wird die Woche aus der Datei."));
+  }
 
   // ---- Kopf: Woche bestaetigen, Warnungen, Unterschied zur bisherigen Planung
   const woche = el("div", "meldung info");
@@ -3143,7 +4106,7 @@ function planungVorschau(ziel, dispo, stamm, zugaenge, bisher) {
   const nurInDb = Array.from(zugaenge).filter((pn) => !stammPn.has(pn));
   if (nurInDb.length) {
     ziel.appendChild(el("p", "hinweisbox", nurInDb.length +
-      " aktive Zugänge stehen nicht in der gewählten Stammliste und können nicht zugeordnet werden: " +
+      " aktive Zugänge haben keinen Namen im Tresor und können nicht zugeordnet werden (Stammliste unter Mitarbeiter einspielen): " +
       nurInDb.join(", ") + "."));
   }
 
@@ -3313,41 +4276,28 @@ function planungVorschau(ziel, dispo, stamm, zugaenge, bisher) {
     const liste = eintraegeFuer();
     btn.disabled = true;
     btn.textContent = TEXTE.laedt;
-    const { data, error } = await sb.rpc("planung_ersetzen", { kw: kw, eintraege: liste });
+    const erg = await planungVeroeffentlichen(kw, liste, nachher);
     btn.textContent = TEXTE.plan_uebernehmen;
-    if (error) {
-      btn.disabled = false;
-      adminMeldung("schlecht", "NICHT gespeichert: " + error.message);
-      return;
-    }
+    if (!erg.ok) { btn.disabled = false; return; }
+    const stimmt = erg.stimmt;
 
-    // Gegenprobe: aus der Datenbank zuruecklesen und mit der beabsichtigten Liste vergleichen
-    const soll = new Set(liste.map((e) => [e.personalnummer, e.datum, e.beginn, e.schicht_id].join("|")));
-    const r = await sb.from("planung")
-      .select("personalnummer, datum, schicht_id, beginn").eq("kw_start_datum", kw);
-    const ist = new Set((r.data || []).map((p) =>
-      [p.personalnummer, p.datum, uhr(p.beginn), p.schicht_id].join("|")));
-    let gleich = 0;
-    soll.forEach((k) => { if (ist.has(k)) gleich++; });
-    const stimmt = !r.error && gleich === soll.size && ist.size === soll.size;
-
-    nachher.textContent = "";
-    const box = el("div", "meldung " + (stimmt ? "gut" : "schlecht"));
-    box.textContent = stimmt
-      ? "✓ Gegenprobe: " + gleich + " von " + soll.size + " Schichten stimmen mit der Datenbank überein."
-      : "✗ Gegenprobe FEHLGESCHLAGEN: " + gleich + " von " + soll.size + " stimmen überein (in der Datenbank: " +
-        ist.size + "). Bitte Planung erneut einlesen und melden.";
-    nachher.appendChild(box);
-    if (data && data.eingefuegt !== undefined) {
-      nachher.appendChild(el("p", null, "Server: " + data.eingefuegt + " von " + data.erwartet + " Schichten gespeichert."));
-    }
-
-    // Bestaetigte Zuordnungen merken (nur manuelle; nur lokal)
+    // Bestaetigte Zuordnungen merken (nur manuelle) - verschluesselt im Tresor
     const merk = zuordnungLaden();
+    const delta = {};
+    let neueZuordnungen = 0;
     for (const z of zeilen) {
-      if (z.sel.value !== "?" && z.sel.value !== "-" && z.status !== "sicher") merk[z.schluessel] = z.sel.value;
+      if (z.sel.value !== "?" && z.sel.value !== "-" && z.status !== "sicher") {
+        if (merk[z.schluessel] !== z.sel.value) neueZuordnungen++;
+        delta[z.schluessel] = z.sel.value;
+      }
     }
-    zuordnungSpeichern(merk);
+    if (neueZuordnungen > 0) {
+      try { await zuordnungSpeichern(delta); }
+      catch (e) {
+        nachher.appendChild(el("div", "meldung schlecht",
+          "Planung ist gespeichert, aber die Namenszuordnung konnte nicht im Tresor abgelegt werden: " + String(e.message || e)));
+      }
+    }
 
     const informieren = zeilen.filter((z) => z.sel.value === "-");
     if (informieren.length) {
@@ -3361,13 +4311,32 @@ function planungVorschau(ziel, dispo, stamm, zugaenge, bisher) {
 
 /* ---------- Reiter 3: Einzelnes Passwort ---------- */
 function adminPasswort(ziel) {
-  const karte = el("div", "karte");
-  karte.appendChild(el("h2", null, TEXTE.admin_pw_titel));
+  const inDetails = ziel.tagName === "DETAILS";
+  const karte = inDetails ? el("div") : el("div", "karte");
+  if (!inDetails) karte.appendChild(el("h2", null, TEXTE.admin_pw_titel));
+  if (inDetails) karte.style.marginTop = "8px";
 
   const z1 = el("div", "zeile-paar");
-  z1.appendChild(el("div", "etikett", TEXTE.label_personalnummer));
-  const iPn = document.createElement("input");
-  iPn.type = "text"; iPn.inputMode = "numeric";
+  z1.appendChild(el("div", "etikett", "Person"));
+  let iPn;
+  const aktive = admin.status && admin.status.kw === admin.kw ? new Set(admin.status.aktive) : null;
+  const namen = Object.values(stammProfile)
+    .filter((p) => p.name && (!aktive || aktive.has(p.personalnummer)))
+    .sort((a, b) => a.name.localeCompare(b.name, "de"));
+  if (tresor.zustand === "offen" && namen.length) {
+    iPn = document.createElement("select");
+    const o0 = document.createElement("option");
+    o0.value = ""; o0.textContent = TEXTE.plan_bitte_waehlen;
+    iPn.appendChild(o0);
+    namen.forEach((p) => {
+      const o = document.createElement("option");
+      o.value = p.personalnummer; o.textContent = p.name + " (" + p.personalnummer + ")";
+      iPn.appendChild(o);
+    });
+  } else {
+    iPn = document.createElement("input");
+    iPn.type = "text"; iPn.inputMode = "numeric"; iPn.placeholder = TEXTE.label_personalnummer;
+  }
   z1.appendChild(iPn);
   karte.appendChild(z1);
 
@@ -3391,18 +4360,17 @@ function adminPasswort(ziel) {
   btn.onclick = async () => {
     ausgabe.textContent = "";
     const pn = iPn.value.trim(), pw = iPw.value.trim();
-    if (!pn) return;
+    if (!pn) { ausgabe.appendChild(fehlerListe({ fehler: ["Bitte zuerst die Person wählen."] })); return; }
     if (pw.length < CONFIG.PASSWORT_MIN) {
-      ausgabe.appendChild(fehlerListe({
-        fehler: ["Passwort muss mindestens " + CONFIG.PASSWORT_MIN + " Zeichen haben."]
-      }));
+      ausgabe.appendChild(fehlerListe({ fehler: ["Passwort muss mindestens " + CONFIG.PASSWORT_MIN + " Zeichen haben."] }));
       return;
     }
     btn.disabled = true;
     const res = await funktionRufen("reset-passwort", { personalnummer: pn, passwort: pw });
     btn.disabled = false;
     if (res.ok) {
-      adminMeldung("gut", TEXTE.admin_pw_fertig + pn);
+      const name = stammProfile[pn] && stammProfile[pn].name ? " (" + stammProfile[pn].name + ")" : "";
+      ausgabe.appendChild(el("div", "meldung gut", TEXTE.admin_pw_fertig + pn + name + "."));
       iPn.value = ""; iPw.value = "";
     } else {
       ausgabe.appendChild(fehlerListe(res));
@@ -3415,18 +4383,12 @@ function adminPasswort(ziel) {
 
 /* ---------- Reiter 4: Zeiten und Frist ---------- */
 async function adminZeiten(ziel) {
-  // --- Woche waehlen (Wochen werden automatisch angelegt) ---
-  const karteWoche = el("div", "karte");
-  karteWoche.appendChild(el("h2", null, TEXTE.admin_zeiten_titel));
-  karteWoche.appendChild(wochenAuswahl(adminZeichnen));
-  karteWoche.appendChild(el("p", "hinweisbox", TEXTE.admin_wochen_auto));
-  ziel.appendChild(karteWoche);
-
   if (!admin.kw) return;
 
   // --- Frist ---
   const karteFrist = el("div", "karte");
-  karteFrist.appendChild(el("h2", null, TEXTE.admin_frist_titel));
+  karteFrist.appendChild(el("h2", null, TEXTE.admin_frist_titel + " · " + kwText(admin.kw)));
+  karteFrist.appendChild(el("p", "hinweisbox", TEXTE.admin_wochen_auto));
   const woche = admin.wochen.find((w) => w.kw_start_datum === admin.kw);
 
   const iFrist = document.createElement("input");
@@ -3445,6 +4407,8 @@ async function adminZeiten(ziel) {
       .eq("kw_start_datum", admin.kw);
     if (error) { adminMeldung("schlecht", error.message); return; }
     await wochenLaden();
+    wochenZeileAufbauen();
+    admin.status = null;
     adminMeldung("gut", TEXTE.admin_gespeichert);
   };
   karteFrist.appendChild(btnFrist);
@@ -3499,8 +4463,9 @@ async function adminZeiten(ziel) {
         p_datum: tag.datum, p_gesperrt: cb.checked, p_grund: iGrund.value || null
       });
       if (error) { adminMeldung("schlecht", error.message); return; }
+      const zusatz = zeitenGeaendert(admin.kw);
       adminZeichnen();
-      adminMeldung("gut", TEXTE.admin_gespeichert);
+      adminMeldung("gut", TEXTE.admin_gespeichert + zusatz);
     };
     block.appendChild(btnSperr);
 
@@ -3536,7 +4501,7 @@ async function adminZeiten(ziel) {
       if (error) { adminMeldung("schlecht", error.message); btnZeiten.disabled = false; return; }
     }
     btnZeiten.disabled = false;
-    adminMeldung("gut", TEXTE.admin_gespeichert);
+    adminMeldung("gut", TEXTE.admin_gespeichert + zeitenGeaendert(admin.kw));
   };
   inhalt.appendChild(btnZeiten);
 
@@ -3547,8 +4512,9 @@ async function adminZeiten(ziel) {
   btnReset.onclick = async () => {
     const { error } = await sb.rpc("woche_aus_standard_neu_laden", { p_kw_start: admin.kw });
     if (error) { adminMeldung("schlecht", error.message); return; }
+    const zusatz = zeitenGeaendert(admin.kw);
     adminZeichnen();
-    adminMeldung("gut", TEXTE.admin_gespeichert);
+    adminMeldung("gut", TEXTE.admin_gespeichert + zusatz);
   };
   inhalt.appendChild(btnReset);
 
@@ -3640,7 +4606,7 @@ async function adminZeiten(ziel) {
     }
     btnUebertragen.disabled = false;
     btnUebertragen.style.display = "none";
-    adminMeldung("gut", TEXTE.admin_std_uebertragen_fertig + kommende.map(tagKurz).join(", "));
+    zeitenGeaendert(null); adminMeldung("gut", TEXTE.admin_std_uebertragen_fertig + kommende.map(tagKurz).join(", "));
   };
   stdInhalt.appendChild(btnUebertragen);
 
@@ -3673,7 +4639,7 @@ function ausDatetimeLocal(wert) {
 }
 
 /* ---------- Reiter 5: Export ---------- */
-/* ---------- Reiter 7: Auto-Planung (regelbasierter Solver, ohne KI) ---------- */
+/* ---------- Wochenplanung (regelbasierter Solver, ohne KI) ---------- */
 const AUTO_TAGE = ["Mo", "Di", "Mi", "Do", "Fr"];
 const AUTO_ART = { FRUEH: "Früh", SPAET: "Spät", LANG: "Office" };
 const skriptGeladen = {};
@@ -3695,11 +4661,339 @@ const autoBibliothekenLaden = () => Promise.all([
   skriptLaden("vendor/jszip-3.10.1.min.js")
 ]);
 
-// Zustand nur im Browser-Speicher: Namen und Entwurf verlassen den Admin-Bereich nicht.
+// Zustand im Browser-Speicher; Namen kommen aus dem Tresor, der Entwurf verlaesst den Admin-Bereich nicht.
 const auto = {
   kw: null, d: null, profile: stammProfile, bedarf: null,
-  vorlage: null, eingabe: null, erg: null, zuw: null, verfSet: null, box: null
+  vorlage: null, eingabe: null, erg: null, zuw: null, verfSet: null, box: null,
+  ladeNr: 0,            // Lade-Token gegen veraltete Ergebnisse beim Wochenwechsel
+  bisher: null,         // veroeffentlichte Planung der Woche (fuer den Diff)
+  stand: null,          // planung_stand der Woche
+  veroeffentlicht: false,
+  profilVersion: null,  // stammProfileVersion zum Zeitpunkt der Berechnung
+  hinweis: null         // einmalige Info in der Wochenplanung (z. B. Entwurf verworfen)
 };
+
+/* ---------- Wochenplanung: Schritte 1-4 (Abgaben, Planung, Dispo, Veroeffentlichen) ---------- */
+function schrittKopf(nr, titel) {
+  const h = el("h3", null, nr + " · " + titel);
+  h.style.cssText = "margin:18px 0 8px;font-size:17px";
+  return h;
+}
+
+function autoZuruecksetzen() {
+  auto.kw = null; auto.d = null; auto.erg = null; auto.zuw = null; auto.bedarf = null; auto.eingabe = null;
+  auto.bisher = null; auto.stand = null; auto.veroeffentlicht = false; auto.profilVersion = null;
+}
+
+function adminWoche(ziel) {
+  // Entwurf einer ANDEREN Woche liegt vor: nie still verwerfen
+  if (auto.erg && auto.kw && auto.kw !== admin.kw && !auto.veroeffentlicht) {
+    const karte = el("div", "karte");
+    karte.appendChild(el("div", "meldung schlecht", "Für " + kwText(auto.kw) + " liegt ein berechneter, noch nicht veröffentlichter Entwurf vor."));
+    const b1 = mittlererKnopf("Zurück zu " + kwText(auto.kw));
+    b1.onclick = () => {
+      admin.kw = auto.kw; admin.status = null;
+      const s = $("admin-woche").querySelector("select");
+      if (s) s.value = admin.kw;
+      adminZeichnen();
+    };
+    const b2 = mittlererKnopf("Entwurf verwerfen und " + kwText(admin.kw) + " laden", true);
+    b2.onclick = () => { autoZuruecksetzen(); adminZeichnen(); };
+    karte.appendChild(b1); karte.appendChild(b2);
+    ziel.appendChild(karte);
+    return;
+  }
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, "Wochenplanung " + kwText(admin.kw) + " · " + kwZeitraum(admin.kw)));
+  karte.appendChild(el("p", "hinweisbox",
+    "Vier Schritte: Abgaben prüfen, Planung berechnen, Dispo-Datei für den Kunden, veröffentlichen. " +
+    "Es wird nichts veröffentlicht, bevor du es in Schritt 4 ausdrücklich bestätigst. Klarnamen sind nur hier im Admin-Bereich sichtbar."));
+  const box = el("div");
+  karte.appendChild(box);
+  auto.box = box;
+  ziel.appendChild(karte);
+  if (auto.hinweis) { karte.insertBefore(el("div", "meldung info", auto.hinweis), box); auto.hinweis = null; }
+  if (auto.d && auto.kw === admin.kw) {
+    autoZeichnen();
+    // Stand der veroeffentlichten Planung nachziehen (anderes Geraet / Dispo-Import koennten geschrieben haben)
+    autoStandLaden().then((geaendert) => { if (geaendert && admin.ansicht === "woche" && auto.box === box) autoZeichnen(); }).catch(() => { /* Anzeige nur */ });
+  } else {
+    autoLaden();
+  }
+}
+
+async function autoStandLaden() {
+  const kw = auto.kw;
+  const [stand, bisher] = await Promise.all([
+    sb.from("planung_stand").select("kw_start_datum, aktualisiert_am, anzahl").eq("kw_start_datum", kw),
+    sb.from("planung").select("personalnummer, datum, schicht_id, beginn").eq("kw_start_datum", kw)
+  ]);
+  if (stand.error || bisher.error || auto.kw !== kw) return false;
+  const neuStand = (stand.data || []).find((x) => x.kw_start_datum === kw) || null;
+  const neuBisher = bisher.data || [];
+  const geaendert = JSON.stringify(neuStand) !== JSON.stringify(auto.stand) || JSON.stringify(neuBisher) !== JSON.stringify(auto.bisher);
+  auto.stand = neuStand; auto.bisher = neuBisher;
+  return geaendert;
+}
+
+// Nach Aenderungen an Zeiten/Sperrtagen ist ein Entwurf dieser Woche wertlos: verwerfen, sichtbar sagen.
+function zeitenGeaendert(kw) {
+  if (auto.d && (kw === null || auto.kw === kw)) {
+    autoZuruecksetzen();
+    auto.hinweis = "Der Planungsentwurf wurde verworfen, weil sich Zeiten oder Sperrtage geändert haben – bitte neu berechnen.";
+    return " Der Planungsentwurf dieser Woche wurde verworfen (Zeiten geändert).";
+  }
+  return "";
+}
+
+// Laedt die gewaehlte Woche. Lade-Token: ein spaeterer Aufruf gewinnt, ein alter
+// Aufruf zeichnet nichts mehr (Wochenwechsel waehrend des Ladens).
+async function autoLaden() {
+  const nr = ++auto.ladeNr;
+  const kw = admin.kw;
+  const box = auto.box;
+  if (box) { box.textContent = ""; box.appendChild(el("p", "hinweisbox", TEXTE.laedt)); }
+  wochenZeileSperren(true);
+  try {
+    try { await tresorAktualisieren(); } catch (e) { tresor.fehler = tresor.fehler || String(e.message || e); }
+    if (nr !== auto.ladeNr || kw !== admin.kw) return;
+    await autoBibliothekenLaden();
+    const d = await exportDatenHolen(kw);
+    if (nr !== auto.ladeNr || kw !== admin.kw) return;
+    const [stand, bisher] = await Promise.all([
+      sb.from("planung_stand").select("kw_start_datum, aktualisiert_am, anzahl").eq("kw_start_datum", kw),
+      sb.from("planung").select("personalnummer, datum, schicht_id, beginn").eq("kw_start_datum", kw)
+    ]);
+    if (nr !== auto.ladeNr || kw !== admin.kw) return;
+    if (stand.error) throw new Error(stand.error.message);
+    if (bisher.error) throw new Error(bisher.error.message);
+    auto.kw = kw; auto.d = d;
+    auto.stand = (stand.data || []).find((s) => s.kw_start_datum === kw) || null;
+    auto.bisher = bisher.data || [];
+    auto.bedarf = autoStandardBedarf();
+    auto.erg = null; auto.zuw = null; auto.eingabe = null; auto.veroeffentlicht = false; auto.profilVersion = null;
+    if (!auto.vorlage) await autoVorlageAusDbLaden();
+    if (nr !== auto.ladeNr || kw !== admin.kw) return;
+    if (auto.vorlage) await autoVorlageAuswerten();
+    autoZeichnen();
+  } catch (e) {
+    if (nr !== auto.ladeNr) return;
+    if (box) {
+      box.textContent = "";
+      box.appendChild(el("div", "meldung schlecht", "Daten konnten nicht geladen werden: " + String(e.message || e)));
+      const b = mittlererKnopf("Erneut versuchen");
+      b.onclick = () => autoLaden();
+      box.appendChild(b);
+    }
+  } finally {
+    if (nr === auto.ladeNr) wochenZeileSperren(false);
+  }
+}
+
+// Die Dispo-Vorlage liegt privat in app_dateien (einmal hochgeladen, siehe Mehr > Dispo-Vorlage).
+async function autoVorlageAusDbLaden() {
+  const r = await sb.from("app_dateien").select("schluessel, dateiname, inhalt_base64").eq("schluessel", "dispo_vorlage");
+  if (r.error) throw new Error("Vorlage konnte nicht geladen werden: " + r.error.message);
+  const z = (r.data || []).find((x) => x.schluessel === "dispo_vorlage");
+  if (z && z.inhalt_base64) {
+    auto.vorlage = { name: z.dateiname || "Dispo-Vorlage", bytes: base64AlsBytes(z.inhalt_base64), gespeichert: true };
+  }
+}
+
+// Namen und Profile kommen nur aus dem Tresor (verschluesselt in der Datenbank, Klartext nur hier).
+function autoNamenLeiste(ziel) {
+  if (tresor.zustand !== "offen") { tresorKarte(ziel, "inline"); return; }
+  const alle = auto.d.mitarbeiter;
+  const fehlend = alle.filter((pn) => !autoHatName(pn));
+  if (fehlend.length) {
+    const box = el("div", "meldung info", "⚠ " + fehlend.length + " von " + alle.length + " aktiven Mitarbeitern ohne Namen/Profil – Stammliste unter Mitarbeiter einspielen. ");
+    box.appendChild(kleinerKnopf("→ Mitarbeiter", () => adminAnsicht("mitarbeiter")));
+    ziel.appendChild(box);
+  } else {
+    ziel.appendChild(el("div", "meldung gut", "✓ Namen und Profile aus dem Tresor für alle " + alle.length + " aktiven Mitarbeiter."));
+  }
+}
+
+function bedarfKurz() {
+  const b = auto.bedarf || {};
+  const tage = Object.keys(b).sort();
+  const kurz = (arr) => arr.length && arr.every((x) => x === arr[0]) ? arr[0] + " je Tag" : arr.join("/");
+  return "Früh " + kurz(tage.map((t) => b[t].FRUEH)) + " · Spät " + kurz(tage.map((t) => b[t].SPAET));
+}
+
+// Schritt 1: Abgaben (Zaehler, Wer fehlt, alle Mitarbeiter)
+function abgabenAbschnitt(ziel, d) {
+  const abgegeben = new Set(d.abgaben.map((a) => a.personalnummer));
+  const liste = d.mitarbeiter.slice();
+  const anzahl = liste.filter((pn) => abgegeben.has(pn)).length;
+  const woche = admin.wochen.find((w) => w.kw_start_datum === admin.kw);
+  const kopf = el("p");
+  kopf.appendChild(el("b", null, String(anzahl)));
+  kopf.appendChild(document.createTextNode(TEXTE.admin_von + liste.length + TEXTE.admin_haben_abgegeben +
+    (woche && woche.abgabefrist ? " · Frist " + zeitpunktText(woche.abgabefrist) + (new Date(woche.abgabefrist) < new Date() ? " (vorbei)" : "") : "") + " "));
+  kopf.appendChild(kleinerKnopf("Neu laden", () => neuLadenMitRueckfrage(ziel)));
+  ziel.appendChild(kopf);
+  if (!liste.length) { ziel.appendChild(el("p", null, TEXTE.admin_keine_ma)); return; }
+  const nameOder = (pn) => (auto.profile[pn] && auto.profile[pn].name) ? auto.profile[pn].name : "Nr. " + pn;
+  const fehlend = liste.filter((pn) => !abgegeben.has(pn));
+  const dF = el("details", "block");
+  dF.appendChild(el("summary", null, "Wer fehlt (" + fehlend.length + ")"));
+  dF.appendChild(el("div", null, fehlend.map(nameOder).sort((a, b) => a.localeCompare(b, "de")).join(", ") || "–"));
+  ziel.appendChild(dF);
+  const dA = el("details", "block");
+  dA.style.marginTop = "8px";
+  dA.appendChild(el("summary", null, "Alle Mitarbeiter (" + liste.length + ")"));
+  const zeitNach = {};
+  d.abgaben.forEach((a) => { zeitNach[a.personalnummer] = a.abgegeben_am; });
+  const KATEGORIE_TEXT = { teilzeit: "Teilzeit", minijob: "Minijob" };
+  const tab = el("table", "liste");
+  const thead = el("thead");
+  const trh = el("tr");
+  ["Name", TEXTE.label_personalnummer, "Kategorie", "Status"].forEach((t) => trh.appendChild(el("th", null, t)));
+  thead.appendChild(trh);
+  tab.appendChild(thead);
+  const tbody = el("tbody");
+  liste.slice().sort((a, b) => nameOder(a).localeCompare(nameOder(b), "de")).forEach((pn) => {
+    const tr = el("tr");
+    const pr = auto.profile[pn] || {};
+    tr.appendChild(el("td", null, pr.name || "–"));
+    tr.appendChild(el("td", null, pn));
+    tr.appendChild(el("td", null, KATEGORIE_TEXT[pr.kategorie] || "–"));
+    const zeit = zeitNach[pn];
+    tr.appendChild(el("td", zeit ? "status-ja" : "status-nein", zeit ? "✓ " + zeitpunktText(zeit) : "✗ " + TEXTE.admin_fehlt));
+    tbody.appendChild(tr);
+  });
+  tab.appendChild(tbody);
+  const wrap = el("div");
+  wrap.style.overflowX = "auto";
+  wrap.appendChild(tab);
+  dA.appendChild(wrap);
+  ziel.appendChild(dA);
+}
+
+function neuLadenMitRueckfrage(ziel) {
+  if (auto.erg && !auto.veroeffentlicht) {
+    const box = el("div", "meldung schlecht", "Neu laden verwirft den berechneten Entwurf. ");
+    box.appendChild(kleinerKnopf("Trotzdem neu laden", () => autoLaden()));
+    ziel.insertBefore(box, ziel.firstChild);
+    return;
+  }
+  autoLaden();
+}
+
+function autoZeichnen() {
+  const box = auto.box;
+  if (!box) return;
+  box.textContent = "";
+  const d = auto.d;
+
+  box.appendChild(schrittKopf(1, "Abgaben"));
+  abgabenAbschnitt(box, d);
+
+  box.appendChild(schrittKopf(2, "Planung berechnen"));
+  autoNamenLeiste(box);
+  autoProfileZeichnen(box);
+  const dB = el("details", "block");
+  dB.style.marginTop = "10px";
+  dB.appendChild(el("summary", null, "Bedarf anpassen (" + bedarfKurz() + ")"));
+  autoBedarfZeichnen(dB);
+  box.appendChild(dB);
+
+  const ohneProfil = d.mitarbeiter.filter((pn) => !auto.profile[pn]).length;
+  const gate = tresor.zustand !== "offen" || ohneProfil > 0;
+  let cbTrotzdem = null;
+  if (gate) {
+    box.appendChild(el("div", "meldung schlecht", (tresor.zustand !== "offen" ? "Der Tresor ist nicht offen: " : ohneProfil + " Profile fehlen: ") +
+      "Nur Schicht, gesperrte Tage und Kategorie können dann nicht geprüft werden – Personen ohne Profil gelten als Minijob ohne Einschränkungen."));
+    cbTrotzdem = kontrollKaestchen("Trotzdem ohne vollständige Profile rechnen", false);
+    box.appendChild(cbTrotzdem.label);
+  }
+  const rechnen = mittlererKnopf("Planung berechnen");
+  rechnen.disabled = gate;
+  if (cbTrotzdem) cbTrotzdem.cb.onchange = () => { rechnen.disabled = !cbTrotzdem.cb.checked; };
+  rechnen.onclick = () => autoBerechnen();
+  box.appendChild(rechnen);
+  if (auto.erg && auto.profilVersion !== stammProfileVersion) {
+    box.appendChild(el("div", "meldung info", "Namen/Profile haben sich seit der Berechnung geändert – bitte Planung neu berechnen. Veröffentlichen ist bis dahin gesperrt."));
+  }
+
+  const ergebnis = el("div");
+  ergebnis.id = "auto-ergebnis";
+  box.appendChild(ergebnis);
+  if (auto.erg) autoErgebnisZeichnen(ergebnis);
+}
+
+function autoListe() {
+  const liste = [];
+  auto.erg.slots.forEach((s) => {
+    const pn = auto.zuw[s.id];
+    if (pn) liste.push({ personalnummer: pn, datum: s.datum, schicht_id: s.schicht_id, beginn: s.beginn, ende: s.ende });
+  });
+  return liste;
+}
+
+// Hinweis vor dem Veroeffentlichen: Gibt es schon eine Planung dieser Woche? Was aendert sich?
+function planungStandHinweis(ziel, kw, stand, bisher, liste) {
+  if (!bisher || !bisher.length) {
+    ziel.appendChild(el("p", "hinweisbox", "Für " + kwText(kw) + " ist noch keine Planung veröffentlicht."));
+    return;
+  }
+  const alt = new Set(bisher.map((p) => [p.personalnummer, p.datum, uhr(p.beginn), p.schicht_id].join("|")));
+  const neu = new Set(liste.map((e) => [e.personalnummer, e.datum, uhr(e.beginn), e.schicht_id].join("|")));
+  let dazu = 0, weg = 0;
+  neu.forEach((k) => { if (!alt.has(k)) dazu++; });
+  alt.forEach((k) => { if (!neu.has(k)) weg++; });
+  ziel.appendChild(el("div", "meldung schlecht", "Für " + kwText(kw) + " ist bereits eine Planung " +
+    (stand ? "veröffentlicht (" + zeitpunktText(stand.aktualisiert_am) + ", " + stand.anzahl + " Schichten)"
+           : "vorhanden (" + bisher.length + " Schichten, Stand unbekannt)") +
+    " – neu +" + dazu + " / entfernt −" + weg + ". Veröffentlichen ersetzt sie."));
+}
+
+// Gemeinsamer Weg fuer Auto-Planung und Dispo-Import: RPC planung_ersetzen + Gegenprobe.
+async function planungVeroeffentlichen(kw, liste, nachher) {
+  if (!liste.length) { adminMeldung("schlecht", "Keine Schichten zum Veröffentlichen."); return { ok: false }; }
+  const { data, error } = await sb.rpc("planung_ersetzen", { kw: kw, eintraege: liste });
+  if (error) { adminMeldung("schlecht", "NICHT gespeichert: " + error.message); return { ok: false }; }
+  // Gegenprobe: aus der Datenbank zuruecklesen und mit der beabsichtigten Liste vergleichen
+  const soll = new Set(liste.map((e) => [e.personalnummer, e.datum, e.beginn, e.schicht_id].join("|")));
+  const r = await sb.from("planung").select("personalnummer, datum, schicht_id, beginn").eq("kw_start_datum", kw);
+  const ist = new Set((r.data || []).map((p) => [p.personalnummer, p.datum, uhr(p.beginn), p.schicht_id].join("|")));
+  let gleich = 0;
+  soll.forEach((k) => { if (ist.has(k)) gleich++; });
+  const stimmt = !r.error && gleich === soll.size && ist.size === soll.size;
+  nachher.textContent = "";
+  nachher.appendChild(el("div", "meldung " + (stimmt ? "gut" : "schlecht"), stimmt
+    ? "✓ Gegenprobe: " + gleich + " von " + soll.size + " Schichten stimmen mit der Datenbank überein."
+    : "✗ Gegenprobe FEHLGESCHLAGEN: " + gleich + " von " + soll.size + " stimmen überein (in der Datenbank: " + ist.size +
+      "). Bitte erneut veröffentlichen und melden."));
+  if (data && data.eingefuegt !== undefined) {
+    nachher.appendChild(el("p", null, "Server: " + data.eingefuegt + " von " + data.erwartet + " Schichten gespeichert."));
+  }
+  if (!stimmt) adminMeldung("schlecht", TEXTE.plan_fertig_fehler);
+  admin.status = null;
+  return { ok: true, stimmt: stimmt, gleich: gleich, soll: soll.size, ist: ist.size };
+}
+
+async function autoVeroeffentlichen(btn) {
+  const kw = admin.kw;
+  const liste = autoListe();
+  btn.disabled = true;
+  const nachher = $("auto-nachher");
+  if (!nachher) { btn.disabled = false; return; }
+  const erg = await planungVeroeffentlichen(kw, liste, nachher);
+  if (!erg.ok || !erg.stimmt) { btn.disabled = false; return; }
+  auto.veroeffentlicht = true;
+  try {
+    const [stand, bisher] = await Promise.all([
+      sb.from("planung_stand").select("kw_start_datum, aktualisiert_am, anzahl").eq("kw_start_datum", kw),
+      sb.from("planung").select("personalnummer, datum, schicht_id, beginn").eq("kw_start_datum", kw)
+    ]);
+    auto.stand = (stand.data || []).find((s) => s.kw_start_datum === kw) || auto.stand;
+    auto.bisher = bisher.data || auto.bisher;
+  } catch (_) { /* nur Anzeige */ }
+  if (nachher.isConnected) nachher.appendChild(kleinerKnopf("→ Start", () => adminAnsicht("start")));
+}
+
 
 function autoHatName(pn) {
   const p = auto.profile[pn];
@@ -3711,81 +5005,7 @@ function nameVon(pn) {
 }
 
 // Stammliste-Leiste: Profile (Name, Kategorie, Wünsche, Fahrgemeinschaft ...) kommen nur aus der
-// lokalen Stammliste und bleiben im Browser-Speicher. Nichts davon geht in die Datenbank.
-function autoNamenLeiste(ziel) {
-  const alle = auto.d.mitarbeiter;
-  const fehlend = alle.filter((pn) => !autoHatName(pn));
-  const leiste = el("div", "meldung " + (fehlend.length ? "info" : "gut"));
-  leiste.style.marginTop = "12px";
-  leiste.appendChild(el("div", null, fehlend.length
-    ? "Stammliste einspielen (Excel mit Personalnummer, Name und optional Kategorie, Fahrgemeinschaft ...). " +
-      "Sie wird nur in diesem Browser gelesen, nicht gespeichert und nicht hochgeladen. " +
-      (fehlend.length < alle.length ? fehlend.length + " von " + alle.length + " Mitarbeitern haben noch keinen Namen." : "")
-    : "✓ Stammliste eingespielt: Für alle " + alle.length + " aktiven Mitarbeiter sind Profile vorhanden. " +
-      "Sie gelten nur bis zum Neuladen der Seite."));
-  const datei = document.createElement("input");
-  datei.type = "file"; datei.accept = ".xlsx,.xls";
-  datei.style.marginTop = "8px";
-  datei.onchange = async () => {
-    if (!datei.files[0]) return;
-    try {
-      const liste = await stammProfileLesen(datei.files[0]);
-      const aktiv = new Set(alle);
-      const passend = liste.filter((p) => aktiv.has(p.personalnummer));
-      if (!passend.length) throw new Error("Keine Personalnummer aus der Datei passt zu aktiven Mitarbeitern.");
-      stammProfileUebernehmen(liste);
-      autoZeichnen();
-      adminMeldung("gut", passend.length + " Profile aus der Stammliste übernommen (nur im Browser).");
-    } catch (e) {
-      adminMeldung("schlecht", String(e.message || e));
-    }
-  };
-  leiste.appendChild(datei);
-  ziel.appendChild(leiste);
-}
-
-function adminAutoPlanung(ziel) {
-  if (auto.kw !== admin.kw) {
-    auto.kw = admin.kw; auto.d = null; auto.erg = null; auto.zuw = null; auto.bedarf = null;
-  }
-  const karte = el("div", "karte");
-  karte.appendChild(el("h2", null, "Auto-Planung"));
-  karte.appendChild(wochenAuswahl(adminZeichnen));
-  karte.appendChild(el("p", "hinweisbox",
-    "Berechnet aus den Abgaben einen Vorschlag nach festen Regeln (ohne KI). " +
-    "Es wird nichts veröffentlicht, bevor du es unten ausdrücklich bestätigst. " +
-    "Klarnamen sind nur in diesem Admin-Bereich sichtbar."));
-  const btn = el("button", "knopf-mittel", "Daten laden");
-  btn.type = "button"; btn.style.width = "100%"; btn.style.marginTop = "10px";
-  karte.appendChild(btn);
-  const box = el("div");
-  karte.appendChild(box);
-  auto.box = box;
-  ziel.appendChild(karte);
-  btn.onclick = () => autoLaden(btn);
-  if (auto.d) autoZeichnen();
-}
-
-async function autoLaden(knopf) {
-  knopf.disabled = true;
-  const text = knopf.textContent;
-  knopf.textContent = TEXTE.laedt;
-  try {
-    await autoBibliothekenLaden();
-    const d = await exportDatenHolen(admin.kw);
-    auto.d = d;
-    auto.bedarf = autoStandardBedarf();
-    auto.erg = null; auto.zuw = null;
-    if (!auto.vorlage) await autoVorlageAusDbLaden();
-    if (auto.vorlage) await autoVorlageAuswerten();
-    autoZeichnen();
-  } catch (e) {
-    adminMeldung("schlecht", String(e.message || e));
-  }
-  knopf.textContent = text;
-  knopf.disabled = false;
-}
-
+// Stammliste und liegen verschluesselt im Tresor; Klartext nur hier im Admin-Browser.
 // Die Dispo-Vorlage wird einmal hochgeladen und privat in der Datenbank abgelegt (nur Admin).
 function bytesAlsBase64(puffer) {
   const b = new Uint8Array(puffer);
@@ -3798,15 +5018,6 @@ function base64AlsBytes(text) {
   const b = new Uint8Array(s.length);
   for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
   return b.buffer;
-}
-
-async function autoVorlageAusDbLaden() {
-  const r = await sb.from("app_dateien").select("dateiname, inhalt_base64")
-    .eq("schluessel", "dispo_vorlage");
-  const z = r.error ? null : (r.data || [])[0];
-  if (z && z.inhalt_base64) {
-    auto.vorlage = { name: z.dateiname || "Dispo-Vorlage", bytes: base64AlsBytes(z.inhalt_base64), gespeichert: true };
-  }
 }
 
 async function autoVorlageSpeichern() {
@@ -3877,7 +5088,7 @@ function autoProfileZeichnen(ziel) {
   det.appendChild(el("p", "hinweisbox",
     "Kategorie, feste Wünsche und der Stundenschnitt der letzten 9 Monate steuern die faire Verteilung. " +
     "Geändert wird das in der Stammliste (Excel) auf deinem Rechner und dann neu eingespielt. " +
-    "Die Daten liegen nur im Browser, nicht in der Datenbank."));
+    "Die Daten liegen verschlüsselt im Tresor; lesbar nur mit dem Tresor-Passwort."));
 
   const wrap = el("div"); wrap.style.overflowX = "auto";
   const tab = el("table", "liste");
@@ -3935,70 +5146,6 @@ function autoBedarfZeichnen(ziel) {
   ziel.appendChild(wrap);
 }
 
-function autoZeichnen() {
-  const box = auto.box;
-  if (!box) return;
-  box.textContent = "";
-  const d = auto.d;
-  const abgegeben = new Set(d.abgaben.map((a) => a.personalnummer));
-  const info = el("p", null,
-    d.mitarbeiter.length + " aktive Mitarbeiter, " +
-    d.mitarbeiter.filter((pn) => abgegeben.has(pn)).length + " haben für diese Woche abgegeben.");
-  info.style.marginTop = "12px";
-  box.appendChild(info);
-
-  autoNamenLeiste(box);
-  autoProfileZeichnen(box);
-
-  // Vorlage: einmal hochladen, danach automatisch aus der Datenbank
-  const vl = el("div", "etikett", "Dispo-Vorlage für den Kunden");
-  vl.style.marginTop = "12px";
-  box.appendChild(vl);
-  const vd = document.createElement("input");
-  vd.type = "file"; vd.accept = ".xlsm,.xlsx";
-  vd.onchange = async () => {
-    if (!vd.files[0]) return;
-    try {
-      const vorher = auto.vorlage;
-      auto.vorlage = { name: vd.files[0].name, bytes: await vd.files[0].arrayBuffer() };
-      try {
-        await autoVorlageAuswerten();
-        await autoVorlageSpeichern();
-      } catch (e) { auto.vorlage = vorher; throw e; }
-      autoZeichnen();
-      adminMeldung("gut", "Vorlage gespeichert (" + auto.vorlage.bloecke + " Tagesblöcke). " +
-        "Sie wird ab jetzt automatisch verwendet.");
-    } catch (e) { adminMeldung("schlecht", String(e.message || e)); }
-  };
-  if (auto.vorlage && auto.vorlage.gespeichert) {
-    box.appendChild(el("div", "meldung gut",
-      "✓ Vorlage gespeichert: " + auto.vorlage.name + " – wird bei jedem Export automatisch verwendet."));
-    const ers = document.createElement("details");
-    ers.className = "block";
-    const es = document.createElement("summary");
-    es.textContent = "Vorlage ersetzen (nur nötig, wenn sich das Layout ändert)";
-    ers.appendChild(es);
-    ers.appendChild(vd);
-    box.appendChild(ers);
-  } else {
-    box.appendChild(el("p", "hinweisbox",
-      "Einmalig die Dispo-Datei (.xlsm) wählen. Sie wird privat gespeichert und danach bei jeder Woche " +
-      "automatisch verwendet; nur Datum, Schichten und Uhrzeiten ändern sich."));
-    box.appendChild(vd);
-  }
-
-  autoBedarfZeichnen(box);
-
-  const rechnen = el("button", "knopf-mittel", "Planung berechnen");
-  rechnen.type = "button"; rechnen.style.width = "100%"; rechnen.style.marginTop = "12px";
-  rechnen.onclick = () => autoBerechnen();
-  box.appendChild(rechnen);
-
-  const ergebnis = el("div"); ergebnis.id = "auto-ergebnis";
-  box.appendChild(ergebnis);
-  if (auto.erg) autoErgebnisZeichnen(ergebnis);
-}
-
 function autoBerechnen() {
   try {
     const d = auto.d;
@@ -4030,6 +5177,8 @@ function autoBerechnen() {
     auto.erg = PlanungSolver.loese(auto.eingabe);
     auto.erg.dauerMs = Date.now() - t0;
     auto.zuw = auto.erg.zuweisung;
+    auto.profilVersion = stammProfileVersion;
+    auto.veroeffentlicht = false;
     autoZeichnen();
     $("auto-ergebnis").scrollIntoView({ behavior: "smooth" });
   } catch (e) {
@@ -4038,6 +5187,7 @@ function autoBerechnen() {
 }
 
 function autoNeuPruefen() {
+  auto.veroeffentlicht = false;
   auto.erg.verstoesse = PlanungSolver.pruefe(auto.eingabe, auto.erg.slots, auto.zuw);
   auto.erg.alternativen = PlanungSolver.alternativen(auto.eingabe, auto.erg.slots, auto.zuw);
   const ziel = $("auto-ergebnis");
@@ -4237,25 +5387,34 @@ function autoErgebnisZeichnen(ziel) {
   wrapM.appendChild(mat);
   ziel.appendChild(wrapM);
 
-  // Export und Veröffentlichen
-  const exp = el("button", "knopf-mittel", "Als Dispo-Datei (.xlsm) herunterladen");
-  exp.type = "button"; exp.style.width = "100%"; exp.style.marginTop = "14px";
+  // 3 · Dispo-Datei fuer den Kunden
+  ziel.appendChild(schrittKopf(3, "Dispo-Datei für den Kunden"));
+  const exp = mittlererKnopf("Dispo-Datei (.xlsm) herunterladen");
   exp.disabled = !auto.vorlage;
   exp.onclick = () => autoExportieren(exp);
   ziel.appendChild(exp);
-  if (!auto.vorlage) ziel.appendChild(el("p", "hinweisbox", "Für den Export bitte oben die Vorlage (.xlsm) wählen."));
+  if (!auto.vorlage) {
+    ziel.appendChild(el("p", "hinweisbox", "Für den Export fehlt die Dispo-Vorlage. Einmalig hier wählen (sie wird gespeichert):"));
+    ziel.appendChild(vorlageEingabe());
+  }
 
-  const cb = document.createElement("input"); cb.type = "checkbox";
-  const lb = el("label"); lb.style.display = "block"; lb.style.marginTop = "14px";
-  lb.appendChild(cb);
-  lb.appendChild(document.createTextNode(
-    " Ich habe die Planung geprüft. Sie ersetzt die bisherige Planung dieser Woche und ist für die Mitarbeiter sofort sichtbar."));
-  ziel.appendChild(lb);
-  const pub = el("button", "knopf-mittel", "Planung für Mitarbeiter veröffentlichen");
-  pub.type = "button"; pub.style.width = "100%"; pub.style.marginTop = "10px";
-  pub.disabled = true;
-  cb.onchange = () => { pub.disabled = !(cb.checked && gut); };
+  // 4 · Veroeffentlichen
+  ziel.appendChild(schrittKopf(4, "Veröffentlichen"));
+  const liste = autoListe();
+  planungStandHinweis(ziel, admin.kw, auto.stand, auto.bisher || [], liste);
+  const unbesetztAnzahl = auto.erg.unbesetzt ? auto.erg.unbesetzt.length : 0;
+  const veraltet = auto.profilVersion !== stammProfileVersion;
+  const cbV = kontrollKaestchen("Ich habe die Planung für " + kwText(admin.kw) + " (" + kwZeitraum(admin.kw) + ") geprüft." +
+    (unbesetztAnzahl ? " " + unbesetztAnzahl + " Plätze bleiben unbesetzt." : "") +
+    " Sie ersetzt die bisherige Planung dieser Woche und ist für die Mitarbeiter sofort sichtbar.", false);
+  ziel.appendChild(cbV.label);
+  const pub = mittlererKnopf("Planung " + kwText(admin.kw) + " (" + liste.length + " Schichten) für Mitarbeiter veröffentlichen");
+  const pubPruefen = () => { pub.disabled = !(cbV.cb.checked && gut && liste.length > 0 && !veraltet); };
+  cbV.cb.onchange = pubPruefen;
+  pubPruefen();
   if (!gut) ziel.appendChild(el("p", "hinweisbox", "Veröffentlichen ist gesperrt, solange Regelverstöße (✗) bestehen."));
+  else if (!liste.length) ziel.appendChild(el("p", "hinweisbox", "Keine Schichten zum Veröffentlichen (Bedarf oder Zuweisungen fehlen)."));
+  else if (veraltet) ziel.appendChild(el("p", "hinweisbox", "Namen/Profile haben sich geändert – bitte zuerst neu berechnen."));
   pub.onclick = () => autoVeroeffentlichen(pub);
   ziel.appendChild(pub);
   const nachher = el("div"); nachher.id = "auto-nachher";
@@ -4273,7 +5432,7 @@ async function autoExportieren(knopf) {
   if (ohneName.length) {
     adminMeldung("schlecht", "Export gesperrt: Für " + ohneName.length + " Personen fehlt der Name (Nr. " +
       ohneName.slice(0, 8).join(", ") + (ohneName.length > 8 ? " …" : "") +
-      "). Bitte oben die Stammliste mit Namen wählen.");
+      "). Bitte unter Mitarbeiter die Stammliste einspielen.");
     return;
   }
   knopf.disabled = true;
@@ -4302,46 +5461,9 @@ async function autoExportieren(knopf) {
   knopf.disabled = false;
 }
 
-async function autoVeroeffentlichen(btn) {
-  const kw = admin.kw;
-  const liste = [];
-  auto.erg.slots.forEach((s) => {
-    const pn = auto.zuw[s.id];
-    if (pn) liste.push({ personalnummer: pn, datum: s.datum, schicht_id: s.schicht_id, beginn: s.beginn, ende: s.ende });
-  });
-  btn.disabled = true;
-  const { data, error } = await sb.rpc("planung_ersetzen", { kw: kw, eintraege: liste });
-  if (error) {
-    btn.disabled = false;
-    adminMeldung("schlecht", "NICHT gespeichert: " + error.message);
-    return;
-  }
-  // Gegenprobe: aus der Datenbank zurücklesen
-  const soll = new Set(liste.map((e) => [e.personalnummer, e.datum, e.beginn, e.schicht_id].join("|")));
-  const r = await sb.from("planung")
-    .select("personalnummer, datum, schicht_id, beginn").eq("kw_start_datum", kw);
-  const ist = new Set((r.data || []).map((p) =>
-    [p.personalnummer, p.datum, uhr(p.beginn), p.schicht_id].join("|")));
-  let gleich = 0;
-  soll.forEach((k) => { if (ist.has(k)) gleich++; });
-  const stimmt = !r.error && gleich === soll.size && ist.size === soll.size;
-  const nachher = $("auto-nachher");
-  nachher.textContent = "";
-  nachher.appendChild(el("div", "meldung " + (stimmt ? "gut" : "schlecht"),
-    stimmt
-      ? "✓ Gegenprobe: " + gleich + " von " + soll.size + " Schichten stimmen mit der Datenbank überein."
-      : "✗ Gegenprobe FEHLGESCHLAGEN: " + gleich + " von " + soll.size + " stimmen überein (Datenbank: " + ist.size + ")."));
-  if (data && data.eingefuegt !== undefined) {
-    nachher.appendChild(el("p", null, "Server: " + data.eingefuegt + " von " + data.erwartet + " Schichten gespeichert."));
-  }
-  adminMeldung(stimmt ? "gut" : "schlecht", stimmt ? TEXTE.plan_fertig_ok : TEXTE.plan_fertig_fehler);
-  if (!stimmt) btn.disabled = false;
-}
-
 function adminExport(ziel) {
   const karte = el("div", "karte");
-  karte.appendChild(el("h2", null, TEXTE.admin_export_titel));
-  karte.appendChild(wochenAuswahl(adminZeichnen));
+  karte.appendChild(el("h2", null, TEXTE.admin_export_titel + " · " + kwText(admin.kw)));
 
   const btnCsv = el("button", "knopf-mittel", TEXTE.admin_csv);
   btnCsv.type = "button"; btnCsv.style.width = "100%"; btnCsv.style.marginTop = "10px";

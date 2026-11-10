@@ -12,6 +12,9 @@
 --      Admins aendern koennen,
 --   8. die Loeschfrist (Migration 0012) als Cron-Job eingerichtet und die
 --      Loeschfunktion von aussen nicht aufrufbar ist.
+--   9. der Stammlisten-Tresor (Migration 0013) nur fuer Admins lesbar und
+--      aenderbar ist, der Versionszaehler hochzaehlt und in der Datenbank nur
+--      die verschluesselte Huelle liegt (keine Klarnamen).
 --
 -- VORHER: es muessen mindestens ZWEI aktive Personalnummern angelegt sein.
 --         Am einfachsten: im Admin-Bereich die Datei
@@ -418,6 +421,64 @@ begin
 
   execute 'reset role';
   delete from public.app_dateien where schluessel in ('selbsttest', 'selbsttest2');
+
+  -- ------------------------------------------------------------------
+  -- 13d) Stammlisten-Tresor (Migration 0013): Versionszaehler, nur Admins,
+  --      und in der Datenbank liegen keine Klarnamen (nur die Huelle)
+  -- ------------------------------------------------------------------
+  insert into public.app_dateien (schluessel, dateiname, inhalt_base64)
+  values ('selbsttest_tresor', 'tresor.json', 'AAAA');
+  update public.app_dateien set inhalt_base64 = 'BBBB' where schluessel = 'selbsttest_tresor';
+  select version into v_zahl from public.app_dateien where schluessel = 'selbsttest_tresor';
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Tresor: Versionszaehler zaehlt bei Update hoch (0013)'::text,
+    '2'::text, coalesce(v_zahl::text, 'NULL'), (v_zahl = 2);
+
+  execute 'set local role authenticated';
+
+  select count(*) into v_zahl from public.app_dateien where schluessel = 'selbsttest_tresor';
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter sieht den Tresor'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+
+  update public.app_dateien set inhalt_base64 = 'CCCC' where schluessel = 'selbsttest_tresor';
+  get diagnostics v_zahl = row_count;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter aendert den Tresor'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+
+  delete from public.app_dateien where schluessel = 'selbsttest_tresor';
+  get diagnostics v_zahl = row_count;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter loescht den Tresor'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+
+  execute 'reset role';
+  delete from public.app_dateien where schluessel = 'selbsttest_tresor';
+
+  -- Echter Tresor (falls schon angelegt): die Zeile darf nur die Huelle
+  -- enthalten (v, kdf, salt, iv, ct, updated_at, by), keine Namen.
+  select count(*) into v_zahl from public.app_dateien where schluessel = 'stammliste_tresor';
+  if v_zahl = 1 then
+    begin
+      select case when bool_and(k in ('v','kdf','salt','iv','ct','updated_at','by'))
+                  then 'nur Huelle' else 'FREMDE FELDER' end
+        into v_text
+      from public.app_dateien d,
+           jsonb_object_keys(convert_from(decode(d.inhalt_base64, 'base64'), 'UTF8')::jsonb) as k
+      where d.schluessel = 'stammliste_tresor';
+    exception when others then
+      v_text := 'nicht lesbar (' || sqlstate || ')';
+    end;
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Tresor in der Datenbank enthaelt nur die verschluesselte Huelle'::text,
+      'nur Huelle'::text, v_text, (v_text = 'nur Huelle');
+  end if;
 
   -- ------------------------------------------------------------------
   -- 14) Deaktivierte Personalnummer kann nichts mehr speichern

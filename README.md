@@ -3,8 +3,10 @@
 Eine kleine Web-App, in der Mitarbeitende der **Zeit ist Geld GmbH** für die
 **Folgewoche** eintragen, welche FedEx-Schichten sie **maximal** übernehmen könnten.
 
-Die App plant **nicht**. Sie sammelt nur ein. Am Ende lädst du die Angaben als
-CSV oder JSON herunter und gibst diese Datei an die Planungs-KI weiter.
+Aus diesen Angaben berechnet die App im Admin-Bereich einen Wochenplan
+(regelbasiert, ohne KI-Dienst). Du prüfst ihn, lädst die Dispo-Datei für den
+Kunden herunter und veröffentlichst die Schichten für die Mitarbeitenden. Wer
+lieber selbst plant, kann die Angaben weiterhin als CSV oder JSON herunterladen.
 
 ---
 
@@ -14,6 +16,7 @@ CSV oder JSON herunter und gibst diese Datei an die Planungs-KI weiter.
 - [Was du brauchst](#was-du-brauchst)
 - [Einrichtung in 10 Schritten](#einrichtung-in-10-schritten)
 - [Erste Nutzung: Stammliste hochladen](#erste-nutzung-stammliste-hochladen)
+- [Tresor (Namen verschlüsselt)](#tresor-namen-verschlüsselt)
 - [Der Wochenablauf](#der-wochenablauf)
 - [Der Export für die Planungs-KI](#der-export-für-die-planungs-ki)
 - [Sicherheit selbst nachprüfen](#sicherheit-selbst-nachprüfen)
@@ -92,7 +95,7 @@ Dashboard auch nicht vorgesehen.
    auch **Transfer Impact Assessment (TIA)** zum Download — ebenfalls ablegen.
 
 
-### Schritt 3 — Datenbank einrichten (3 Dateien)
+### Schritt 3 — Datenbank einrichten (alle Migrationen)
 
 Im Supabase-Dashboard links auf **SQL Editor** → **New query**.
 
@@ -102,9 +105,13 @@ drücken:
 1. `supabase/migrations/0001_init.sql` — legt die Tabellen an
 2. `supabase/migrations/0002_rls.sql` — legt die Schutzregeln an
 3. `supabase/migrations/0003_standard_schichten.sql` — legt die Schichten an
+4. danach in Nummernreihenfolge alle weiteren Dateien `0004` bis `0013`
+   (Löschfrist, eigenes Passwort, geplante Schichten, Einstellungen, Dateiablage,
+   Keep-alive, automatische Wochen, Löschfrist-Cron, Versionszähler für den Tresor)
 
 Die Reihenfolge ist wichtig. Nach Datei 3 sollte unten eine Tabelle mit
 15 Zeilen erscheinen (3 Schichten × 5 Tage) — das ist die Kontrollabfrage.
+Alle Dateien lassen sich gefahrlos mehrfach ausführen.
 
 > **Fehlermeldung „already exists"?** Dann wurde die Datei schon einmal
 > ausgeführt. Das ist kein Problem, mach mit der nächsten weiter.
@@ -230,9 +237,10 @@ const CONFIG = {
    - **Public** auswählen (für kostenlose GitHub Pages)
    - **Create repository**
 2. Auf der nächsten Seite **uploading an existing file** anklicken.
-3. Den **kompletten Inhalt dieses Ordners** ins Browserfenster ziehen:
-   `index.html`, den Ordner `supabase`, den Ordner `.github`, `README.md`,
-   `beispiel_stammliste.xlsx`. Dann **Commit changes**.
+3. Diese Dateien und Ordner ins Browserfenster ziehen:
+   `index.html`, `tresor.js`, `planung-solver.js`, `dispo-export.js`, die Ordner
+   `vendor`, `tests`, `supabase` und `.github`, `README.md`. **Niemals** den Ordner
+   „Nicht veröffentlichen! Echte Daten" oder eine echte Stammliste. Dann **Commit changes**.
 4. **Settings** → links **Pages**:
    - **Source:** *Deploy from a branch*
    - **Branch:** `main`, Ordner `/ (root)` → **Save**
@@ -277,30 +285,66 @@ Statt `deinname.github.io/verfuegbarkeit` geht auch z. B.
 
 ## Erste Nutzung: Stammliste hochladen
 
-Die Datei braucht **genau zwei Spalten** mit diesen Überschriften in Zeile 1:
+Es gibt **eine** Stammliste für alles: Zugänge, Namen und Planungsprofile.
+Zeile 1 enthält die Überschriften. Die ersten drei Spalten sind die wichtigen,
+alle weiteren sind optional und dürfen fehlen:
 
-| Personalnummer | Passwort  |
-|----------------|-----------|
-| 10001          | BEISPIEL-Passwort1 |
-| 10002          | BEISPIEL-Passwort2 |
-| 00345          | BEISPIEL-Passwort3 |
+| Personalnummer | Passwort | Name | Kategorie | Fahrgemeinschaft | Max. Schichten | Ø h/Wo | Nur Schicht | Gesperrte Tage | Notiz |
+|---|---|---|---|---|---|---|---|---|---|
+| 10001 | BEISPIEL-Passwort1 | Mustermann Anna | Teilzeit | G1 | 4 | 24,5 | | Mi | |
+| 10002 | BEISPIEL-Passwort2 | Beispiel Ben | Minijob | | | | Früh | | |
+| 00345 | BEISPIEL-Passwort3 | Muster Chris | Minijob | G1 | 3 | | | Mo, Fr | nur vormittags erreichbar |
 
-`beispiel_stammliste.xlsx` in diesem Ordner zeigt das Format. `.xlsx` und `.csv`
-funktionieren beide.
+Bedeutung der optionalen Spalten: **Kategorie** `Teilzeit` oder `Minijob`
+(leer = Minijob), **Fahrgemeinschaft** ein frei gewähltes Kürzel für Personen,
+die zusammen fahren, **Max. Schichten** Höchstzahl pro Woche, **Ø h/Wo** der
+Stundenschnitt der letzten Monate (steuert die faire Verteilung), **Nur
+Schicht** `Früh` oder `Spät`, **Gesperrte Tage** `Mo`, `Di`, `Mi`, `Do`, `Fr`
+(mit Komma getrennt), **Notiz** ein kurzer Planungshinweis.
+
+`tests/stamm_synthetisch.xlsx` zeigt das vollständige Format mit erfundenen
+Daten. `.xlsx` und `.csv` funktionieren beide; es zählt das erste Tabellenblatt.
 
 **Regeln:**
 - Passwörter mindestens **6 Zeichen**.
 - Personalnummern dürfen Ziffern, Buchstaben, Punkt, Bindestrich und
   Unterstrich enthalten, höchstens 20 Zeichen. **Führende Nullen bleiben
   erhalten** — formatiere die Spalte in Excel als *Text*.
-- Keine Namen, keine Geburtsdaten, keine weiteren Spalten.
+- Keine Geburtsdaten, keine Gesundheitsangaben, keine weiteren
+  personenbezogenen Spalten. Auch die Notiz ist nur für Planungshinweise da.
+
+**Was wohin geht:**
+- **Personalnummer und Passwort** gehen an den Server und werden zu Zugängen.
+  Passwörter werden nirgends gespeichert, nur als nicht umkehrbarer Prüfwert.
+- **Name und alle Profilspalten** werden noch im Browser verschlüsselt und im
+  **Tresor** abgelegt (siehe [nächster Abschnitt](#tresor-namen-verschlüsselt)).
+  Der Server sieht davon nur Zeichensalat.
 
 **So läuft der Import:**
 1. Auf der Seite unten **Admin-Anmeldung** → mit E-Mail und Passwort anmelden.
-2. Reiter **Zugänge** → Datei auswählen → **Vorschau prüfen**.
-3. Es erscheint z. B. *„3 neu · 0 geändert · 0 deaktiviert"*. Die Listen darunter
-   lassen sich aufklappen. **Bis hierhin ist nichts verändert.**
-4. Stimmt es, auf **Jetzt übernehmen**.
+   Du landest auf der **Startseite** des Admin-Bereichs.
+2. Beim allerersten Mal zeigt die Startseite die Karte **Tresor anlegen**:
+   Tresor-Passwort wählen (Regeln im nächsten Abschnitt), wiederholen, anlegen.
+   Später fragt die Karte nur noch nach dem Tresor-Passwort, wenn der Tresor
+   auf diesem Gerät noch nicht geöffnet ist.
+3. **Mitarbeiter** → Datei auswählen. Darunter erscheint eine Lesezeile
+   („… Zeilen gelesen").
+4. **Vorschau prüfen**. Es erscheint z. B. *„3 neu · 0 geändert · 0 deaktiviert"*.
+   Die Listen darunter lassen sich aufklappen. **Bis hierhin ist nichts verändert.**
+5. Würden Zugänge deaktiviert oder Passwörter geändert, zeigt eine **rote
+   Liste** die Betroffenen **mit Namen**. Lies sie und setze den Pflicht-Haken.
+6. Stimmt alles, auf **Jetzt übernehmen: Zugänge und Namen**.
+
+**Drei Dateiformen, derselbe Weg:**
+- **Vollständige Datei** (Personalnummer, Passwort, Name, optional Profile):
+  Zugänge und Tresor werden zusammen aktualisiert. Knopf: **Jetzt übernehmen:
+  Zugänge und Namen**.
+- **Datei ohne Spalte „Name"**: nur die Zugänge, der Tresor bleibt unverändert.
+  Knopf: **Nur Zugänge übernehmen (Datei ohne Namen)**.
+- **Datei ohne Spalte „Passwort"**: nur Namen und Profile. Der Server wird
+  nicht aufgerufen, kein Zugang ändert sich. **Empfohlen für Korrekturen** an
+  Namen oder Profilen. Knopf: **Namen und Profile übernehmen (Zugänge bleiben
+  unverändert)**.
 
 **Was der Import macht:**
 - Nummern, die es noch nicht gibt → **neuer Zugang**
@@ -313,16 +357,86 @@ funktionieren beide.
 - Nummern, die wieder auftauchen → werden wieder aktiviert
 
 Du kannst die Liste jederzeit erneut hochladen. Sie ist die maßgebliche Quelle.
+Du musst sie aber **nicht** pro Sitzung oder pro Gerät neu einspielen: Namen und
+Profile kommen danach auf jedem Gerät aus dem Tresor.
 
 > **Woher weiß die App, ob ein Passwort geändert wurde, ohne es zu speichern?**
 > Sie speichert nur einen nicht umkehrbaren Prüfwert (SHA-256 mit geheimem
 > Zusatz). Daraus lässt sich kein Passwort zurückrechnen, und **niemand** kann
 > diese Spalte lesen — auch kein Admin. Nur die Server-Funktion kommt daran.
 
-**Einzelnes Passwort zurücksetzen:** Reiter **Passwort** → Personalnummer und
-neues Passwort eintragen → **Passwort setzen**. Das gilt dann als Startpasswort:
+**Einzelnes Passwort zurücksetzen:** **Mitarbeiter** → unten **Passwort
+zurücksetzen** aufklappen → Person nach **Name** auswählen → neues Passwort
+eintragen → **Passwort setzen**. Das gilt dann als Startpasswort:
 die Person legt beim nächsten Login wieder ein eigenes fest. Ein **vergessenes**
 Passwort können Mitarbeitende nicht selbst zurücksetzen; sie melden sich bei dir.
+
+---
+
+## Tresor (Namen verschlüsselt)
+
+**Was er ist.** Namen und Planungsprofile liegen in der Datenbank (Tabelle
+`app_dateien`, Schlüssel `stammliste_tresor`) **ausschließlich verschlüsselt**
+(AES-256-GCM). Der Schlüssel wird im Browser aus einem eigenen
+**Tresor-Passwort** abgeleitet (PBKDF2 mit 600.000 Runden) und verlässt den
+Browser nie. Supabase und der Datenbank-Anbieter sehen nur Zeichensalat. Das
+Tresor-Passwort ist **nicht** dein Admin-Login-Passwort.
+
+**Passwortregel.** Mindestens 12 Zeichen und nicht einförmig (also nicht
+`aaaaaaaaaaaa` oder `123456789012`). Am besten ein Satz aus vier Wörtern,
+nach dem Muster `Kaffee Montag Nebel Fahrrad` (aber ein eigener).
+
+**Aufbewahrung.** Im Passwortmanager speichern. Es gibt **keine**
+Wiederherstellung über Supabase: Wer das Passwort verliert, verliert den
+Tresor-Inhalt (siehe „Passwort vergessen" unten). Nie ins Repo, nie in Chat
+oder E-Mail.
+
+**Vertretung.** Das Tresor-Passwort der Vertretung **persönlich** geben. Beide
+nutzen denselben Tresor auf ihren eigenen Geräten. Speichern zwei Geräte fast
+gleichzeitig, geht nichts verloren: Ein Versionszähler erkennt den Konflikt und
+meldet „auf einem anderen Gerät geändert". Dann Seite neu laden, Tresor öffnen
+und die Änderung wiederholen.
+
+**Auf diesem Gerät merken.** Der Haken **Auf diesem Gerät merken (bis zum
+Abmelden)** legt den (nicht exportierbaren) Schlüssel im Browser-Speicher
+(IndexedDB) ab. Dann fragt die App beim nächsten Öffnen nicht erneut nach dem
+Tresor-Passwort. Nur auf eigenen Geräten anhaken, nie an fremden Rechnern.
+
+**Abmelden** löscht den gemerkten Schlüssel auf dem Gerät. Dasselbe erreichst
+du über **Mehr > Tresor > Tresor auf diesem Gerät vergessen**.
+
+**Mehr > Tresor** zeigt den Status (Version, zuletzt gespeichert, von dir oder
+einem anderen Admin) und bietet:
+- **Tresor-Passwort ändern** — altes Passwort nötig. Andere Geräte (Vertretung)
+  müssen das neue Passwort danach einmal eingeben.
+- **Tresor auf diesem Gerät vergessen** — löscht den gemerkten Schlüssel.
+- **Passwort vergessen?** — erscheint nur bei gesperrtem Tresor und
+  überschreibt ihn mit einem neuen Passwort. Danach die Stammliste **ohne
+  Passwortspalte** neu einspielen. Die Zugänge bleiben erhalten; verloren gehen
+  nur die gemerkten Dispo-Schreibweisen (siehe
+  [Geplante Schichten](#geplante-schichten-dispo-einlesen)).
+
+**Einmalig anlegen.** Der Tresor wird als eigener Schritt auf der Startseite
+angelegt (Karte **Tresor anlegen**). Danach erscheint die Karte nur noch, wenn
+der Tresor auf diesem Gerät geöffnet werden muss.
+
+**Diese Version einspielen — in dieser Reihenfolge:**
+1. `supabase/migrations/0013_app_dateien_version.sql` im SQL Editor ausführen
+   (Spalte `version`, Trigger, Größenschranke; mehrfach ausführbar). Ohne 0013
+   läuft der Admin-Bereich nicht.
+2. `supabase/tests/rls_selbsttest.sql` komplett neu einfügen und ausführen,
+   danach `select * from public.rls_selbsttest();` — überall `true`.
+3. `index.html`, `tresor.js`, `tests/` und `supabase/` gemeinsam hochladen
+   (über einen frischen Clone, nie die echte Stammliste).
+4. Tresor anlegen, Stammliste einspielen, der Vertretung das Tresor-Passwort
+   persönlich geben.
+
+> **Wichtig bei GitHub Pages:** Alle Seiten eines GitHub-Kontos liegen unter
+> `deinname.github.io` und teilen sich damit denselben Browser-Speicher.
+> Lege deshalb **keine weiteren GitHub-Pages-Seiten** unter demselben Konto an —
+> oder nutze eine eigene Domain (Schritt 10). Sonst könnte eine andere Seite
+> dieses Kontos den gemerkten Tresor-Schlüssel und die Anmeldesitzung
+> mitbenutzen.
 
 ---
 
@@ -332,7 +446,7 @@ Passwort können Mitarbeitende nicht selbst zurücksetzen; sie melden sich bei d
 |------|-----|
 | Montag bis Freitag 12:00 | Die Folgewoche kann eingetragen und beliebig oft geändert werden |
 | Freitag 12:00 | Frist läuft ab. Danach nur noch Ansicht mit dem Hinweis „Frist vorbei" |
-| Freitag nach 12:00 bis Sonntag | Nichts ist änderbar. Du exportierst und planst |
+| Freitag nach 12:00 bis Sonntag | Nichts ist änderbar. Du berechnest die Planung (**Wochenplanung**, Schritte 1–4) und veröffentlichst sie |
 | Montag | Die App schaltet automatisch auf die nächste Woche um |
 
 Wochen werden **automatisch 4 Wochen im Voraus** aus den Standardzeiten angelegt
@@ -341,9 +455,50 @@ Du musst nichts starten. So kannst du Feiertage oder abweichende Zeiten schon
 Wochen vorher eintragen. Voraussetzung: Migration `0011_wochen_automatisch.sql`
 wurde einmal im SQL Editor ausgeführt.
 
-**Frist ändern:** Reiter **Zeiten** → Woche wählen → **Abgabefrist dieser Woche**
-→ Zeitpunkt setzen → **Speichern**. Die Angabe ist deutsche Zeit; Sommer- und
-Winterzeit werden berücksichtigt.
+### Wochenplanung (Auto-Planung)
+
+Das ist der Standardweg: sechs bis sieben Klicks, **kein Upload**.
+
+1. Admin-Bereich öffnen. Auf der **Startseite** steht oben die Zeile **Woche**
+   (die Auswahl gilt für alle Unterseiten), darunter **Nächster Schritt: …** mit
+   einem Sprungknopf und die drei großen Knöpfe **Wochenplanung**,
+   **Mitarbeiter** und **Mehr**, jeder mit einer Statuszeile. Status lesen.
+2. **Wochenplanung** öffnen. Alle Daten laden automatisch. Die vier Schritte
+   stehen untereinander auf einer Seite:
+   - **1 · Abgaben** — „x von y haben abgegeben" und die Frist. Aufklappbar:
+     **Wer fehlt** und **Alle Mitarbeiter**.
+   - **2 · Planung berechnen** — die Profile kommen aus dem Tresor. **Bedarf
+     anpassen** (Plätze je Tag und Schichtart) ist eingeklappt. Dann **Planung
+     berechnen**. Ist der Tresor nicht offen oder fehlen Profile, rechnet die
+     App nur mit dem Haken **Trotzdem ohne vollständige Profile rechnen** —
+     Personen ohne Profil gelten dann als Minijob ohne Einschränkungen.
+   - **3 · Dispo-Datei für den Kunden** — die fertige `.xlsm` herunterladen.
+     Fehlt die Dispo-Vorlage noch, kannst du sie hier einmalig auswählen.
+   - **4 · Veröffentlichen** — Gibt es für die Woche schon eine veröffentlichte
+     Planung, steht das hier mit „neu +x / entfernt −y". Haken **Ich habe die
+     Planung für KW n geprüft …** setzen, dann **Planung KW n (k Schichten) für
+     Mitarbeiter veröffentlichen**. Danach liest die App die Woche zurück:
+     „x von y Schichten stimmen mit der Datenbank überein" muss erscheinen.
+3. **← Start**. Fertig.
+
+Ein berechneter, noch nicht veröffentlichter Entwurf geht beim Wochenwechsel
+nie still verloren: Die App fragt nach und bietet **Zurück zu KW n** oder
+**Entwurf verwerfen und KW m laden**.
+
+Die Berechnung ist regelbasiert und läuft komplett im Browser (kein KI-Dienst,
+nichts verlässt das Gerät). Harte Regeln: nur eingesetzt, wer die Schicht
+abgegeben hat; mindestens 11 Stunden Ruhezeit; höchstens 10 Stunden am Tag
+und 48 Stunden pro Woche; Wunschgrenzen und Profil-Sperren werden eingehalten.
+Prüfe das Ergebnis trotzdem, bevor du es veröffentlichst.
+
+Eine fertige Dispo von außen einlesen (**Mehr > Fertige Dispo einlesen**) ist
+nur noch die Ausnahme, siehe
+[Geplante Schichten](#geplante-schichten-dispo-einlesen).
+
+**Frist ändern:** **Mehr > Zeiten und Frist** → Woche oben in der Zeile
+**Woche** wählen → **Abgabefrist dieser Woche** → Zeitpunkt setzen →
+**Speichern**. Die Angabe ist deutsche Zeit; Sommer- und Winterzeit werden
+berücksichtigt.
 
 **Schichtzeiten ändern.** Es gibt zwei Ebenen:
 - **Zeiten dieser Woche** — gilt nur für die ausgewählte Woche. Dafür sind die
@@ -357,26 +512,30 @@ erscheint nach dem Speichern der Standardzeiten der Knopf **Auf die schon
 angelegten kommenden Wochen übertragen** (gesperrte Tage und Abgaben bleiben
 erhalten). Eine einzelne Woche ziehst du mit **Zeiten aus Standard neu laden** nach.
 
-**Eine Schicht ganz abschalten:** Reiter **Zeiten** → **Standardzeiten** → bei
+**Eine Schicht ganz abschalten:** **Mehr > Zeiten und Frist** → **Standardzeiten** → bei
 der Schicht den Haken *„Schicht wird angeboten"* entfernen. Wirkt auf neue
 Wochen. Für die laufende Woche stattdessen bei **Zeiten dieser Woche** das
 Häkchen je Tag entfernen.
 
-**Feiertag sperren:** Reiter **Zeiten** → Woche → den Tag aufklappen →
+**Feiertag sperren:** **Mehr > Zeiten und Frist** → Woche → den Tag aufklappen →
 **Tag sperren** anhaken, Grund eintragen (z. B. „Feiertag") → **Speichern**.
 Der Tag erscheint dann ausgegraut und ist nicht wählbar.
 **Achtung:** bereits eingetragene Verfügbarkeiten dieses Tages werden dabei
 gelöscht.
 
-**Abgabestatus:** Reiter **Abgaben** zeigt alle aktiven Personalnummern mit
-„✓ Zeitpunkt" oder „✗ fehlt" und oben die Zahl „x von y haben abgegeben".
+**Abgabestatus:** **Wochenplanung**, Schritt **1 · Abgaben** zeigt „x von y
+haben abgegeben" und die Frist. **Wer fehlt** listet die offenen Personen mit
+Namen aus dem Tresor, **Alle Mitarbeiter** zeigt alle aktiven mit „✓ Zeitpunkt"
+oder „✗ fehlt".
 
 ---
 
 ## Der Export für die Planungs-KI
 
-Reiter **Export** → Woche wählen → **CSV herunterladen** oder
-**JSON herunterladen**.
+**Mehr > Verfügbarkeiten exportieren (CSV/JSON)** → Woche oben in der Zeile
+**Woche** wählen → **CSV herunterladen** oder **JSON herunterladen**. Der
+Export ist optional: Die Wochenplanung rechnet direkt in der App. Er ist für
+eigene Auswertungen oder eine Planung außerhalb der App gedacht.
 
 Dateiname: `verfuegbarkeit_2026-W40.csv` bzw. `.json`
 
@@ -433,7 +592,12 @@ Im Ordner `supabase/tests/` liegt `rls_selbsttest.sql`. Damit prüfst du in der
 echten Datenbank nach, dass die Schutzregeln greifen.
 
 1. Vorher die Stammliste mit **mindestens zwei** Nummern hochladen.
-2. **SQL Editor** → Inhalt von `rls_selbsttest.sql` einfügen → **Run**.
+2. Alle Migrationen bis einschließlich `0013_app_dateien_version.sql` müssen
+   ausgeführt sein — der Tresor-Teil des Tests braucht die Spalte `version`.
+3. **SQL Editor** → Inhalt von `rls_selbsttest.sql` einfügen → **Run**. Das legt
+   die Testfunktion an (eine neue Fassung der Datei einfach erneut einfügen,
+   sie ersetzt die alte).
+4. Dann ausführen: `select * from public.rls_selbsttest();`
 
 Es erscheint eine Tabelle. In der Spalte **`bestanden`** muss **überall `true`**
 stehen. Geprüft wird unter anderem:
@@ -446,9 +610,27 @@ stehen. Geprüft wird unter anderem:
   jemand die App umgeht und direkt mit der Datenbank spricht.
 - Eine **deaktivierte** Nummer kann nichts mehr speichern.
 - Der Passwort-Prüfwert ist nicht lesbar.
+- Der **Stammlisten-Tresor** (Block 13d): Mitarbeitende können ihn weder lesen
+  noch ändern, der Versionszähler zählt bei jedem Speichern hoch, und in der
+  Datenbank liegt nur die verschlüsselte Hülle — keine Klarnamen.
 
 Der Test setzt alles, was er anfasst, wieder zurück. Du kannst ihn jederzeit
 wiederholen, auch im laufenden Betrieb.
+
+**Tests auf dem eigenen Rechner** (Node.js ab Version 20, nur erfundene Daten,
+keine Verbindung zur echten Datenbank):
+
+- `node tests/tresor.test.js` — Verschlüsselung des Tresors (11 Tests, u. a.
+  falsches Passwort, manipulierte Hülle, kein Passwort im Chiffrat).
+- `node tests/syntax.test.js` — alle Skripte in `index.html` und die
+  Modul-Dateien sind syntaktisch gültig. **Vor jedem Push ausführen.**
+- `node tests/solver.test.js` — Wochenplanung mit den erfundenen Daten aus
+  `tests/synthetisch.js`.
+- `node tests/vorschau.js` — startet die App mit Fake-Backend unter
+  `http://localhost:8765/index.html` (anderer Port: `node tests/vorschau.js 8766`)
+  und meldet dich als Admin an. `?neu` an die Adresse anhängen setzt den
+  Fake-Zustand zurück. Eine erfundene Stammliste liegt im Temp-Ordner; den Pfad
+  zeigt die Konsole. Die Vorschau liest `index.html` bei jedem Aufruf frisch ein.
 
 Später kannst du diese Funktion wieder entfernen:
 
@@ -461,16 +643,16 @@ drop function if exists public.rls_selbsttest();
 ## Wenn etwas nicht klappt
 
 **„Personalnummer oder Passwort falsch" — obwohl beides stimmt**
-Führende Null vergessen? `00345` ist nicht `345`. Sonst im Reiter **Passwort**
-ein neues Passwort setzen.
+Führende Null vergessen? `00345` ist nicht `345`. Sonst unter **Mitarbeiter >
+Passwort zurücksetzen** ein neues Passwort setzen.
 
 **„Dieser Zugang ist nicht mehr aktiv"**
 Die Nummer steht nicht mehr in der Stammliste. Wieder aufnehmen und die Liste
 erneut hochladen.
 
 **Mitarbeitende sehen „Frist vorbei", obwohl noch Zeit ist**
-Reiter **Zeiten** → Woche → **Abgabefrist dieser Woche** prüfen. Steht dort ein
-Zeitpunkt in der Vergangenheit, neu setzen und speichern.
+**Mehr > Zeiten und Frist** → Woche oben wählen → **Abgabefrist dieser Woche**
+prüfen. Steht dort ein Zeitpunkt in der Vergangenheit, neu setzen und speichern.
 
 **Die Seite lädt, bleibt aber leer / Fehler beim Speichern**
 Möglicherweise wurde das Supabase-Projekt pausiert (7 Tage ohne Aktivität). Im
@@ -486,13 +668,42 @@ Der Name der Edge Function stimmt nicht genau (`import-stammliste`,
 `reset-passwort`), oder sie ist nicht veröffentlicht. Unter **Edge Functions**
 nachsehen.
 
-**Die Datei wird nicht gelesen („zwei Spalten … vorhanden")**
-Die Überschriften in Zeile 1 müssen `Personalnummer` und `Passwort` heißen, und
-es muss das erste Tabellenblatt sein.
+**„Die Datei hat weder eine Spalte "Passwort" noch eine Spalte "Name"."**
+Die Überschriften stehen in Zeile 1 des ersten Tabellenblatts. Nötig sind
+`Personalnummer` und mindestens eine der Spalten `Passwort` oder `Name`.
+
+**„Tresor-Passwort falsch."**
+Das Tresor-Passwort ist nicht dein Admin-Login-Passwort. Leerzeichen am Anfang
+und Ende stören nicht; Groß- und Kleinschreibung muss stimmen. Hat die
+Vertretung das Passwort geändert, gilt das neue.
+
+**Tresor-Passwort vergessen**
+**Mehr > Tresor > Passwort vergessen?** überschreibt den Tresor mit einem neuen
+Passwort. Danach die Stammliste **ohne Passwortspalte** einspielen. Zugänge
+bleiben, nur die gemerkten Dispo-Schreibweisen gehen verloren.
+
+**„… auf einem anderen Gerät geändert. Bitte die Seite neu laden."**
+Die Vertretung hat den Tresor inzwischen gespeichert. Seite neu laden, Tresor
+öffnen, deine Änderung noch einmal machen. Es geht nichts verloren.
+
+**„Merken ist in diesem Browser nicht möglich (privater Modus?)"**
+Privates Fenster oder blockierter Seitenspeicher. Ein normales Fenster nutzen.
+Sonst fragt die App nach jedem Neuladen das Tresor-Passwort ab — das ist
+unschädlich.
+
+**„… kennt die Spalte "version" noch nicht"**
+Migration 0013 fehlt. `supabase/migrations/0013_app_dateien_version.sql` im
+SQL Editor ausführen, dann die Seite neu laden.
+
+**In der Wochenplanung fehlen die Namen (nur Personalnummern)**
+Der Tresor ist auf diesem Gerät nicht offen: auf der Startseite das
+Tresor-Passwort eingeben. Steht trotzdem „ohne Namen/Profil", fehlt die Person
+im Tresor: unter **Mitarbeiter** die Stammliste einspielen (ohne Passwortspalte
+genügt).
 
 **Der Export ist leer**
 Vermutlich die falsche Woche ausgewählt, oder es hat noch niemand abgegeben.
-Der Reiter **Abgaben** zeigt es.
+**Wochenplanung**, Schritt **1 · Abgaben** zeigt es.
 
 ---
 
@@ -500,15 +711,18 @@ Der Reiter **Abgaben** zeigt es.
 
 Was hier umgesetzt ist:
 
-- **Keine Klarnamen in der Datenbank.** Einzige Kennung ist die
-  Personalnummer. Die Zuordnung Personalnummer → Name führst du ausschließlich
-  lokal in deiner Excel.
+- **Keine Klarnamen im Klartext in der Datenbank.** Einzige offene Kennung ist
+  die Personalnummer. Namen und Planungsprofile liegen ausschließlich
+  verschlüsselt im Tresor (AES-256-GCM; der Schlüssel entsteht nur aus dem
+  Tresor-Passwort der Planer). Supabase sieht nur das Chiffrat.
 - **Passwörter werden nie im Klartext gespeichert.** Supabase Auth speichert nur
   einen Hash. Zusätzlich liegt in der Datenbank ein nicht umkehrbarer Prüfwert,
   der für niemanden lesbar ist.
 - **Daten in Frankfurt** (Region `eu-central-1`), mit abgeschlossenem DPA.
-- **Kein Tracking**, keine Analyse-Cookies, keine externen Schriftarten, keine Drittanbieter-Skripte (alle Bibliotheken liegen im Ordner `vendor/`). Nur die
-  technisch nötige Anmeldesitzung im Gerätespeicher.
+- **Kein Tracking**, keine Analyse-Cookies, keine externen Schriftarten, keine Drittanbieter-Skripte (alle Bibliotheken liegen im Ordner `vendor/`). Im
+  Gerätespeicher liegen nur die technisch nötige Anmeldesitzung und — bei
+  Admins mit dem Haken „Auf diesem Gerät merken" — der nicht exportierbare
+  Tresor-Schlüssel (IndexedDB), der beim Abmelden gelöscht wird.
 - **Zugriff ausschließlich auf eigene Daten**, serverseitig in der Datenbank
   erzwungen — nicht nur in der Webseite versteckt.
 - Im Fuß der App öffnen Impressum und Datenschutz als Fenster (Text steht in `index.html`; Ergänzung zur
@@ -518,14 +732,19 @@ Was du selbst beachten musst:
 
 - **Die Excel mit den Passwörtern ist der empfindlichste Teil.** Sie liegt nur
   bei dir: nicht per E-Mail versenden, nicht in eine Cloud legen, möglichst mit
-  Passwort schützen. Beim Import wird sie nur im Browser gelesen und an den
-  Server geschickt — sie wird **nicht** gespeichert.
+  Passwort schützen. Beim Import wird sie nur im Browser gelesen: Personalnummer
+  und Passwort gehen an den Server (nur für die Zugänge, nicht gespeichert);
+  Name und Profil werden im Browser verschlüsselt und nur als Chiffrat im Tresor
+  abgelegt. Die Datei selbst wird **nirgends** gespeichert.
 - Passwörter an die Mitarbeitenden möglichst persönlich oder auf Papier
-  weitergeben, nicht in Chatgruppen.
+  weitergeben, nicht in Chatgruppen. Das Tresor-Passwort nur persönlich an die
+  Vertretung.
 - Ergänzt euer Verzeichnis von Verarbeitungstätigkeiten um diese Anwendung
-  (Zweck: Einsatzplanung; Daten: Personalnummer, Verfügbarkeitsangaben;
-  Empfänger: Supabase als Auftragsverarbeiter, GitHub für das Hosting der
-  Webseite).
+  (Zweck: Einsatzplanung; Daten: Personalnummer, Verfügbarkeitsangaben,
+  geplante Schichten sowie Name, Beschäftigungskategorie, Schichtwünsche
+  und -sperren, Fahrgemeinschaft, Notiz — diese verschlüsselt, Schlüssel nur
+  bei ZiG; Empfänger: Supabase als Auftragsverarbeiter, GitHub für das Hosting
+  der Webseite).
 - **Löschfrist:** Die Datenschutzerklärung in der App nennt 12 Monate (Verfügbarkeiten:
   12 Monate nach Ende der Woche; deaktivierte Zugänge: 12 Monate nach Deaktivierung).
   Umgesetzt wird das mit `supabase/migrations/0004_loeschfrist.sql` (Funktion) und
@@ -539,19 +758,29 @@ Was du selbst beachten musst:
 - Die Datenschutzerklärung in der App ist ein Entwurf und sollte von einem Anwalt oder
   Datenschutzbeauftragten geprüft werden. Falls es einen Betriebsrat gibt, ist er wegen
   § 87 BetrVG zu beteiligen.
+- **Mit dieser Version geändert:** Der Datenschutztext in `index.html` nennt jetzt die
+  verschlüsselte Speicherung von Name und Profil (auch der Notiz-Spalte) auf dem Server.
+  Diese Fassung **vor dem Deploy** vom Datenschutzbeauftragten bzw. Anwalt freigeben lassen.
 
 ---
 
 ## Geplante Schichten (Dispo einlesen)
 
 Mitarbeitende sehen nach dem Login oben "Meine Planung" (ihre Schichten ab heute).
+Im Normalfall kommt diese Planung aus der **Wochenplanung** (Schritt
+**4 · Veröffentlichen**). Dieser Abschnitt beschreibt den **Ausnahmeweg**: Eine
+fertige Dispo, die außerhalb der App geändert oder erstellt wurde, wird eingelesen.
 
 1. Einmalig `supabase/migrations/0006_geplante_schichten.sql` im SQL Editor ausführen
    (legt die Tabelle `planung` und die Funktion `planung_ersetzen` an; erweitert die Löschfrist).
-2. Admin-Bereich → Reiter **Planung**: Dispo (`.xlsm`, Blatt "FedEx", eine Woche Mo–Fr) und
-   eine Stammliste **mit Spalte "Name"** auswählen → "Planung prüfen".
-3. Die Namen werden **nur im Browser** den Personalnummern zugeordnet. Sichere Treffer sind
+2. **Mehr > Fertige Dispo einlesen (Ausnahme)**: Es gibt nur ein Datei-Feld — die Dispo
+   (`.xlsm`, Blatt "FedEx", eine Woche Mo–Fr) → "Planung prüfen". Eine zweite Stammliste ist
+   nicht nötig: Die Namen kommen aus dem Tresor (er muss offen sein). Enthält die Dispo eine
+   andere Woche als oben in der Zeile **Woche** gewählt, warnt die App.
+3. Die Namen werden **im Browser** aus dem Tresor den Personalnummern zugeordnet. Sichere Treffer sind
    vorausgewählt, Vorschläge sind markiert, der Rest wird per Auswahlliste zugeordnet oder übersprungen.
+   Bestätigte Schreibweisen merkt sich die App verschlüsselt im Tresor; sie gelten auf allen Geräten.
+   (Die früheren Knöpfe „Zuordnungsliste sichern/laden" gibt es nicht mehr.)
 4. "Planung übernehmen" ersetzt die Planung der Woche. Zum Server gehen nur Personalnummer,
    Datum, Schichtart (FRUEH/SPAET/LANG/BUERO) und Uhrzeiten, keine Namen.
 5. Schichtart wird aus der Startzeit abgeleitet (vor 12 Uhr Früh, 12–17 Uhr Lang, danach Spät;
@@ -590,12 +819,18 @@ Grundsatz: **kein stiller Fehler.** Vor dem Übernehmen muss alles Unklare gekl�
   nie als "keine Schicht".
 
 **Checkliste für jede Woche:**
-1. Neue Mitarbeitende zuerst in die Stammliste aufnehmen und importieren, dann die Dispo einlesen.
-2. Alle Warnungen und "KLÄREN"-Zeilen abarbeiten, niemanden überspringen, der arbeiten soll.
-3. Woche bestätigen, Planung übernehmen, auf "✓ n von n" warten.
-4. 3–5 Personen aus der Kontrollliste gegen die Excel gegenlesen; Personen aus
-   "Nicht in der App" persönlich informieren.
-5. In der Dispo möglichst die Schreibweise der Stammliste verwenden.
+1. Neue Mitarbeitende zuerst in die Stammliste aufnehmen und unter **Mitarbeiter** einspielen
+   (Zugang und Name im Tresor).
+2. **Wochenplanung**: Abgaben prüfen, Planung berechnen, Ergebnis gegenlesen, Dispo-Datei
+   herunterladen und an den Kunden geben.
+3. **4 · Veröffentlichen**: Haken setzen, veröffentlichen, auf die Gegenprobe „x von y Schichten
+   stimmen mit der Datenbank überein" warten.
+4. Nur im Ausnahmefall (Dispo außerhalb der App geändert): **Mehr > Fertige Dispo einlesen**,
+   alle Warnungen und "KLÄREN"-Zeilen abarbeiten, niemanden überspringen, der arbeiten soll,
+   Woche bestätigen, auf "✓ n von n" warten, 3–5 Personen aus der Kontrollliste gegen die
+   Excel gegenlesen.
+5. Personen aus "Nicht in der App" persönlich informieren. In der Dispo möglichst die
+   Schreibweise der Stammliste verwenden.
 
 ---
 
@@ -604,7 +839,8 @@ Grundsatz: **kein stiller Fehler.** Vor dem Übernehmen muss alles Unklare gekl�
 Diese Punkte sind **kein Teil** dieses Projekts — die Struktur ist aber so
 gebaut, dass sie später ergänzt werden können:
 
-- automatische Schichtplanung (macht die nachgelagerte KI)
+- KI-Planung oder Anbindung externer Dienste: Die Wochenplanung rechnet
+  regelbasiert im Browser, nichts verlässt das Gerät
 - Krankmeldung über die App
 - weitere Sprachen (alle Texte liegen dafür gesammelt im Objekt `TEXTE`
   in `index.html`)
@@ -615,38 +851,61 @@ gebaut, dass sie später ergänzt werden können:
 
 ```
 index.html                                   die komplette App (Mitarbeiter + Admin)
-beispiel_stammliste.xlsx                     Beispiel für das Datei-Format
+tresor.js                                    Verschlüsselung des Stammlisten-Tresors (lädt nur im Admin-Bereich)
+planung-solver.js                            regelbasierte Wochenplanung (lädt nur im Admin-Bereich)
+dispo-export.js                              füllt die Dispo-Vorlage (.xlsm) für den Kunden (lädt nur im Admin-Bereich)
+beispiel_stammliste.xlsx                     Beispiel für die kurze Form (nur Personalnummer und Passwort)
 README.md                                    diese Anleitung
+vendor/                                      lokale Kopien von supabase-js, SheetJS und JSZip
 
 supabase/migrations/0001_init.sql             Tabellen, Hilfsfunktionen, Trigger
 supabase/migrations/0002_rls.sql              Schutzregeln, Rechte, RPC-Funktionen
 supabase/migrations/0003_standard_schichten.sql   Standard-Schichten, erste Woche
 supabase/migrations/0004_loeschfrist.sql          Löschfrist: Funktion (siehe Datenschutz)
-supabase/migrations/0012_loeschfrist_cron.sql     Löschfrist: monatlicher Cron-Job + Protokoll
 supabase/migrations/0005_passwort_aendern.sql     eigenes Passwort nach dem Startpasswort
+supabase/migrations/0006_geplante_schichten.sql   geplante Schichten: Tabelle planung, RPC planung_ersetzen
+supabase/migrations/0007_planung_absicherung.sql  strenge planung_ersetzen, planung_historie, planung_stand
+supabase/migrations/0008_app_einstellungen.sql    Schlüssel/Wert-Tabelle für Angaben außerhalb des Repos (z. B. Kontakt-Handy)
+supabase/migrations/0009_app_dateien.sql          private Ablage für die Dispo-Vorlage (nur Admins)
 supabase/migrations/0010_keepalive_schreiben.sql  Keep-alive schreibt in die Datenbank
 supabase/migrations/0011_wochen_automatisch.sql   Wochen 4 Wochen im Voraus anlegen (Cron)
-vendor/                                       lokale Kopien von supabase-js und SheetJS
+supabase/migrations/0012_loeschfrist_cron.sql     Löschfrist: monatlicher Cron-Job + Protokoll
+supabase/migrations/0013_app_dateien_version.sql  Versionszähler und Größenschranke für app_dateien (Tresor)
 
 supabase/functions/import-stammliste/index.ts     Stammliste einlesen (Server)
 supabase/functions/reset-passwort/index.ts        Einzelpasswort setzen (Server)
 supabase/functions/passwort-setzen/index.ts       eigenes Passwort festlegen (Server)
 
-supabase/tests/rls_selbsttest.sql             Sicherheitsregeln nachprüfen
+supabase/tests/rls_selbsttest.sql             Sicherheitsregeln nachprüfen (inkl. Tresor, Block 13d)
+
+tests/tresor.test.js                          Verschlüsselung prüfen (node tests/tresor.test.js)
+tests/syntax.test.js                          alle Skripte auf Syntaxfehler prüfen (vor jedem Push)
+tests/solver.test.js                          Wochenplanung mit erfundenen Daten
+tests/dispo-export.test.js                    Dispo-Export (wird übersprungen, wenn keine Vorlage lokal liegt)
+tests/synthetisch.js                          erfundene Daten für Tests und Vorschau (keine echten Personen)
+tests/stamm_synthetisch.xlsx                  erfundene Stammliste im vollständigen Format
+tests/vorschau.js                             App lokal mit Fake-Backend starten
 
 .github/workflows/keepalive.yml               hält das Supabase-Projekt wach
 ```
 
 ### Technischer Kurzüberblick
 
-- **Frontend:** eine einzige HTML-Datei, kein Bauprozess, gehostet auf GitHub
+- **Frontend:** eine HTML-Datei plus drei kleine Modul-Dateien (`tresor.js`,
+  `planung-solver.js`, `dispo-export.js`), kein Bauprozess, gehostet auf GitHub
   Pages. Bibliotheken liegen lokal im Ordner `vendor/` (kein CDN, keine IP-Weitergabe an
-  Dritte): `supabase-js 2.45.4` und `SheetJS 0.20.3` (letzteres wird erst geladen, wenn
-  im Admin-Bereich wirklich eine Datei geöffnet wird — Mitarbeitende am Handy
-  laden es nie).
+  Dritte): `supabase-js 2.45.4`, `SheetJS 0.20.3` und `JSZip 3.10.1`. SheetJS, JSZip
+  und die drei Module werden erst geladen, wenn sie im Admin-Bereich wirklich
+  gebraucht werden — Mitarbeitende am Handy laden sie nie. Verschlüsselung und
+  Geräteschlüssel nutzen WebCrypto und IndexedDB: beides browser-nativ, kein CDN.
+- **Admin-Bereich:** Startseite mit globaler Wochenzeile und drei Knöpfen
+  (**Wochenplanung**, **Mitarbeiter**, **Mehr**) statt Reiter; zurück immer über
+  **← Start** bzw. **← Mehr**.
 - **Backend:** Supabase (PostgreSQL). Schutz ausschließlich über Row Level
   Security. Im Browser stecken nur Projekt-URL und anon-Key.
 - **Tabellen:** `employees`, `admins`, `shift_types`, `shift_templates`,
-  `weeks`, `week_days`, `week_shifts`, `submissions`, `availability`.
+  `weeks`, `week_days`, `week_shifts`, `submissions`, `availability`,
+  `planung`, `planung_historie`, `planung_stand`, `app_einstellungen`,
+  `app_dateien` (Schlüssel `dispo_vorlage` und `stammliste_tresor`), `loeschlauf`.
 - **Speichern** läuft über die Datenbankfunktion `abgabe_speichern` — in einer
   Transaktion, also entweder ganz oder gar nicht, und mit Fristprüfung im Server.

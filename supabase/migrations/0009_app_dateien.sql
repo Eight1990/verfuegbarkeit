@@ -5,9 +5,9 @@
 --   Admin-Bereich hochgeladen und danach bei jedem Export wiederverwendet.
 --   Sie liegt hier und nicht im Repository.
 --
---   Datenschutz: Mitarbeiterprofile (Klarnamen, Kategorie, Wuensche,
---   Fahrgemeinschaften) werden bewusst NICHT in der Datenbank gespeichert.
---   Sie stehen in der lokalen Stammliste und werden nur im Browser gelesen.
+--   Datenschutz (Stand 0009): Mitarbeiterprofile wurden nicht in der Datenbank
+--   gespeichert. Seit 0013 liegen sie verschluesselt als Tresor in dieser Tabelle
+--   (Schluessel 'stammliste_tresor'); der Server sieht nur Chiffrat. Details in 0013.
 --   Nur Admins koennen die Vorlage lesen oder schreiben (RLS).
 --   Kann gefahrlos mehrfach ausgefuehrt werden.
 -- =====================================================================
