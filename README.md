@@ -285,30 +285,65 @@ Statt `deinname.github.io/verfuegbarkeit` geht auch z. B.
 
 ## Erste Nutzung: Stammliste hochladen
 
-Es gibt **eine** Stammliste für alles: Zugänge, Namen und Planungsprofile.
-Zeile 1 enthält die Überschriften. Die ersten drei Spalten sind die wichtigen,
-die beiden weiteren sind optional und dürfen fehlen:
+Es gibt **eine** Stammliste für alles: Zugänge, Namen, Planungsprofile,
+Einsatzzeitraum und die Lohndaten der Minijobber. Zeile 1 enthält die
+Überschriften. Die ersten drei Spalten sind die wichtigen, alle weiteren sind
+optional und dürfen fehlen:
 
 | Personalnummer | Passwort | Name | Kategorie | Fahrgemeinschaft |
 |---|---|---|---|---|
-| 10001 | BEISPIEL-Passwort1 | Mustermann Anna | Teilzeit | FG1 |
-| 10002 | BEISPIEL-Passwort2 | Beispiel Ben | Minijob | |
-| 00345 | BEISPIEL-Passwort3 | Muster Chris | | fg 1 |
+| 10001 | BEISPIEL-Passwort1 | Mustermann, Anna | Teilzeit | FG1 |
+| 10002 | BEISPIEL-Passwort2 | Beispiel, Ben | Minijob | |
+| 00345 | BEISPIEL-Passwort3 | Muster, Chris | | fg 1 |
 
-Bedeutung der optionalen Spalten: **Kategorie** `Teilzeit` oder `Minijob`
+Bedeutung der optionalen Spalten D und E: **Kategorie** `Teilzeit` oder `Minijob`
 (leer = Minijob), **Fahrgemeinschaft** ein frei gewähltes Kürzel für Personen,
 die zusammen fahren. Gleiche Kennung = eine Fahrgemeinschaft; Groß- und
 Kleinschreibung und Leerzeichen zählen nicht (`fg 1` = `FG1`). Im Beispiel
 fahren also Anna und Chris zusammen. Wie die Planung Fahrgemeinschaften
 behandelt, steht unter [Wochenplanung](#wochenplanung-auto-planung).
 
+**Spalten F–M (Einsatzzeitraum und Lohndaten).** Sie füllt ein lokales
+Hilfsskript (Einsatzzeitraum aus der Personalverwaltung, Lohndaten aus den
+Lohnabrechnungen); von Hand muss man dort nichts eintragen. Die App findet die
+Spalten über die Überschrift:
+
+| Sp. | Überschrift | Inhalt (Beispiel, erfunden) |
+|---|---|---|
+| F | Einsatz von | `09.02.2026` |
+| G | Einsatz bis | `08.11.2026` |
+| H | Eintritt | `09.02.2026` oder leer |
+| I | Abgerechnet bis | `09/2026` oder leer (= noch keine Abrechnung) |
+| J | SV-Brutto seit Eintritt | `2950,00` oder leer |
+| K | Stunden seit Eintritt | `210,50` oder leer |
+| L | Minijob-Merkmal | `ja`, `nein`, `?` oder leer |
+| M | Stand Lohndaten | `11.11.2026` (Tag, an dem die Lohndaten geholt wurden) |
+
+- **Einsatz von/bis gilt für alle:** An Tagen außerhalb dieses Zeitraums plant
+  die App niemanden ein; Schritt 2 der Wochenplanung nennt die Betroffenen.
+- **Lohndaten (I–K) nur für Minijobber** (Kategorie Minijob oder leer); bei
+  Teilzeit bleiben sie leer und werden nie gespeichert. Daraus entsteht der
+  [Minijob-Stand](#minijob-grenze-minijob-stand). Die Datei enthält damit
+  Lohndaten: nur lokal aufbewahren, nicht per E-Mail oder Chat weitergeben,
+  nie ins Repo.
+- **Streng:** Ein Datum muss `TT.MM.JJJJ` sein (auch `T.M.JJJJ`) oder eine echte
+  Excel-Datumszelle, ein Monat `MM/JJJJ`, ein Betrag `2950,00`, `2.950,00` oder
+  `2950`. Lässt sich eine gefüllte Zelle nicht lesen, nennt die App Zeile und
+  Spalte (z. B. *Zeile 4, Spalte "Einsatz bis": "31.02.2026" – kein gültiges
+  Datum*) und speichert keine Namen, bis die Datei korrigiert ist. Ebenso, wenn
+  „Einsatz von“ nach „Einsatz bis“ liegt oder bei einem Minijobber „Abgerechnet
+  bis“ gefüllt, aber „Eintritt“ oder „SV-Brutto seit Eintritt“ leer ist.
+- **Datei ohne Lohndaten-Spalten** (ohne „Abgerechnet bis“ und „SV-Brutto“):
+  dann bleibt der bisherige Minijob-Stand im Tresor unverändert.
+
 Die früheren Spalten **Max. Schichten**, **Ø h/Wo**, **Nur Schicht**,
 **Gesperrte Tage** und **Notiz** gibt es nicht mehr. Eine ältere Datei, die sie
 noch enthält, wird trotzdem angenommen; diese Spalten werden einfach ignoriert.
 Die Höchstzahl an Schichten gibt jeder Mitarbeiter selbst bei seiner Abgabe an.
 
-`tests/stamm_synthetisch.xlsx` zeigt das vollständige Format mit erfundenen
-Daten. `.xlsx` und `.csv` funktionieren beide; es zählt das erste Tabellenblatt.
+`tests/stamm_synthetisch.xlsx` zeigt das vollständige Format (Spalten A–M) mit
+erfundenen Daten. `.xlsx` und `.csv` funktionieren beide; es zählt das erste
+Tabellenblatt.
 
 **Regeln:**
 - Passwörter mindestens **6 Zeichen**.
@@ -336,20 +371,28 @@ Daten. `.xlsx` und `.csv` funktionieren beide; es zählt das erste Tabellenblatt
    („… Zeilen gelesen").
 4. **Vorschau prüfen**. Es erscheint z. B. *„3 neu · 0 geändert · 0 deaktiviert"*.
    Die Listen darunter lassen sich aufklappen. **Bis hierhin ist nichts verändert.**
+   Hat die Datei Lohndaten, zeigt die Vorschau außerdem: Minijobber mit
+   Wochen-Obergrenze, ohne Abrechnung, mit 0 h, „abgerechnet bis“ und wie viele
+   laut Stammliste Minijob, laut Abrechnung aber kein Minijob sind.
 5. Würden Zugänge deaktiviert oder Passwörter geändert, zeigt eine **rote
    Liste** die Betroffenen **mit Namen**. Lies sie und setze den Pflicht-Haken.
-6. Stimmt alles, auf **Jetzt übernehmen: Zugänge und Namen**.
+   Ebenso, wenn Minijobber, die bisher eine Wochen-Obergrenze hatten, danach
+   keine mehr hätten (z. B. „Abgerechnet bis“ leer, jetzt Teilzeit oder nicht
+   mehr in der Datei): rote Warnung mit Zahl und Namen, eigener Pflicht-Haken.
+6. Stimmt alles, auf **Jetzt übernehmen: Zugänge, Namen und Lohndaten** (ohne
+   Lohndaten-Spalten: **Jetzt übernehmen: Zugänge und Namen**).
 
 **Drei Dateiformen, derselbe Weg:**
-- **Vollständige Datei** (Personalnummer, Passwort, Name, optional Profile):
-  Zugänge und Tresor werden zusammen aktualisiert. Knopf: **Jetzt übernehmen:
-  Zugänge und Namen**.
+- **Vollständige Datei** (Personalnummer, Passwort, Name, optional Profile und
+  Lohndaten): Zugänge und Tresor werden zusammen aktualisiert. Knopf: **Jetzt
+  übernehmen: Zugänge, Namen und Lohndaten** bzw. **… Zugänge und Namen**.
 - **Datei ohne Spalte „Name"**: nur die Zugänge, der Tresor bleibt unverändert.
   Knopf: **Nur Zugänge übernehmen (Datei ohne Namen)**.
-- **Datei ohne Spalte „Passwort"**: nur Namen und Profile. Der Server wird
-  nicht aufgerufen, kein Zugang ändert sich. **Empfohlen für Korrekturen** an
-  Namen oder Profilen. Knopf: **Namen und Profile übernehmen (Zugänge bleiben
-  unverändert)**.
+- **Datei ohne Spalte „Passwort"**: nur Namen, Profile und (falls die Spalten
+  da sind) Lohndaten. Der Server wird nicht aufgerufen, kein Zugang ändert
+  sich. **Empfohlen für Korrekturen** an Namen oder Profilen. Knopf: **Namen und
+  Profile übernehmen (Zugänge bleiben unverändert)** bzw. **Namen, Profile und
+  Lohndaten übernehmen …**.
 
 **Was der Import macht:**
 - Nummern, die es noch nicht gibt → **neuer Zugang**
@@ -418,7 +461,7 @@ einem anderen Admin) und bietet:
 - **Tresor auf diesem Gerät vergessen** — löscht den gemerkten Schlüssel.
 - **Passwort vergessen?** — erscheint nur bei gesperrtem Tresor und
   überschreibt ihn mit einem neuen Passwort. Danach die Stammliste **ohne
-  Passwortspalte** neu einspielen, anschließend den Minijob-Stand. Die Zugänge
+  Passwortspalte** (aber mit den Lohndaten-Spalten) neu einspielen. Die Zugänge
   bleiben erhalten; verloren gehen nur die gemerkten Dispo-Schreibweisen (siehe
   [Geplante Schichten](#geplante-schichten-dispo-einlesen)).
 
@@ -476,8 +519,13 @@ Das ist der Standardweg: sechs bis sieben Klicks, **kein Upload**.
    - **2 · Planung berechnen** — die Profile kommen aus dem Tresor. Darunter
      steht der **Minijob-Stand** („Minijob-Stand vom TT.MM. (abgerechnet bis
      MM/JJJJ) · n Minijobber mit Wochen-Obergrenze“, siehe
-     [Minijob-Grenze](#minijob-grenze-minijob-stand)); die Profiltabelle hat
-     die Spalte **Minijob max/Wo**. **Bedarf
+     [Minijob-Grenze](#minijob-grenze-minijob-stand)) und, falls nötig, die Box
+     **Laut Stammliste nicht (ganz) eingeplant** – je Person, die für Tage
+     außerhalb ihres Einsatzzeitraums Verfügbarkeit abgegeben hat, z. B.
+     „Einsatz laut Stammliste bis TT.MM. – danach nicht eingeplant (stimmt das
+     nicht: Stammliste aktualisieren)“ bzw. „beginnt erst am TT.MM.“, und je
+     Minijobber, dessen Vertrag laut Lohndaten schon beendet ist. Die
+     Profiltabelle hat die Spalte **Minijob max/Wo**. **Bedarf
      anpassen** (Plätze je Tag und Schichtart) ist eingeklappt. Dann **Planung
      berechnen**. Ist der Tresor nicht offen oder fehlen Profile, rechnet die
      App nur mit dem Haken **Trotzdem ohne vollständige Profile rechnen** —
@@ -506,7 +554,8 @@ nichts verlässt das Gerät). Sie folgt einer **festen Rangfolge**: Jede Stufe
 geht allen folgenden vor.
 
 1. **Harte Regeln** (werden nie gebrochen): nur eingesetzt, wer die Schicht
-   abgegeben hat; mindestens 11 Stunden Ruhezeit; höchstens 10 Stunden am Tag
+   abgegeben hat und an dem Tag laut Stammliste im Einsatz ist (Einsatz
+   von/bis); mindestens 11 Stunden Ruhezeit; höchstens 10 Stunden am Tag
    und 48 Stunden pro Woche; Minijobber höchstens bis zu ihrer
    Wochen-Obergrenze aus dem Minijob-Stand (siehe unten).
 2. **Alle Plätze besetzen.**
@@ -546,46 +595,56 @@ Die App sorgt dafür, dass Minijobber durch die Planung **nicht zu viel
 verdienen**. Ob jemand genug Stunden bekommt, prüft sie nicht (das bleibt bei
 dir).
 
-**Minijob-Stand einspielen (monatlich, nach der Lohnabrechnung).** Dein
-lokales DocuWare-Skript erzeugt eine CSV mit dem bisher abgerechneten Verdienst
-je Personalnummer. **Mitarbeiter › Minijob-Stand einspielen** → CSV wählen →
-Vorschau prüfen (gelesene Personen, Minijobber mit Wochen-Obergrenze, ohne
-Abrechnung, „abgerechnet bis“, Zahl der Abweichungen „laut Stammliste Minijob,
-laut Abrechnung kein Minijob“, nicht lesbare Zeilen) → **Minijob-Stand
-übernehmen**. Der Tresor muss offen sein. Gespeichert wird der Stand
-**verschlüsselt im Tresor** (Abschnitt `minijob`), und zwar nur Personalnummer,
-Ein- und Austritt, „abgerechnet bis“, SV-Brutto, Stunden und das
-Minijob-Merkmal — keine Namen und nur für Minijobber (Kategorie aus der
-Stammliste; ohne Profil zählt das Minijob-Merkmal „ja“). Teilzeitkräfte aus
-der CSV werden nicht gespeichert. Jeder neue Stand ersetzt den alten
-vollständig. Die CSV enthält Lohndaten: nur lokal aufbewahren, nicht per
-E-Mail oder Chat weitergeben, nie ins Repo.
+**Minijob-Stand = Lohndaten-Spalten der Stammliste (monatlich, nach der
+Lohnabrechnung).** Eine eigene Karte dafür gibt es nicht mehr: Das lokale
+Hilfsskript trägt die Lohndaten in die Spalten H–M der Stammliste ein, und du
+spielst die Stammliste wie gewohnt unter **Mitarbeiter › Stammliste einspielen**
+ein (siehe [Erste Nutzung](#erste-nutzung-stammliste-hochladen)). Die Vorschau
+zeigt dabei Minijobber mit Wochen-Obergrenze, ohne Abrechnung, mit 0 h,
+„abgerechnet bis“ und die Abweichungen „laut Stammliste Minijob, laut
+Abrechnung kein Minijob“; verliert jemand seine bisherige Grenze, gibt es eine
+rote Warnung mit eigenem Pflicht-Haken. Der Tresor muss offen sein. Gespeichert
+wird der Stand **verschlüsselt im Tresor** (Abschnitt `minijob`), und zwar nur
+Personalnummer, Eintritt, „abgerechnet bis“, SV-Brutto, Stunden und das
+Minijob-Merkmal — keine Namen und nur für Minijobber (Kategorie Minijob oder
+leer). Jeder Upload mit Lohndaten-Spalten ersetzt den alten Stand vollständig;
+eine Datei ohne diese Spalten lässt ihn unverändert.
 
 **So entsteht die Wochen-Obergrenze** (Rechnung in `minijob.js`):
 - Verträge laufen immer **9 Monate**: Befristungsende = Tag vor dem Eintritt
   plus 9 Monate, höchstens bis zum Monatsende (Eintritt 02.02.2026 → Ende
-  01.11.2026). Steht ein Austritt in der CSV, gilt das frühere Datum.
+  01.11.2026). Vertragsende = das früheste von Befristungsende, „Einsatz bis“
+  aus der Stammliste und (aus älteren Ständen) Austritt. „Einsatz bis“ allein
+  zählt nie: Liegt es nach dem Befristungsende, gilt das Befristungsende.
 - Erlaubt ist je Kalendermonat die Minijob-Grenze des Jahres (2025: 556 €,
   2026: 603 €, 2027: 633 €); angebrochene Monate **anteilig nach Tagen**.
 - Es zählt nur der Verdienst seit dem **aktuellen** Eintritt. Restbudget =
   Grenze von Eintritt bis Befristungsende minus abgerechnetes SV-Brutto.
 - Das Restbudget wird **gleichmäßig auf alle Tage** vom 1. des ersten noch
-  nicht abgerechneten Monats bis zum Befristungsende verteilt. Gearbeitete,
+  nicht abgerechneten Monats bis zum Vertragsende verteilt. Gearbeitete,
   aber noch nicht abgerechnete Wochen verbrauchen damit rechnerisch ihren
   Anteil; geschätzt wird nichts.
+- Die Planungswoche bekommt den Anteil ihrer Tage: Restbudget je Tag × Tage
+  dieser Woche, die in den offenen Zeitraum fallen (endet der Vertrag am
+  Mittwoch, zählen nur Montag bis Mittwoch). Endete der Vertrag schon vor dem
+  Montag, ist die Grenze **0 h**; Schritt 2 nennt die Person („Minijob-Vertrag
+  laut Lohndaten am TT.MM. beendet“).
 - Euro je Woche → Stunden über den eigenen Stundensatz (SV-Brutto / Stunden),
   abgerundet auf ganze Minuten. Neue ohne abgerechneten Monat haben **keine**
   Grenze; ist das Budget aufgebraucht, ist die Grenze **0 h**.
+- Teilzeitkräfte berührt das alles nicht; für sie gilt nur der
+  Einsatzzeitraum (Einsatz von/bis).
 
 **Harte Regel.** Der Solver plant nie über die Wochen-Obergrenze (wie bei
 48 Stunden). Schritt 2 zeigt „Minijob-Stand vom … · n Minijobber mit
 Wochen-Obergrenze“; ohne Stand steht dort „Kein Minijob-Stand –
 Minijob-Grenze wird nicht geprüft“. Liegt „abgerechnet bis“ mehr als zwei
 Monate vor dem Planungsmonat, warnt die Zeile „Minijob-Stand veraltet – bitte
-neu einspielen“. Ändert sich der Stand nach dem Berechnen, muss neu berechnet
-werden, bevor veröffentlicht werden kann. Minijobber mit Grenze 0 stehen unter
-dem Ergebnis als Hinweis „Minijob-Grenze erreicht – bis Befristungsende keine
-Schichten mehr“.
+die Stammliste aktualisieren und neu einspielen“. Ändert sich der Stand nach
+dem Berechnen, muss neu berechnet werden, bevor veröffentlicht werden kann.
+Minijobber mit aufgebrauchtem Budget stehen unter dem Ergebnis als Hinweis
+„Minijob-Grenze erreicht – bis Vertragsende keine Schichten mehr“ (beendete
+Verträge stehen schon in Schritt 2).
 
 **Ausnahme nur von Hand.** Im Auswahlfeld sind Kandidaten, die dadurch über
 ihre Grenze kämen, mit „(Minijob-Grenze)“ markiert. Wählst du so jemanden
@@ -597,7 +656,9 @@ die Überschreitung der Minijob-Grenze bewusst zu (…)** in Schritt 4.
 Einspielen dieser Version: `minijob.js` gehört mit `index.html`, `tresor.js`
 und `planung-solver.js` zusammen hochgeladen (keine Datenbank-Migration). Der
 Tresor-Inhalt bleibt Version 1; ältere Tresore laden unverändert (ohne
-Minijob-Stand).
+Minijob-Stand bzw. ohne Einsatzzeitraum). Eine ältere `tresor.js` oder
+`minijob.js` aus dem Browser-Cache erkennt die App und bittet um Neuladen
+(Strg+F5).
 
 Eine fertige Dispo von außen einlesen (**Mehr > Fertige Dispo einlesen**) ist
 nur noch die Ausnahme, siehe
@@ -787,8 +848,15 @@ Vertretung das Passwort geändert, gilt das neue.
 
 **Tresor-Passwort vergessen**
 **Mehr > Tresor > Passwort vergessen?** überschreibt den Tresor mit einem neuen
-Passwort. Danach die Stammliste **ohne Passwortspalte** einspielen. Zugänge
-bleiben, nur die gemerkten Dispo-Schreibweisen gehen verloren.
+Passwort. Danach die Stammliste **ohne Passwortspalte** (mit den
+Lohndaten-Spalten) einspielen. Zugänge bleiben, nur die gemerkten
+Dispo-Schreibweisen gehen verloren.
+
+**Beim Stammlisten-Import: „Zeile n, Spalte "…": "…" – kein gültiges Datum“ o. Ä.**
+Eine gefüllte Zelle lässt sich nicht lesen (z. B. `31.02.2026` oder `11.11.26`).
+Zeile und Spalte stehen in der Meldung; dort korrigieren (Datum `TT.MM.JJJJ`,
+Monat `MM/JJJJ`, Betrag `2950,00`) und die Datei erneut wählen. Bis dahin
+werden keine Namen, Profile oder Lohndaten gespeichert.
 
 **„… auf einem anderen Gerät geändert. Bitte die Seite neu laden."**
 Die Vertretung hat den Tresor inzwischen gespeichert. Seite neu laden, Tresor
@@ -850,15 +918,17 @@ Was du selbst beachten musst:
 - Ergänzt euer Verzeichnis von Verarbeitungstätigkeiten um diese Anwendung
   (Zweck: Einsatzplanung; Daten: Personalnummer, Verfügbarkeitsangaben
   einschließlich der gewünschten Höchstzahl an Schichten, geplante Schichten
-  sowie Name, Beschäftigungskategorie, Fahrgemeinschaft und — nur bei
-  Minijobbern, zur Einhaltung der Verdienstgrenze — Ein-/Austrittsdatum,
-  abgerechnetes SV-Brutto, abgerechnete Stunden und Minijob-Merkmal aus der
-  Lohnabrechnung — diese verschlüsselt, Schlüssel nur bei ZiG; Empfänger:
-  Supabase als Auftragsverarbeiter, GitHub für das Hosting der Webseite).
-- **Minijob-Stand:** Die CSV aus der Lohnabrechnung enthält Lohndaten. Sie wird
-  nur im Browser gelesen; gespeichert werden nur die genannten Felder der
-  Minijobber, verschlüsselt im Tresor. Die Datei selbst nicht weitergeben und
-  nach dem Einspielen nicht in geteilte Ordner legen.
+  sowie Name, Beschäftigungskategorie, Fahrgemeinschaft, Einsatzzeitraum
+  (von/bis, für alle Mitarbeitenden) und — nur bei Minijobbern, zur Einhaltung
+  der Verdienstgrenze — Eintrittsdatum, abgerechnetes SV-Brutto, abgerechnete
+  Stunden und Minijob-Merkmal aus der Lohnabrechnung — diese verschlüsselt,
+  Schlüssel nur bei ZiG; Empfänger: Supabase als Auftragsverarbeiter, GitHub
+  für das Hosting der Webseite).
+- **Lohndaten in der Stammliste:** Die Spalten H–M (vom lokalen Hilfsskript
+  gefüllt) enthalten Lohndaten. Die Stammliste wird nur im Browser gelesen;
+  gespeichert werden nur die genannten Felder, die Lohndaten nur für
+  Minijobber, alles verschlüsselt im Tresor. Die Datei selbst nicht weitergeben
+  und nicht in geteilte Ordner legen.
 - **Löschfrist:** Die Datenschutzerklärung in der App nennt 12 Monate (Verfügbarkeiten:
   12 Monate nach Ende der Woche; deaktivierte Zugänge: 12 Monate nach Deaktivierung).
   Umgesetzt wird das mit `supabase/migrations/0004_loeschfrist.sql` (Funktion) und
@@ -879,6 +949,10 @@ Was du selbst beachten musst:
   (weniger Daten als vorher). Mit der Minijob-Grenze (Teil 4) nennt der Text zusätzlich
   die verschlüsselt gespeicherten Abrechnungsangaben der Minijobber (Ein-/Austritt,
   abgerechnetes Entgelt, Stunden, Minijob-Kennzeichen; mit jedem Monatsstand ersetzt).
+  Seit Teil 5 (eine Stammliste für alles) kommt der **Einsatzzeitraum (von/bis) für alle
+  Mitarbeitenden** dazu, ebenfalls nur verschlüsselt; er sorgt dafür, dass niemand
+  außerhalb seines Einsatzes eingeplant wird. Die Lohndaten kommen jetzt mit der
+  Stammliste statt aus einer eigenen Datei (gleiche Felder).
   Die Freigabe durch den Datenschutzbeauftragten bzw. Anwalt steht noch aus.
 
 ---
@@ -972,7 +1046,7 @@ gebaut, dass sie später ergänzt werden können:
 index.html                                   die komplette App (Mitarbeiter + Admin)
 tresor.js                                    Verschlüsselung des Stammlisten-Tresors (lädt nur im Admin-Bereich)
 planung-solver.js                            regelbasierte Wochenplanung (lädt nur im Admin-Bereich)
-minijob.js                                   Minijob-Stand lesen, Wochen-Obergrenzen berechnen (lädt nur im Admin-Bereich)
+minijob.js                                   Wochen-Obergrenzen der Minijobber berechnen (lädt nur im Admin-Bereich)
 dispo-export.js                              füllt die Dispo-Vorlage (.xlsm) für den Kunden (lädt nur im Admin-Bereich)
 beispiel_stammliste.xlsx                     Beispiel für die kurze Form (nur Personalnummer und Passwort)
 README.md                                    diese Anleitung
@@ -1004,7 +1078,7 @@ tests/solver.test.js                          Wochenplanung mit erfundenen Daten
 tests/minijob.test.js                         Minijob-Grenze mit erfundenen Daten
 tests/dispo-export.test.js                    Dispo-Export (wird übersprungen, wenn keine Vorlage lokal liegt)
 tests/synthetisch.js                          erfundene Daten für Tests und Vorschau (keine echten Personen)
-tests/stamm_synthetisch.xlsx                  erfundene Stammliste im vollständigen Format
+tests/stamm_synthetisch.xlsx                  erfundene Stammliste im vollständigen Format (Spalten A–M)
 tests/vorschau.js                             App lokal mit Fake-Backend starten
 
 .github/workflows/keepalive.yml               hält das Supabase-Projekt wach

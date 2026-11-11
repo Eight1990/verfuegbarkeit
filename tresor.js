@@ -23,15 +23,19 @@
  *     salt: <base64, 16 Byte>, iv: <base64, 12 Byte>, ct: <base64>,
  *     updated_at: <ISO-Zeit>, by: <Admin-Kennung oder ""> }
  * Klartext (nur entschlüsselt im Browser):
- *   { v: 1, profile: [ {personalnummer, name, kategorie, fahrgemeinschaft} ],
+ *   { v: 1, profile: [ {personalnummer, name, kategorie, fahrgemeinschaft,
+ *                       einsatz_von, einsatz_bis} ],
  *     zuordnung: { <Dispo-Schreibweise>: <personalnummer> },
  *     quelle: { dateiname, zeilen, eingelesen_am },
  *     minijob: null | { stand: "JJJJ-MM-TT", dateiname,
  *       personen: { <personalnummer>: { eintritt, austritt, abgerechnetBis,
  *                                      svBrutto, stunden, minijobMerkmal } } } }
  *   minijob (seit 11.11.2026, optional) ist der Minijob-Stand aus der monatlichen
- *   Lohnabrechnung (CSV des DocuWare-Skripts): keine Namen, nur diese Felder.
- *   Inhalte ohne minijob laden weiter (minijob = null); VERSION bleibt 1.
+ *   Lohnabrechnung (seit Teil 5 aus den Lohndaten-Spalten der Stammliste): keine
+ *   Namen, nur diese Felder. Inhalte ohne minijob laden weiter (minijob = null).
+ *   einsatz_von/einsatz_bis (seit Teil 5): Einsatzzeitraum laut Stammliste,
+ *   "JJJJ-MM-TT" oder null; ältere Profile ohne die Felder laden mit null.
+ *   VERSION bleibt 1.
  */
 (function (wurzel, fabrik) {
   if (typeof module === "object" && module.exports) module.exports = fabrik(globalThis.crypto);
@@ -50,7 +54,8 @@
   var HUELLE_FELDER = ["v", "kdf", "salt", "iv", "ct", "updated_at", "by"];
   // Seit 11.11.2026 nur noch diese Felder. Aeltere Inhalte (mit nur_schicht, gesperrte_tage,
   // max_schichten_woche, schnitt_h, notiz) laden weiter; die alten Felder fallen dabei weg.
-  var PROFIL_FELDER = ["personalnummer", "name", "kategorie", "fahrgemeinschaft"];
+  // Teil 5: Einsatzzeitraum laut Stammliste (ISO-Tag oder null); fehlt er in alten Inhalten, gilt null.
+  var PROFIL_FELDER = ["personalnummer", "name", "kategorie", "fahrgemeinschaft", "einsatz_von", "einsatz_bis"];
   // Minijob-Stand je Personalnummer (Whitelist; alles andere aus der CSV faellt weg)
   var MINIJOB_FELDER = ["eintritt", "austritt", "abgerechnetBis", "svBrutto", "stunden", "minijobMerkmal"];
   var MINIJOB_MERKMALE = ["ja", "nein", "?"];
@@ -232,11 +237,20 @@
       }
     });
     var kategorie = p.kategorie === "teilzeit" ? "teilzeit" : "minijob";
+    // Einsatzzeitraum: leer = null, sonst ein gueltiger ISO-Tag (nichts Kaputtes in den Tresor)
+    var einsatz = function (feld, text) {
+      var w = p[feld];
+      if (w === null || w === undefined || w === "") return null;
+      if (!isoTagGueltig(w)) throw new Error("Tresor: Profil " + pn + ": " + text + " ist kein gültiges Datum (JJJJ-MM-TT).");
+      return w;
+    };
     return {
       personalnummer: pn,
       name: name,
       kategorie: kategorie,
-      fahrgemeinschaft: p.fahrgemeinschaft == null || String(p.fahrgemeinschaft).trim() === "" ? null : String(p.fahrgemeinschaft).trim()
+      fahrgemeinschaft: p.fahrgemeinschaft == null || String(p.fahrgemeinschaft).trim() === "" ? null : String(p.fahrgemeinschaft).trim(),
+      einsatz_von: einsatz("einsatz_von", "Einsatz von"),
+      einsatz_bis: einsatz("einsatz_bis", "Einsatz bis")
     };
   }
 

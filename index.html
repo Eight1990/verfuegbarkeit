@@ -533,9 +533,10 @@
         <p>Personalnummer und Passwort zur Anmeldung (das Passwort wird nur als nicht umkehrbarer
            Hashwert gespeichert), Ihre Verfügbarkeiten pro Woche, die gewünschte Höchstzahl an
            Schichten sowie der Zeitpunkt Ihrer Abgabe. Ihr Name und planungsrelevante Angaben aus der Stammliste
-           (Beschäftigungskategorie, Fahrgemeinschaft) werden ausschließlich
+           (Beschäftigungskategorie, Fahrgemeinschaft, Einsatzzeitraum bei FedEx von/bis) werden ausschließlich
            verschlüsselt (AES-256) gespeichert; der Schlüssel liegt nur bei den für die Einsatzplanung zuständigen
-           Personen, nicht beim Datenbank-Anbieter.
+           Personen, nicht beim Datenbank-Anbieter. Der Einsatzzeitraum dient dazu, dass Sie nur innerhalb Ihres
+           Einsatzes eingeplant werden.
            Bei geringfügig Beschäftigten (Minijob) werden zusätzlich die zur Prüfung der Verdienstgrenze nötigen Angaben
            aus der Lohnabrechnung gespeichert: Ein- und Austrittsdatum, das bereits abgerechnete Entgelt, die abgerechneten
            Stunden und das Minijob-Kennzeichen. Sie dienen nur dazu, dass die Einsatzplanung die Minijob-Verdienstgrenze
@@ -575,8 +576,9 @@
         <p>Ihre Verfügbarkeitsangaben und geplanten Schichten werden 12 Monate nach Ende der jeweiligen Kalenderwoche gelöscht,
            soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ihr Zugang (Personalnummer)
            wird deaktiviert, sobald Sie nicht mehr in der Einsatzplanung geführt werden, und mit den
-           zugehörigen Angaben spätestens nach Ablauf dieser Frist gelöscht. Ihr Name wird aus dem verschlüsselten Bestand
-           entfernt, sobald Sie nicht mehr in der Stammliste geführt werden, spätestens beim nächsten Einspielen der Liste.
+           zugehörigen Angaben spätestens nach Ablauf dieser Frist gelöscht. Ihr Name und Ihre planungsrelevanten Angaben
+           (Beschäftigungskategorie, Fahrgemeinschaft, Einsatzzeitraum) werden aus dem verschlüsselten Bestand entfernt, sobald
+           Sie nicht mehr in der Stammliste geführt werden, spätestens beim nächsten Einspielen der Liste.
            Die Angaben zur Minijob-Verdienstgrenze werden mit jedem monatlichen Stand vollständig ersetzt.</p>
 
         <h3>Ihre Rechte</h3>
@@ -783,7 +785,7 @@ const TEXTE_DE = {
   admin_keine_ma:        "Es sind noch keine Personalnummern angelegt.",
 
   admin_stamm_titel:     "Stammliste einspielen",
-  admin_stamm_hinweis:   "Eine Excel (.xlsx) oder CSV mit den Spalten Personalnummer, Passwort und Name; optional Kategorie (Teilzeit/Minijob) und Fahrgemeinschaft (gleiche Kennung = eine Fahrgemeinschaft). Zum Server gehen nur Personalnummer und Passwort (für die Zugänge); Passwörter werden nirgends gespeichert. Name und Profil werden in diesem Browser verschlüsselt und im Tresor abgelegt. Nummern, die in der Datei fehlen, werden deaktiviert. Eine Datei ohne Passwortspalte ändert nur Namen und Profile.",
+  admin_stamm_hinweis:   "Eine Excel (.xlsx) oder CSV mit den Spalten Personalnummer, Passwort und Name; optional Kategorie (Teilzeit/Minijob), Fahrgemeinschaft (gleiche Kennung = eine Fahrgemeinschaft), Einsatz von/bis und die Lohndaten der Minijobber (Eintritt, Abgerechnet bis, SV-Brutto seit Eintritt, Stunden seit Eintritt, Minijob-Merkmal, Stand Lohndaten – füllt das lokale Hilfsskript). Zum Server gehen nur Personalnummer und Passwort (für die Zugänge); Passwörter werden nirgends gespeichert. Name, Profil und Lohndaten werden in diesem Browser verschlüsselt und im Tresor abgelegt (Lohndaten nur von Minijobbern). Nummern, die in der Datei fehlen, werden deaktiviert. Eine Datei ohne Passwortspalte ändert nur Namen, Profile und Lohndaten; eine Datei ohne Lohndaten-Spalten lässt den bisherigen Minijob-Stand unverändert.",
   admin_vorschau:        "Vorschau prüfen",
   admin_uebernehmen:     "Jetzt übernehmen",
   admin_gelesen:         " Zeilen gelesen.",
@@ -2356,8 +2358,10 @@ const tresor = {
 async function tresorModul() {
   await skriptLaden("tresor.js");
   if (!window.Tresor) throw new Error("tresor.js konnte nicht geladen werden.");
-  // Eine aeltere tresor.js aus dem Browser-Cache kennt den Minijob-Stand nicht und liesse ihn beim Speichern still weg.
-  if (typeof window.Tresor.minijobPruefen !== "function") {
+  // Eine aeltere tresor.js aus dem Browser-Cache kennt den Minijob-Stand bzw. den Einsatzzeitraum (Teil 5)
+  // nicht und liesse beides beim Speichern still weg (die Gegenprobe fiele dann nicht auf).
+  if (typeof window.Tresor.minijobPruefen !== "function" ||
+      !Array.isArray(window.Tresor.PROFIL_FELDER) || window.Tresor.PROFIL_FELDER.indexOf("einsatz_bis") < 0) {
     throw new Error("tresor.js ist veraltet (Browser-Cache). Bitte die Seite neu laden (Strg+F5).");
   }
   return window.Tresor;
@@ -2636,28 +2640,11 @@ async function zuordnungAltMigrieren() {
 }
 
 // ---------- Minijob-Stand (abgerechneter Verdienst je Personalnummer, monatlich) ----------
-// Liegt als Abschnitt "minijob" im Tresor, gehoert aber nicht zur Stammliste. Darum reicht JEDE
-// Speicherstelle (inhaltBauen, 5. Argument) den vorhandenen Stand durch; sonst waere er danach weg.
+// Liegt als Abschnitt "minijob" im Tresor. Seit Teil 5 kommt er aus den Lohndaten-Spalten der Stammliste
+// (Mitarbeiter > Stammliste einspielen); eine Datei ohne diese Spalten laesst ihn unveraendert. Darum reicht
+// JEDE andere Speicherstelle (inhaltBauen, 5. Argument) den vorhandenen Stand durch; sonst waere er danach weg.
 function tresorMinijob() {
   return tresor.zustand === "offen" && tresor.inhalt ? tresor.inhalt.minijob || null : null;
-}
-// Neuen Stand speichern; Profile, Zuordnung und Quelle kommen unveraendert aus dem aktuellen Tresor.
-async function minijobSpeichern(stand) {
-  if (tresor.zustand !== "offen" || !tresor.inhalt) throw new Error("Der Tresor ist gesperrt. Bitte zuerst oben öffnen.");
-  const T = await tresorModul();
-  const bauen = () => T.inhaltBauen(tresor.inhalt.profile, tresor.inhalt.zuordnung, tresor.inhalt.quelle, null, stand);
-  try {
-    await tresorSchreiben(bauen());
-  } catch (e) {
-    if (String(e.message) !== TRESOR_KONFLIKT) throw e;
-    // Ein anderes Geraet hat inzwischen geschrieben: neu lesen (dessen Namen/Zuordnungen behalten), einmal erneut schreiben.
-    await tresorAktualisieren();
-    if (tresor.zustand !== "offen") {
-      throw new Error("Der Tresor wurde auf einem anderen Gerät mit neuem Passwort gespeichert. Der Minijob-Stand wurde nicht gespeichert.");
-    }
-    await tresorSchreiben(bauen());
-  }
-  return tresor.inhalt.minijob;
 }
 
 /* =====================================================================
@@ -3091,7 +3078,7 @@ function tresorFormularOeffnen(karte, ohneVergessen) {
   d.style.marginTop = "12px";
   d.appendChild(el("summary", null, "Passwort vergessen?"));
   d.appendChild(el("p", null,
-    "Unter Mehr › Tresor kannst du den Tresor mit einem neuen Passwort überschreiben und danach die Stammliste (und den Minijob-Stand) unter Mitarbeiter neu einspielen. " +
+    "Unter Mehr › Tresor kannst du den Tresor mit einem neuen Passwort überschreiben und danach die Stammliste (mit den Lohndaten-Spalten) unter Mitarbeiter neu einspielen. " +
     "Zugänge bleiben unverändert; nur die gemerkten Dispo-Schreibweisen gehen verloren."));
   d.appendChild(kleinerKnopf("→ Mehr › Tresor", () => adminAnsicht("tresor")));
   karte.appendChild(d);
@@ -3172,8 +3159,8 @@ function adminTresor(ziel) {
     d.appendChild(el("summary", null, z === "fehler" ? "Tresor beschädigt? Neu anlegen" : "Passwort vergessen?"));
     d.appendChild(el("p", null,
       "Der Tresor wird mit einem neuen Passwort überschrieben und ist danach leer. Anschließend die Stammliste unter Mitarbeiter neu einspielen " +
-      "(am besten eine Kopie ohne Passwortspalte: dann bleiben die Zugänge unverändert), danach den Minijob-Stand. " +
-      "Die gemerkten Dispo-Schreibweisen gehen verloren."));
+      "(am besten eine Kopie ohne Passwortspalte: dann bleiben die Zugänge unverändert; die Lohndaten der Minijobber kommen mit den " +
+      "Lohndaten-Spalten der Stammliste wieder hinein). Die gemerkten Dispo-Schreibweisen gehen verloren."));
     const cbU = kontrollKaestchen("Ich will den Tresor überschreiben", false);
     const pw1 = passwortFeld("Neues Tresor-Passwort (mindestens 12 Zeichen)", "new-password");
     const pw2 = passwortFeld("Neues Passwort wiederholen", "new-password");
@@ -3293,6 +3280,7 @@ function adminZeichnen() {
 /* ---------- Mitarbeiter: Stammliste einspielen (Zugaenge + Tresor), Passwort zuruecksetzen ---------- */
 let gelesenListe = null;     // [{personalnummer, passwort}] nur fuer import-stammliste
 let gelesenProfile = null;   // Profile fuer den Tresor (ohne Passwoerter)
+let gelesenLohn = null;      // Minijob-Abschnitt aus den Lohndaten-Spalten der Datei (null = Datei ohne Lohndaten); nur bis "übernehmen"
 let gelesenInfo = null;      // {dateiname, zeilen, modus, profilFehler, ohneProfil}
 let stammProfileVersion = 0; // steigt bei jeder Aenderung von stammProfile (Solver-Entwurf veraltet?)
 
@@ -3320,9 +3308,6 @@ function adminMitarbeiter(ziel) {
   karte.appendChild(ergebnis);
   ziel.appendChild(karte);
 
-  // Minijob-Stand (monatlich nach der Lohnabrechnung)
-  minijobKarte(ziel);
-
   // Einzelnes Passwort zuruecksetzen (aufklappbar)
   const dPw = el("details", "block");
   dPw.style.marginTop = "12px";
@@ -3332,9 +3317,10 @@ function adminMitarbeiter(ziel) {
 
   let cbPflicht = null;
   let cbEntfernt = null;
+  let cbMinijob = null;      // Pflicht-Kaestchen: Minijobber verlieren ihre bisherige Wochen-Obergrenze
 
   const zuruecksetzen = () => {
-    gelesenListe = null; gelesenProfile = null; gelesenInfo = null;
+    gelesenListe = null; gelesenProfile = null; gelesenInfo = null; gelesenLohn = null;
     eingabe.value = ""; lese.textContent = ""; ergebnis.textContent = "";
     btnVorschau.disabled = true;
   };
@@ -3345,10 +3331,19 @@ function adminMitarbeiter(ziel) {
     if (!i) return;
     let t = i.dateiname + ": " + i.zeilen + " Zeilen";
     if (i.modus === "voll") t += " · " + gelesenProfile.length + " Namen/Profile · Passwörter: ja";
-    else if (i.modus === "nur_zugaenge") t += i.profilFehler ? " · Namen/Profile nicht lesbar: " + i.profilFehler + " – nur Zugänge möglich" : " · Datei ohne Spalte Name: nur Zugänge";
+    else if (i.modus === "nur_zugaenge") t += i.profilFehler ? " · Namen/Profile nicht lesbar – nur Zugänge möglich" : " · Datei ohne Spalte Name: nur Zugänge";
     else t += " · " + gelesenProfile.length + " Namen/Profile · Datei ohne Passwortspalte: nur Namen";
+    if (gelesenLohn) {
+      t += " · Lohndaten: " + Object.keys(gelesenLohn.personen).length + " Minijobber (Stand " + datumLang(gelesenLohn.stand) + ")";
+    } else if (gelesenProfile) {
+      t += " · ohne Lohndaten-Spalten (der bisherige Minijob-Stand bleibt)";
+    }
     lese.appendChild(document.createTextNode(t + " "));
     lese.appendChild(kleinerKnopf("Datei verwerfen", zuruecksetzen));
+    if (i.profilFehler) lese.appendChild(el("div", "status-nein", "⚠ " + i.profilFehler));
+    if (gelesenLohn) {
+      lese.appendChild(el("div", null, "⚠ Die Datei enthält Lohndaten: nur lokal aufbewahren, nicht per E-Mail oder Chat weitergeben."));
+    }
     if (i.ohneProfil.length) {
       lese.appendChild(el("div", "status-nein", "⚠ " + i.ohneProfil.length + " Zeilen ohne Namen (" + i.ohneProfil.slice(0, 5).join(", ") +
         (i.ohneProfil.length > 5 ? " …" : "") + ") – diese Personen bekommen einen Zugang, aber keinen Namen im Tresor."));
@@ -3362,10 +3357,10 @@ function adminMitarbeiter(ziel) {
     if (!datei) return;
     ergebnis.textContent = "";
     lese.textContent = TEXTE.laedt;
-    gelesenListe = null; gelesenProfile = null; gelesenInfo = null;
+    gelesenListe = null; gelesenProfile = null; gelesenInfo = null; gelesenLohn = null;
     btnVorschau.disabled = true;
-    let profilFehler = null, liste = null, profile = null;
-    try { profile = await stammProfileLesen(datei); }
+    let profilFehler = null, liste = null, profile = null, lohn = null;
+    try { const r = await stammProfileLesen(datei); profile = r.profile; lohn = r.lohn; }
     catch (e) { if (e && e.code === "KEIN_NAME") profile = null; else profilFehler = String(e.message || e); }
     try { liste = await dateiLesen(datei); }
     catch (e) {
@@ -3378,15 +3373,15 @@ function adminMitarbeiter(ziel) {
       return;
     }
     if (profile) {
-      // Sicherheitspruefung: kein Passwort darf als Profilwert in den Tresor
-      try { const T = await tresorModul(); T.inhaltBauen(profile, {}, {}, liste ? liste.map((z) => z.passwort) : []); }
-      catch (e) { profilFehler = String(e.message || e); profile = null; }
+      // Sicherheitspruefung: kein Passwort darf als Profilwert in den Tresor; Lohndaten dieselbe Pruefung wie beim Speichern
+      try { const T = await tresorModul(); T.inhaltBauen(profile, {}, {}, liste ? liste.map((z) => z.passwort) : [], lohn); }
+      catch (e) { profilFehler = String(e.message || e); profile = null; lohn = null; }
     }
     const modus = liste && profile ? "voll" : liste ? "nur_zugaenge" : "nur_namen";
     const ohneProfil = liste && profile
       ? liste.filter((z) => z.personalnummer && !profile.some((p) => p.personalnummer === z.personalnummer)).map((z) => z.personalnummer)
       : [];
-    gelesenListe = liste; gelesenProfile = profile;
+    gelesenListe = liste; gelesenProfile = profile; gelesenLohn = profile ? lohn : null;
     gelesenInfo = { dateiname: datei.name, zeilen: (liste || profile).length, modus: modus, profilFehler: profilFehler, ohneProfil: ohneProfil };
     leseZeileZeigen();
     btnVorschau.disabled = false;
@@ -3413,7 +3408,7 @@ function adminMitarbeiter(ziel) {
   // Schritt 2: Vorschau (expliziter Klick)
   btnVorschau.onclick = async () => {
     btnVorschau.disabled = true;
-    cbPflicht = null; cbEntfernt = null;
+    cbPflicht = null; cbEntfernt = null; cbMinijob = null;
     ergebnis.textContent = "";
     ergebnis.appendChild(el("div", null, TEXTE.laedt));
     try {
@@ -3451,6 +3446,7 @@ function adminMitarbeiter(ziel) {
           ergebnis.appendChild(cbEntfernt.label);
         }
       }
+      if (gelesenProfile) await lohnVorschauZeichnen();
       uebernehmenKnopf(antwort);
     } catch (e) {
       ergebnis.textContent = "";
@@ -3506,22 +3502,70 @@ function adminMitarbeiter(ziel) {
     }
   }
 
+  // Schritt 2b: Lohndaten der Minijobber aus der Datei (statt der frueheren Karte "Minijob-Stand einspielen").
+  // Zaehlungen ohne Planungswoche wie frueher; Vergleich mit dem bisherigen Stand im Tresor.
+  async function lohnVorschauZeichnen() {
+    cbMinijob = null;
+    if (!gelesenLohn) {
+      ergebnis.appendChild(el("div", "meldung info", "Die Datei hat keine Lohndaten-Spalten (Abgerechnet bis, SV-Brutto seit Eintritt): " +
+        "der bisherige Minijob-Stand im Tresor bleibt unverändert."));
+      return;
+    }
+    try { await minijobModul(); } catch (_) { /* unten sichtbar: Grenzen nicht berechnet */ }
+    const offen = tresor.zustand === "offen";
+    const z = lohnVorschauDaten(gelesenLohn, gelesenProfile, offen ? tresorMinijob() : null);
+    const box = el("div", "meldung info");
+    box.appendChild(el("b", null, "Lohndaten der Minijobber (Stand " + datumLang(gelesenLohn.stand) + ")"));
+    [
+      z.minijobber + " Minijobber in der Datei · mit Wochen-Obergrenze: " + z.mitGrenze,
+      "Ohne Abrechnung (noch keine Grenze): " + z.ohneAbrechnung,
+      "Grenze erreicht (0 h bis Vertragsende): " + z.nullH,
+      "Abgerechnet bis: " + monatText(z.abgerechnetBis)
+    ].forEach((t) => box.appendChild(el("div", null, t)));
+    ergebnis.appendChild(box);
+    if (!z.modul || z.fehler) {
+      ergebnis.appendChild(el("div", "meldung schlecht", "Wochen-Obergrenzen konnten nicht berechnet werden" + (z.fehler ? ": " + z.fehler : " (minijob.js fehlt oder ist veraltet – Seite neu laden mit Strg+F5)") + "."));
+    }
+    if (z.merkmalNein) {
+      ergebnis.appendChild(el("div", "meldung schlecht", "⚠ " + z.merkmalNein + (z.merkmalNein === 1 ? " Person ist" : " Personen sind") +
+        " laut Stammliste Minijob, laut Lohnabrechnung aber nicht (Minijob-Merkmal = nein) – bitte prüfen. Die Grenze wird trotzdem angewandt."));
+    }
+    if (z.verloren.length) {
+      const n = z.verloren.length;
+      const liste = z.verloren.map((v) => nameMitNummer(v.pn) + " (" + v.grund + ")");
+      ergebnis.appendChild(el("div", "meldung schlecht", "⚠ " + n + (n === 1 ? " Minijobber hatte" : " Minijobber hatten") +
+        " bisher eine Wochen-Obergrenze und hätte" + (n === 1 ? "" : "n") + " danach keine – die Minijob-Grenze wird für " +
+        (n === 1 ? "ihn" : "sie") + " nicht mehr geprüft: " +
+        liste.slice(0, 10).join(", ") + (n > 10 ? " …" : "")));
+      cbMinijob = kontrollKaestchen("Ich habe gesehen: " + n + (n === 1 ? " Minijobber verliert seine" : " Minijobber verlieren ihre") +
+        " Wochen-Obergrenze.", false);
+      ergebnis.appendChild(cbMinijob.label);
+    }
+    if (!offen) {
+      ergebnis.appendChild(el("div", "meldung info", "Tresor nicht offen: Die Lohndaten werden nicht gespeichert; der Vergleich mit dem bisherigen Minijob-Stand fehlt."));
+    }
+  }
+
   // Schritt 3: ein Knopf, Beschriftung nach Modus und Tresor-Zustand
   function uebernehmenKnopf(antwort) {
     const modus = gelesenInfo.modus;
     const offen = tresor.zustand === "offen";
+    const namen = gelesenLohn ? "Namen und Lohndaten" : "Namen";
     let text, grund = null;
-    if (modus === "voll") text = offen ? "Jetzt übernehmen: Zugänge und Namen" : "Nur Zugänge übernehmen (Namen werden NICHT gespeichert – Tresor oben " + (tresor.zustand === "leer" ? "anlegen" : "öffnen") + ")";
+    if (modus === "voll") text = offen ? "Jetzt übernehmen: Zugänge" + (gelesenLohn ? ", Namen und Lohndaten" : " und Namen") : "Nur Zugänge übernehmen (" + namen + " werden NICHT gespeichert – Tresor oben " + (tresor.zustand === "leer" ? "anlegen" : "öffnen") + ")";
     else if (modus === "nur_zugaenge") text = gelesenInfo.profilFehler ? "Nur Zugänge übernehmen (Namen wegen Fehler nicht gespeichert)" : "Nur Zugänge übernehmen (Datei ohne Namen)";
-    else { text = "Namen und Profile übernehmen (Zugänge bleiben unverändert)"; if (!offen) grund = "Zuerst oben den Tresor öffnen oder anlegen."; }
+    else { text = (gelesenLohn ? "Namen, Profile und Lohndaten" : "Namen und Profile") + " übernehmen (Zugänge bleiben unverändert)"; if (!offen) grund = "Zuerst oben den Tresor öffnen oder anlegen."; }
     const b = mittlererKnopf(text);
-    const pruefen = () => { b.disabled = !!grund || (cbPflicht && !cbPflicht.cb.checked) || (cbEntfernt && !cbEntfernt.cb.checked); };
+    const pruefen = () => {
+      b.disabled = !!(grund || (cbPflicht && !cbPflicht.cb.checked) || (cbEntfernt && !cbEntfernt.cb.checked) || (cbMinijob && !cbMinijob.cb.checked));
+    };
     if (cbPflicht) cbPflicht.cb.onchange = pruefen;
     if (cbEntfernt) cbEntfernt.cb.onchange = pruefen;
+    if (cbMinijob) cbMinijob.cb.onchange = pruefen;
     pruefen();
     ergebnis.appendChild(b);
     if (grund) ergebnis.appendChild(el("p", "hinweisbox", grund));
-    else if (cbPflicht || cbEntfernt) ergebnis.appendChild(el("p", "hinweisbox", "Der Knopf wird frei, sobald die Kästchen angehakt sind."));
+    else if (cbPflicht || cbEntfernt || cbMinijob) ergebnis.appendChild(el("p", "hinweisbox", "Der Knopf wird frei, sobald die Kästchen angehakt sind."));
     b.onclick = () => uebernehmen(b, text, antwort);
   }
 
@@ -3532,14 +3576,16 @@ function adminMitarbeiter(ziel) {
     ergebnis.appendChild(nach);
     const modus = gelesenInfo.modus;
     const mitNamen = !!gelesenProfile && tresor.zustand === "offen";
+    const lohn = gelesenLohn;   // Lohndaten aus der Datei; null = Datei ohne Lohndaten-Spalten
     let inhalt = null;
     try {
       if (mitNamen) {
         const T = await tresorModul();
-        // Der Minijob-Stand gehoert nicht zur Stammliste: unveraendert durchreichen (namenSpeichern nimmt beim Schreiben den aktuellsten)
+        // Minijob-Stand: Hat die Datei Lohndaten-Spalten, kommt er aus der Datei. Sonst bleibt der bisherige
+        // (namenSpeichern nimmt ihn beim Schreiben frisch aus dem Tresor).
         inhalt = T.inhaltBauen(gelesenProfile, zuordnungLaden(),
           { dateiname: gelesenInfo.dateiname, zeilen: gelesenProfile.length, eingelesen_am: new Date().toISOString() },
-          gelesenListe ? gelesenListe.map((z) => z.passwort) : [], tresorMinijob());
+          gelesenListe ? gelesenListe.map((z) => z.passwort) : [], lohn || tresorMinijob());
       }
     } catch (e) {
       nach.appendChild(el("div", "meldung schlecht", String(e.message || e)));
@@ -3564,27 +3610,30 @@ function adminMitarbeiter(ziel) {
       if (teilweise) nach.appendChild(fehlerListe(res));
       admin.status = null;
     }
-    if (inhalt) await namenSpeichern(inhalt, nach);
+    if (inhalt) await namenSpeichern(inhalt, nach, !!lohn);
     else if (gelesenProfile && tresor.zustand !== "offen") {
-      nach.appendChild(el("div", "meldung info", "Namen wurden NICHT gespeichert, weil der Tresor nicht offen ist. Später: Tresor öffnen und die Datei " +
-        "(am besten ohne Passwortspalte) erneut einspielen."));
+      nach.appendChild(el("div", "meldung info", "Namen" + (lohn ? " und Lohndaten" : "") + " wurden NICHT gespeichert, weil der Tresor nicht offen ist. " +
+        "Später: Tresor öffnen und die Datei (am besten ohne Passwortspalte) erneut einspielen."));
     }
-    gelesenProfile = null; gelesenInfo = null;
+    gelesenProfile = null; gelesenInfo = null; gelesenLohn = null; // Lohndaten raus aus dem Speicher
     eingabe.value = ""; lese.textContent = "";
     btnVorschau.disabled = true;
     b.remove();
     nach.appendChild(kleinerKnopf("→ Start", () => adminAnsicht("start")));
   }
 
-  async function namenSpeichern(inhalt, nach) {
+  // lohnAusDatei: true = die Datei hatte Lohndaten-Spalten, inhalt.minijob ist der Abschnitt aus der Datei und gilt
+  // (auch beim Neuversuch nach einem Konflikt). false = Datei ohne Lohndaten: der bisherige Stand aus dem Tresor bleibt.
+  async function namenSpeichern(inhalt, nach, lohnAusDatei) {
     try {
-      // Minijob-Stand immer aus dem zuletzt gelesenen Tresor (die Versionspruefung in tresorSchreiben
-      // stellt sicher, dass genau auf diesen Stand geschrieben wird) – ein Stammlisten-Upload loescht ihn nie
-      if (tresor.zustand === "offen" && tresor.inhalt) inhalt = Object.assign({}, inhalt, { minijob: tresor.inhalt.minijob });
+      // Ohne Lohndaten in der Datei: Minijob-Stand immer aus dem zuletzt gelesenen Tresor (die Versionspruefung in
+      // tresorSchreiben stellt sicher, dass genau auf diesen Stand geschrieben wird) – so loescht ihn ein Upload nie
+      if (!lohnAusDatei && tresor.zustand === "offen" && tresor.inhalt) inhalt = Object.assign({}, inhalt, { minijob: tresor.inhalt.minijob });
       await tresorSchreiben(inhalt);
       admin.status = null;
       nach.appendChild(el("div", "meldung gut", "✓ " + inhalt.profile.length + " Namen und Profile verschlüsselt im Tresor gespeichert (" +
-        inhalt.quelle.dateiname + ")."));
+        inhalt.quelle.dateiname + ")." + (lohnAusDatei && inhalt.minijob ? " Dazu die Lohndaten von " + Object.keys(inhalt.minijob.personen).length +
+        " Minijobbern (Stand " + datumLang(inhalt.minijob.stand) + "). Die Datei enthält Lohndaten – bitte nicht weitergeben." : "")));
     } catch (e) {
       const konflikt = String(e.message) === TRESOR_KONFLIKT;
       if (konflikt) { try { await tresorAktualisieren(); } catch (_) { /* unten sichtbar */ } }
@@ -3595,13 +3644,14 @@ function adminMitarbeiter(ziel) {
         wieder.disabled = true; box.remove();
         let neu = inhalt;
         try {
-          // Die Datei bleibt Quelle fuer Namen/Profile; Dispo-Schreibweisen und Minijob-Stand des anderen Geraets gewinnen
+          // Die Datei bleibt Quelle fuer Namen/Profile (und, wenn sie welche hat, fuer die Lohndaten);
+          // Dispo-Schreibweisen des anderen Geraets gewinnen, ebenso dessen Minijob-Stand bei einer Datei ohne Lohndaten
           const T = await tresorModul();
           const frisch = tresor.inhalt ? tresor.inhalt.zuordnung : {};
           neu = T.inhaltBauen(inhalt.profile, Object.assign({}, inhalt.zuordnung, frisch), inhalt.quelle,
-            null, tresor.inhalt ? tresor.inhalt.minijob : inhalt.minijob);
+            null, lohnAusDatei ? inhalt.minijob : (tresor.inhalt ? tresor.inhalt.minijob : inhalt.minijob));
         } catch (_) { /* dann unveraendert erneut */ }
-        await namenSpeichern(neu, nach);
+        await namenSpeichern(neu, nach, lohnAusDatei);
       });
       box.appendChild(wieder);
       nach.appendChild(box);
@@ -3636,8 +3686,9 @@ function detailListe(titel, nummern) {
    Tresor (Abschnitt minijob). Hier nur Auswahl, Anzeige und die Bruecke zum Solver. */
 async function minijobModul() {
   await skriptLaden("minijob.js");
-  if (typeof MinijobStand === "undefined" || !MinijobStand || typeof MinijobStand.csvLesen !== "function") {
-    throw new Error("minijob.js konnte nicht geladen werden. Bitte die Seite neu laden (Strg+F5).");
+  // beendete (Teil 5): eine aeltere minijob.js aus dem Browser-Cache kennt Einsatz bis und Planungswoche nicht
+  if (typeof MinijobStand === "undefined" || !MinijobStand || typeof MinijobStand.beendete !== "function") {
+    throw new Error("minijob.js konnte nicht geladen werden oder ist veraltet. Bitte die Seite neu laden (Strg+F5).");
   }
   return MinijobStand;
 }
@@ -3650,20 +3701,20 @@ function minijobAbgerechnetBis(personen) {
   Object.keys(personen || {}).forEach((pn) => { const b = personen[pn] && personen[pn].abgerechnetBis; if (b) n[b] = (n[b] || 0) + 1; });
   return Object.keys(n).sort((a, b) => n[b] - n[a] || (a < b ? 1 : -1))[0] || null;
 }
-// Datenminimierung: In den Tresor kommt nur, wer fuer die Minijob-Grenze zaehlt (dieselbe Auswahl wie
-// istMinijobber in minijob.js): Kategorie aus der Stammliste; ohne Profil entscheidet das Minijob-Merkmal "ja".
-function minijobRelevant(pn, eintrag, profile) {
-  const p = profile && Object.prototype.hasOwnProperty.call(profile, pn) ? profile[pn] : null;
-  if (p && p.kategorie) return String(p.kategorie).trim().toLowerCase() === "minijob";
-  return !!eintrag && eintrag.minijobMerkmal === "ja";
-}
-// Wochen-Obergrenzen aus dem Stand: { stand, modul (minijob.js geladen?), grenzen: {pn: Minuten|null}, fehler }
-function minijobLage(stand, profile) {
-  const lage = { stand: stand || null, grenzen: {}, fehler: null,
-    modul: typeof MinijobStand !== "undefined" && !!MinijobStand && typeof MinijobStand.wochenGrenzen === "function" };
+// Wochen-Obergrenzen aus dem Stand: { stand, modul (minijob.js geladen und aktuell?), grenzen: {pn: Minuten},
+// beendet: {pn: Vertragsende}, fehler }. montag (optional): Montag der Planungswoche – dann gilt die Grenze anteilig
+// fuer genau diese Woche und Vertraege, die vorher endeten, bekommen 0 ("beendet"). Alle Stellen der Wochenplanung
+// rechnen mit demselben Montag (minijobLageAktuell); die Upload-Vorschau bewusst ohne.
+function minijobLage(stand, profile, montag) {
+  const lage = { stand: stand || null, grenzen: {}, beendet: {}, fehler: null,
+    // aeltere minijob.js (Browser-Cache, ohne beendete) kennt Einsatz bis und Planungswoche nicht: wie "nicht geladen"
+    modul: typeof MinijobStand !== "undefined" && !!MinijobStand && typeof MinijobStand.wochenGrenzen === "function" &&
+      typeof MinijobStand.beendete === "function" };
   if (!lage.stand || !lage.modul) return lage;
-  try { lage.grenzen = MinijobStand.wochenGrenzen(lage.stand, profile || {}) || {}; }
-  catch (e) { lage.grenzen = {}; lage.fehler = String(e.message || e); }
+  try {
+    lage.grenzen = MinijobStand.wochenGrenzen(lage.stand, profile || {}, montag || null) || {};
+    lage.beendet = montag ? MinijobStand.beendete(lage.stand, profile || {}, montag) || {} : {};
+  } catch (e) { lage.grenzen = {}; lage.beendet = {}; lage.fehler = String(e.message || e); }
   return lage;
 }
 // Grenze einer Person in Minuten oder null (= keine). Achtung: 0 ist eine Grenze.
@@ -3692,152 +3743,77 @@ function minijobUeberschreitungen(eingabe, slots, zuw) {
     .map((p) => ({ art: "hinweis", typ: "minijob", pn: p.personalnummer, minuten: min[p.personalnummer], grenzeMinuten: p.max_minuten_hart }));
 }
 
-/* ---------- Mitarbeiter: Minijob-Stand einspielen ----------
-   CSV aus dem lokalen DocuWare-Skript, monatlich nach der Lohnabrechnung. Gelesen wird nur im Browser;
-   in den Tresor kommen nur die Felder aus tresor.js (MINIJOB_FELDER), keine Namen. */
-let minijobGelesen = null;   // {dateiname, personen, fehler}: Lohndaten, nur im Speicher bis "übernehmen" oder "verwerfen"
-
-function minijobKarte(ziel) {
-  const karte = el("div", "karte");
-  karte.appendChild(el("h2", null, "Minijob-Stand einspielen"));
-  karte.appendChild(el("p", "hinweisbox",
-    "Einmal im Monat nach der Lohnabrechnung die CSV aus dem DocuWare-Skript wählen. Daraus berechnet die App für jeden Minijobber " +
-    "eine Wochen-Obergrenze, damit niemand über die Minijob-Verdienstgrenze kommt. Verschlüsselt im Tresor landen nur Personalnummer, " +
-    "Ein- und Austritt, „abgerechnet bis“, SV-Brutto, Stunden und das Minijob-Merkmal – keine Namen, und nur für Minijobber."));
-  karte.appendChild(el("p", "hinweisbox", "⚠ Die Datei enthält Lohndaten: nur lokal aufbewahren, nicht per E-Mail oder Chat weitergeben."));
-
-  const akt = tresorMinijob();
-  if (tresor.zustand === "offen") {
-    karte.appendChild(el("div", "meldung info", akt
-      ? "Aktueller Stand im Tresor: vom " + datumLang(akt.stand) + " · abgerechnet bis " + monatText(minijobAbgerechnetBis(akt.personen)) +
-        " · " + Object.keys(akt.personen).length + " Minijobber" + (akt.dateiname ? " · Datei " + akt.dateiname : "")
-      : "Noch kein Minijob-Stand im Tresor – bis dahin prüft die Wochenplanung die Minijob-Grenze nicht."));
-  }
-
-  const eingabe = document.createElement("input");
-  eingabe.type = "file";
-  eingabe.accept = ".csv,text/csv";
-  eingabe.style.margin = "12px 0";
-  karte.appendChild(eingabe);
-  const vorschau = el("div");
-  karte.appendChild(vorschau);
-  ziel.appendChild(karte);
-
-  const verwerfen = () => { minijobGelesen = null; eingabe.value = ""; vorschau.textContent = ""; };
-  const fehlerText = (f) => typeof f === "string" ? f : (f && (f.text || f.meldung)) || JSON.stringify(f);
-
-  // Vorschau aus minijobGelesen (ueberlebt ein Neuzeichnen der Ansicht)
-  const vorschauZeigen = async () => {
-    vorschau.textContent = "";
-    const g = minijobGelesen;
-    if (!g) return;
-    let stand;
-    const alle = Object.keys(g.personen);
-    const behalten = {};
-    alle.forEach((pn) => { if (minijobRelevant(pn, g.personen[pn], stammProfile)) behalten[pn] = g.personen[pn]; });
-    try {
-      const T = (await Promise.all([tresorModul(), minijobModul()]))[0];
-      // dieselbe Pruefung wie beim Speichern: ungueltige Werte fallen hier schon auf
-      stand = T.minijobPruefen({ stand: alsIso(new Date()), dateiname: g.dateiname, personen: behalten });
-    } catch (e) {
-      vorschau.appendChild(el("div", "meldung schlecht", "Die Datei kann so nicht übernommen werden: " + String(e.message || e)));
-      vorschau.appendChild(kleinerKnopf("Datei verwerfen", verwerfen));
-      return;
-    }
-    if (minijobGelesen !== g) return; // inzwischen andere Datei gewaehlt
-    const lage = minijobLage(stand, stammProfile);
-    const pns = Object.keys(stand.personen);
-    const mitGrenze = pns.filter((pn) => minijobGrenzeVon(lage, pn) !== null).length;
-    const nullH = pns.filter((pn) => minijobGrenzeVon(lage, pn) === 0).length;
-    const ohneAbr = pns.filter((pn) => !stand.personen[pn].abgerechnetBis).length;
-    const abw = pns.filter((pn) => stammProfile[pn] && stammProfile[pn].kategorie === "minijob" && stand.personen[pn].minijobMerkmal === "nein").length;
-    const nicht = alle.length - pns.length;
-
-    const kopf = el("div", "hinweisbox");
-    kopf.appendChild(document.createTextNode(g.dateiname + ": " + alle.length + (alle.length === 1 ? " Person" : " Personen") + " gelesen · " +
-      pns.length + " Minijobber werden gespeichert" +
-      (nicht ? " (" + nicht + " nicht: Teilzeit laut Stammliste bzw. ohne Profil und ohne Minijob-Merkmal)" : "") + " "));
-    kopf.appendChild(kleinerKnopf("Datei verwerfen", verwerfen));
-    vorschau.appendChild(kopf);
-    const box = el("div", "meldung info");
-    [
-      "Minijobber mit Wochen-Obergrenze: " + mitGrenze,
-      "Ohne Abrechnung (noch keine Grenze): " + ohneAbr,
-      "Abgerechnet bis: " + monatText(minijobAbgerechnetBis(stand.personen)),
-      nullH ? "Grenze erreicht (0 h bis Befristungsende): " + nullH : ""
-    ].filter(Boolean).forEach((t) => box.appendChild(el("div", null, t)));
-    vorschau.appendChild(box);
-    if (!lage.modul || lage.fehler) {
-      vorschau.appendChild(el("div", "meldung schlecht", "Grenzen konnten nicht berechnet werden" + (lage.fehler ? ": " + lage.fehler : "") + "."));
-    }
-    if (tresor.zustand !== "offen") {
-      vorschau.appendChild(el("div", "meldung info", "Tresor nicht offen: Kategorien aus der Stammliste fehlen in dieser Vorschau."));
-    }
-    if (abw) {
-      vorschau.appendChild(el("div", "meldung schlecht", "⚠ " + abw + (abw === 1 ? " Person ist" : " Personen sind") +
-        " laut Stammliste Minijob, laut Lohnabrechnung aber nicht (Minijob-Merkmal = nein) – bitte prüfen. Die Grenze wird trotzdem angewandt."));
-    }
-    let cbFehler = null;
-    if (g.fehler.length) {
-      const fb = el("div", "meldung schlecht", "Nicht lesbar (" + g.fehler.length + "):\n" + g.fehler.slice(0, 10).map(fehlerText).join("\n") +
-        (g.fehler.length > 10 ? "\n…" : ""));
-      fb.style.whiteSpace = "pre-line";
-      vorschau.appendChild(fb);
-      cbFehler = kontrollKaestchen("Ich habe die Fehler gesehen: Für diese Zeilen gibt es keine Minijob-Grenze.", false);
-      vorschau.appendChild(cbFehler.label);
-    }
-    const text = "Minijob-Stand übernehmen (verschlüsselt in den Tresor)";
-    const b = mittlererKnopf(text);
-    const grund = tresor.zustand !== "offen" ? "Zuerst oben den Tresor " + (tresor.zustand === "leer" ? "anlegen." : "öffnen.")
-      : !pns.length ? "Keine Minijobber in der Datei."
-      : !lage.modul || lage.fehler ? "So nicht übernehmen: Mit diesem Stand ließe sich die Minijob-Grenze nicht berechnen." : null;
-    const pruefen = () => { b.disabled = !!grund || (cbFehler && !cbFehler.cb.checked); };
-    if (cbFehler) cbFehler.cb.onchange = pruefen;
-    pruefen();
-    vorschau.appendChild(b);
-    if (grund) vorschau.appendChild(el("p", "hinweisbox", grund));
-    const nach = el("div");
-    vorschau.appendChild(nach);
-    b.onclick = async () => {
-      b.disabled = true; b.textContent = TEXTE.laedt;
-      nach.textContent = "";
-      try {
-        const m = await minijobSpeichern(stand);
-        minijobGelesen = null;
-        admin.status = null;
-        adminZeichnen();
-        adminMeldung("gut", "✓ Minijob-Stand vom " + datumLang(m.stand) + " verschlüsselt im Tresor gespeichert (" + Object.keys(m.personen).length +
-          " Minijobber). Die CSV wird nicht mehr gebraucht – bitte nicht weitergeben." +
-          (auto.erg && !auto.veroeffentlicht ? " Den Planungsentwurf bitte neu berechnen." : ""));
-      } catch (e) {
-        b.disabled = false; b.textContent = text;
-        nach.appendChild(el("div", "meldung schlecht", "✗ Minijob-Stand NICHT gespeichert: " + String(e.message || e)));
-      }
-    };
+// Upload-Vorschau der Lohndaten (DOM-frei): Zaehlungen fuer den Minijob-Abschnitt aus der Datei – ohne
+// Planungswoche, wie die fruehere Karte – und Vergleich mit dem bisherigen Stand im Tresor.
+//   stand: Abschnitt aus der Datei; profile: Profile aus der Datei (Liste); alt: bisheriger Stand oder null
+//   verloren: wer noch in der Datei steht, bisher eine Grenze hatte (abgerechnetBis gesetzt) und jetzt keine
+//             (jetzt Teilzeit oder ohne abgerechnetBis); Ausgeschiedene zaehlen nicht
+function lohnVorschauDaten(stand, profile, alt) {
+  const nachPn = {};
+  (profile || []).forEach((p) => { nachPn[p.personalnummer] = p; });
+  const lage = minijobLage(stand, nachPn);
+  const pns = Object.keys(stand.personen);
+  const z = {
+    minijobber: pns.length,
+    mitGrenze: pns.filter((pn) => minijobGrenzeVon(lage, pn) !== null).length,
+    ohneAbrechnung: pns.filter((pn) => !stand.personen[pn].abgerechnetBis).length,
+    nullH: pns.filter((pn) => minijobGrenzeVon(lage, pn) === 0).length,
+    abgerechnetBis: minijobAbgerechnetBis(stand.personen),
+    merkmalNein: pns.filter((pn) => stand.personen[pn].minijobMerkmal === "nein").length,   // alle hier sind Kategorie Minijob
+    modul: lage.modul, fehler: lage.fehler,
+    verloren: []
   };
+  const altPersonen = alt && alt.personen ? alt.personen : {};
+  Object.keys(altPersonen).sort().forEach((pn) => {
+    if (!altPersonen[pn] || !altPersonen[pn].abgerechnetBis) return;
+    const neu = stand.personen[pn];
+    if (neu && neu.abgerechnetBis) return;
+    const p = nachPn[pn];
+    // Nicht mehr in der Datei = ausgeschieden: steht schon bei „entfernt“/„deaktiviert“, keine eigene Warnung
+    // (sonst kaeme sie bei jedem Monatslauf mit Ausgeschiedenen und stumpfte ab)
+    if (!p) return;
+    z.verloren.push({ pn: pn, grund: p.kategorie !== "minijob" ? "jetzt Teilzeit" : "„Abgerechnet bis“ leer" });
+  });
+  return z;
+}
 
-  eingabe.onchange = async () => {
-    const datei = eingabe.files && eingabe.files[0];
-    if (!datei) return;
-    minijobGelesen = null;
-    vorschau.textContent = TEXTE.laedt;
-    try {
-      if (datei.size > 2 * 1024 * 1024) throw new Error("Die Datei ist zu groß für einen Minijob-Stand (über 2 MB) – richtige Datei gewählt?");
-      const M = await minijobModul();
-      const r = M.csvLesen(await datei.text()) || {};
-      const personen = r.personen && typeof r.personen === "object" ? r.personen : {};
-      if (!Object.keys(personen).length) {
-        throw new Error("Keine Personen gefunden" + (Array.isArray(r.fehler) && r.fehler.length ? ": " + fehlerText(r.fehler[0]) : "") +
-          ". Erwartet wird die CSV aus dem DocuWare-Skript (Spalten u. a. Personalnummer, Eintritt, Letzter Monat, SV-Brutto im Zeitraum, Stunden im Zeitraum).");
-      }
-      minijobGelesen = { dateiname: datei.name, personen: personen, fehler: Array.isArray(r.fehler) ? r.fehler : [] };
-      await vorschauZeigen();
-    } catch (e) {
-      verwerfen();
-      adminMeldung("schlecht", String(e.message || e));
-    }
-  };
-  if (minijobGelesen) vorschauZeigen();
+// Einsatzzeitraum laut Stammliste (Profil einsatz_von/einsatz_bis, fuer ALLE Kategorien): Verfuegbarkeiten an Tagen
+// ausserhalb werden vor dem Solver entfernt (tag-genau). Ohne Profil oder ohne Daten bleibt alles, wie es ist.
+// Rueckgabe { verfuegbar: gefilterte Liste, betroffen: { pn: { von, bis, vorher: Anzahl, danach: Anzahl } } }
+function einsatzFiltern(verfuegbar, profile) {
+  const betroffen = {};
+  const liste = (verfuegbar || []).filter((v) => {
+    const p = profile && Object.prototype.hasOwnProperty.call(profile, v.personalnummer) ? profile[v.personalnummer] : null;
+    if (!p) return true;
+    const vorher = !!p.einsatz_von && v.datum < p.einsatz_von;
+    const danach = !!p.einsatz_bis && v.datum > p.einsatz_bis;
+    if (!vorher && !danach) return true;
+    const b = betroffen[v.personalnummer] ||
+      (betroffen[v.personalnummer] = { von: p.einsatz_von || null, bis: p.einsatz_bis || null, vorher: 0, danach: 0 });
+    if (vorher) b.vorher++; else b.danach++;
+    return false;
+  });
+  return { verfuegbar: liste, betroffen: betroffen };
+}
+
+// Hinweise fuer Schritt 2 (Textzeilen, sortiert): wer laut Stammliste nicht eingeplant wird – Einsatzzeitraum
+// (alle) oder beendeter Minijob-Vertrag (Grenze 0) –, aber nur, wer dafuer Verfuegbarkeit abgegeben hat.
+function einsatzHinweise(verfuegbar, profile, lage) {
+  const f = einsatzFiltern(verfuegbar, profile);
+  const korrektur = " (stimmt das nicht: Stammliste aktualisieren)";
+  const zeilen = [];
+  Object.keys(f.betroffen).forEach((pn) => {
+    const b = f.betroffen[pn];
+    if (b.danach) zeilen.push(nameVon(pn) + ": Einsatz laut Stammliste bis " + tagKurz(b.bis) + " – danach nicht eingeplant" + korrektur);
+    if (b.vorher) zeilen.push(nameVon(pn) + ": Einsatz laut Stammliste beginnt erst am " + tagKurz(b.von) + " – vorher nicht eingeplant" + korrektur);
+  });
+  const nochVerfuegbar = new Set(f.verfuegbar.map((v) => v.personalnummer));
+  const beendet = (lage && lage.beendet) || {};
+  Object.keys(beendet).forEach((pn) => {
+    if (!nochVerfuegbar.has(pn)) return;   // schon oben (Einsatz bis) oder gar nicht abgegeben
+    zeilen.push(nameVon(pn) + ": Minijob-Vertrag laut Lohndaten am " + tagKurz(beendet[pn]) + " beendet – nicht eingeplant" + korrektur);
+  });
+  return zeilen.sort((a, b) => a.localeCompare(b, "de"));
 }
 
 // SheetJS wird erst geladen, wenn wirklich eine Datei kommt. So muessen
@@ -4057,54 +4033,180 @@ function dispoParsen(mappe) {
   return erg;
 }
 
-// Stammliste: Spalten Personalnummer + Name, optional Kategorie und Fahrgemeinschaft (Passwort wird nie gelesen).
+// Stammliste – eine Liste fuer alles (Teil 5). Spalten Personalnummer + Name, optional Kategorie, Fahrgemeinschaft,
+// Einsatz von/bis und die Lohndaten der Minijobber (vom lokalen Hilfsskript gefuellt). Passwort wird nie gelesen.
 // Weitere Spalten (z. B. aus aelteren Vorlagen) werden still ignoriert.
-// Namen/Profile werden verschluesselt im Tresor (app_dateien) gespeichert; Klartext nur im Admin-Browser.
-function stammProfilZeile(z, sp, zeilenNr) {
-  const roh = (s) => (s ? String(z[s]).trim() : "");
-  const kat = roh(sp.kategorie).toLowerCase();
-  let kategorie = "minijob";
-  if (/^teil/.test(kat)) kategorie = "teilzeit";
-  else if (kat !== "" && !/^mini/.test(kat)) {
-    throw new Error('Zeile ' + zeilenNr + ', Spalte "Kategorie": "' + roh(sp.kategorie) + '" – erlaubt sind Teilzeit oder Minijob.');
-  }
-  return {
-    personalnummer: roh(sp.pn),
-    name: roh(sp.name),
-    kategorie,
-    // Kennung nur fuer die Anzeige vereinheitlicht (mehrere Leerzeichen -> eines); der Solver normalisiert selbst.
-    // Nur Striche ("-", "–", "—") zaehlen als leer, sonst bildeten alle mit "-" eine Gruppe.
-    fahrgemeinschaft: /^[-–—]*$/.test(roh(sp.fahrgemeinschaft)) ? null : roh(sp.fahrgemeinschaft).replace(/\s+/g, " ")
-  };
-}
+// Namen/Profile/Lohndaten werden verschluesselt im Tresor (app_dateien) gespeichert; Klartext nur im Admin-Browser.
 
-async function stammProfileLesen(datei) {
-  await sheetJsLaden();
-  const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
-  const zeilen = XLSX.utils.sheet_to_json(mappe.Sheets[mappe.SheetNames[0]], { defval: "", raw: false });
-  if (zeilen.length === 0) throw new Error("Die Datei enthält keine Zeilen.");
-  const spalten = Object.keys(zeilen[0]);
+// Spalten per Kopf-Text (Gross/Klein egal). Die Zusatzspalten F–M sind alle optional.
+function stammSpalten(spalten) {
   const finde = (re) => spalten.find((s) => re.test(s));
   const sp = {
     pn: finde(/personal/i),
     name: finde(/^\s*name\s*$/i) || finde(/name/i),
     kategorie: finde(/kategorie/i),
-    fahrgemeinschaft: finde(/fahrgem/i)
+    fahrgemeinschaft: finde(/fahrgem/i),
+    zusatz: {}
   };
+  [
+    ["einsatz_von", /einsatz\s*von/i, "datum"],
+    ["einsatz_bis", /einsatz\s*bis/i, "datum"],
+    ["eintritt", /^\s*eintritt/i, "datum"],
+    ["abgerechnetBis", /abgerechnet/i, "monat"],
+    ["svBrutto", /sv-?\s*brutto/i, "zahl"],
+    ["stunden", /^\s*stunden/i, "zahl"],
+    ["minijobMerkmal", /minijob-?\s*merkmal/i, "merkmal"],
+    ["standLohn", /stand\s*lohn/i, "datum"]
+  ].forEach((s) => { const kopf = finde(s[1]); if (kopf !== undefined) sp.zusatz[s[0]] = { kopf: kopf, art: s[2] }; });
+  return sp;
+}
+
+// Kalendertag pruefen: "JJJJ-MM-TT" oder null (31.02. und Jahre ausserhalb 1950–2100 fallen durch)
+function stammIso(j, m, t) {
+  if (!(j >= 1950 && j <= 2100)) return null;
+  const d = new Date(Date.UTC(j, m - 1, t));
+  if (d.getUTCFullYear() !== j || d.getUTCMonth() !== m - 1 || d.getUTCDate() !== t) return null;
+  return j + "-" + pad2(m) + "-" + pad2(t);
+}
+
+// Eine Zusatzzelle streng lesen: leer -> null, lesbar -> Wert, sonst Fehler mit Zeile und Spaltenname.
+// roh kommt aus sheet_to_json mit raw:true: echte Excel-Datums- und Zahlzellen sind Zahlen, Textzellen Text.
+//   datum:   Text TT.MM.JJJJ (auch T.M.JJJJ) oder echte Datumszelle -> "JJJJ-MM-TT"
+//   monat:   Text MM/JJJJ (auch M/JJJJ) oder echte Datumszelle -> "JJJJ-MM"
+//   zahl:    Text "2950,00", "2.950,00", "2950" oder echte Zahl, jeweils ab 0
+//   merkmal: ja / nein / ? (Gross/klein egal)
+function stammZelle(roh, art, kopf, zeilenNr, ist1904) {
+  if (roh === null || roh === undefined) return null;
+  const text = typeof roh === "string" ? roh.trim() : null;
+  if (text === "") return null;
+  const fehler = (erwartet) => new Error("Zeile " + zeilenNr + ', Spalte "' + String(kopf).trim() + '": "' + String(roh).trim() + '" – ' + erwartet + ".");
+  if (art === "zahl") {
+    if (typeof roh === "number" && isFinite(roh) && roh >= 0) return roh;
+    if (text !== null && /^(\d{1,3}(\.\d{3})+|\d+)(,\d+)?$/.test(text)) return Number(text.replace(/\./g, "").replace(",", "."));
+    throw fehler("erwartet wird eine Zahl ab 0, z. B. 2950,00");
+  }
+  if (art === "merkmal") {
+    const m = text === null ? "" : text.toLowerCase();
+    if (m === "ja" || m === "nein" || m === "?") return m;
+    throw fehler("erlaubt sind ja, nein, ? oder leer");
+  }
+  let iso = null;
+  if (typeof roh === "number") {
+    // echte Datumszelle: ganze Seriennummer (1904-System beachten); alles andere ist kein Datum
+    if (Number.isInteger(roh) && roh > 0) {
+      const s = serieAlsIso(roh, ist1904);
+      iso = stammIso(Number(s.slice(0, 4)), Number(s.slice(5, 7)), Number(s.slice(8, 10)));
+    }
+  } else if (text !== null && art === "datum") {
+    const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(text);
+    if (m) iso = stammIso(Number(m[3]), Number(m[2]), Number(m[1]));
+  } else if (text !== null) {
+    const m = /^(\d{1,2})\/(\d{4})$/.exec(text);
+    if (m) iso = stammIso(Number(m[2]), Number(m[1]), 1);
+  }
+  if (!iso) throw fehler(art === "datum" ? "kein gültiges Datum (TT.MM.JJJJ)" : "kein gültiger Monat (MM/JJJJ)");
+  return art === "datum" ? iso : iso.slice(0, 7);
+}
+
+// Eine Zeile -> { profil, lohn }. z: Zeile als Text (raw:false) fuer Personalnummer, Name, Kategorie, Fahrgemeinschaft;
+// roh: dieselbe Zeile mit raw:true fuer die Zusatzspalten (fehlt sie, gilt z).
+function stammProfilZeile(z, sp, zeilenNr, roh, ist1904) {
+  const text = (s) => (s ? String(z[s]).trim() : "");
+  const kat = text(sp.kategorie).toLowerCase();
+  let kategorie = "minijob";
+  if (/^teil/.test(kat)) kategorie = "teilzeit";
+  else if (kat !== "" && !/^mini/.test(kat)) {
+    throw new Error('Zeile ' + zeilenNr + ', Spalte "Kategorie": "' + text(sp.kategorie) + '" – erlaubt sind Teilzeit oder Minijob.');
+  }
+  const w = {};
+  Object.keys(sp.zusatz || {}).forEach((feld) => {
+    const s = sp.zusatz[feld];
+    w[feld] = stammZelle((roh || z)[s.kopf], s.art, s.kopf, zeilenNr, ist1904);
+  });
+  const wert = (feld) => (w[feld] === undefined ? null : w[feld]);
+  const von = wert("einsatz_von"), bis = wert("einsatz_bis");
+  if (von && bis && von > bis) {
+    throw new Error("Zeile " + zeilenNr + ": „Einsatz von“ (" + datumLang(von) + ") liegt nach „Einsatz bis“ (" + datumLang(bis) + ").");
+  }
+  return {
+    profil: {
+      personalnummer: text(sp.pn),
+      name: text(sp.name),
+      kategorie,
+      // Kennung nur fuer die Anzeige vereinheitlicht (mehrere Leerzeichen -> eines); der Solver normalisiert selbst.
+      // Nur Striche ("-", "–", "—") zaehlen als leer, sonst bildeten alle mit "-" eine Gruppe.
+      fahrgemeinschaft: /^[-–—]*$/.test(text(sp.fahrgemeinschaft)) ? null : text(sp.fahrgemeinschaft).replace(/\s+/g, " "),
+      einsatz_von: von,
+      einsatz_bis: bis
+    },
+    lohn: { eintritt: wert("eintritt"), abgerechnetBis: wert("abgerechnetBis"), svBrutto: wert("svBrutto"), stunden: wert("stunden"),
+      minijobMerkmal: wert("minijobMerkmal"), standLohn: wert("standLohn") }
+  };
+}
+
+// Liest die Stammliste -> { profile: [...], lohn: null | { stand, dateiname, personen } }.
+// "Lohndaten vorhanden" = Kopf hat Abgerechnet bis UND SV-Brutto; dann entsteht der Minijob-Abschnitt fuer den
+// Tresor, nur fuer Minijob-Zeilen (Kategorie Minijob oder leer – Datenminimierung; dieselbe Auswahl wie
+// istMinijobber in minijob.js, denn jede Zeile hat hier ein Profil). Streng: eine gefuellte Zelle, die sich
+// nicht lesen laesst, ist ein Fehler mit Zeile und Spalte.
+async function stammProfileLesen(datei) {
+  await sheetJsLaden();
+  // raw:true beim Einlesen: CSV-Zellen bleiben Text (sonst wuerde aus "2950,00" die Zahl 295000); Excel-Dateien unveraendert
+  const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array", raw: true });
+  const blatt = mappe.Sheets[mappe.SheetNames[0]];
+  const zeilen = XLSX.utils.sheet_to_json(blatt, { defval: "", raw: false });
+  if (zeilen.length === 0) throw new Error("Die Datei enthält keine Zeilen.");
+  // zweiter Durchlauf mit raw:true: echte Datums-/Zahlzellen als Zahl (raw:false lieferte z. B. "2,950.50")
+  const rohZeilen = XLSX.utils.sheet_to_json(blatt, { defval: "", raw: true });
+  const wbp = mappe.Workbook && mappe.Workbook.WBProps;
+  const ist1904 = !!(wbp && wbp.date1904);
+  const sp = stammSpalten(Object.keys(zeilen[0]));
   if (!sp.pn) throw new Error('Spalte "Personalnummer" fehlt.');
   if (!sp.name) { const e = new Error(TEXTE.plan_kein_name); e.code = "KEIN_NAME"; throw e; }
-  const liste = [];
+  // Leerzeilen ueberspringt SheetJS: Zeilen beider Durchlaeufe ueber __rowNum__ (0-basiert) zusammenfuehren
+  const nr = (z, i) => (z.__rowNum__ !== undefined ? z.__rowNum__ : "i" + i);
+  const rohNach = new Map();
+  rohZeilen.forEach((r, i) => rohNach.set(nr(r, i), r));
+  const liste = [], zeilenLohn = [];
   const gesehen = new Map();
   zeilen.forEach((z, i) => {
     if (!String(z[sp.pn]).trim() || !String(z[sp.name]).trim()) return;
-    const p = stammProfilZeile(z, sp, i + 2);
-    if (gesehen.has(p.personalnummer)) {
-      throw new Error("Die Personalnummer " + p.personalnummer + " kommt mehrfach vor (Zeile " + (i + 2) + ").");
+    const zeilenNr = z.__rowNum__ !== undefined ? z.__rowNum__ + 1 : i + 2;
+    const r = stammProfilZeile(z, sp, zeilenNr, rohNach.get(nr(z, i)) || null, ist1904);
+    if (gesehen.has(r.profil.personalnummer)) {
+      throw new Error("Die Personalnummer " + r.profil.personalnummer + " kommt mehrfach vor (Zeile " + zeilenNr + ").");
     }
-    gesehen.set(p.personalnummer, true);
-    liste.push(p);
+    gesehen.set(r.profil.personalnummer, true);
+    liste.push(r.profil);
+    zeilenLohn.push({ zeilenNr: zeilenNr, profil: r.profil, lohn: r.lohn });
   });
-  return liste;
+  let lohn = null;
+  if (sp.zusatz.abgerechnetBis && sp.zusatz.svBrutto) {
+    const personen = {};
+    let stand = null;
+    zeilenLohn.forEach((x) => {
+      const l = x.lohn;
+      if (l.standLohn && (!stand || l.standLohn < stand)) stand = l.standLohn;   // in allen Zeilen gleich; sonst der aelteste
+      if (x.profil.kategorie !== "minijob") return;   // Datenminimierung: nur Minijobber (Kategorie Minijob oder leer)
+      if (l.abgerechnetBis && !l.eintritt) {
+        throw new Error("Zeile " + x.zeilenNr + ": „Eintritt“ ist leer, obwohl „Abgerechnet bis“ gefüllt ist – so lässt sich die Minijob-Grenze nicht berechnen.");
+      }
+      if (l.abgerechnetBis && l.svBrutto === null) {
+        throw new Error("Zeile " + x.zeilenNr + ": „SV-Brutto seit Eintritt“ ist leer, obwohl „Abgerechnet bis“ gefüllt ist.");
+      }
+      // ohne Abrechnung: Betrag und Stunden 0 (wie csvLesen; nichts gespeichert, was nicht gebraucht wird)
+      personen[x.profil.personalnummer] = {
+        eintritt: l.eintritt,
+        austritt: null,
+        abgerechnetBis: l.abgerechnetBis,
+        svBrutto: l.abgerechnetBis ? l.svBrutto : 0,
+        stunden: l.abgerechnetBis ? l.stunden || 0 : 0,
+        minijobMerkmal: l.minijobMerkmal || "?"
+      };
+    });
+    lohn = { stand: stand || alsIso(new Date()), dateiname: String(datei.name || ""), personen: personen };
+  }
+  return { profile: liste, lohn: lohn };
 }
 
 // Nur Personalnummer + Name (z. B. fuer den Planungs-Import), ohne die Profilspalten zu pruefen.
@@ -5044,7 +5146,9 @@ function autoNamenLeiste(ziel) {
 
 // Minijob-Grenze im App-Zustand: Stand aus dem offenen Tresor, Profile direkt aus der Stammliste
 // (nicht autoProfilZeile: fehlende Profile muessen fehlen, damit minijob.js auf das Minijob-Merkmal ausweicht).
-function minijobLageAktuell() { return minijobLage(tresorMinijob(), auto.profile); }
+// Immer fuer die Planungswoche (Montag = kw_start_datum): Schritt 2, Profiltabelle, Berechnung und
+// minijobVeraltet muessen mit demselben Montag rechnen, sonst passte der Fingerabdruck nie.
+function minijobLageAktuell() { return minijobLage(tresorMinijob(), auto.profile, auto.kw || admin.kw); }
 // Hat sich seit der Berechnung eine angewandte Grenze geaendert (neuer Stand, anderes Geraet, Tresor gesperrt)?
 function minijobVeraltet() {
   if (!auto.eingabe || typeof auto.minijobAbbild !== "string") return false;
@@ -5061,12 +5165,13 @@ function minijobLeiste(ziel, lage) {
   const zuMitarbeiter = () => kleinerKnopf("→ Mitarbeiter", () => adminAnsicht("mitarbeiter"));
   let box;
   if (!lage.stand) {
-    box = el("div", "meldung info", "Kein Minijob-Stand – Minijob-Grenze wird nicht geprüft. ");
+    box = el("div", "meldung info", "Kein Minijob-Stand – Minijob-Grenze wird nicht geprüft. Die Lohndaten kommen mit der Stammliste " +
+      "(Spalten „Abgerechnet bis“ und „SV-Brutto seit Eintritt“). ");
     box.appendChild(zuMitarbeiter());
   } else if (!lage.modul) {
-    box = el("div", "meldung schlecht", "⚠ minijob.js konnte nicht geladen werden – die Minijob-Grenze wird NICHT geprüft. Bitte die Seite neu laden (Strg+F5).");
+    box = el("div", "meldung schlecht", "⚠ minijob.js konnte nicht geladen werden oder ist veraltet – die Minijob-Grenze wird NICHT geprüft. Bitte die Seite neu laden (Strg+F5).");
   } else if (lage.fehler) {
-    box = el("div", "meldung schlecht", "⚠ Minijob-Stand fehlerhaft (" + lage.fehler + ") – bitte neu einspielen; die Minijob-Grenze wird NICHT geprüft. ");
+    box = el("div", "meldung schlecht", "⚠ Minijob-Stand fehlerhaft (" + lage.fehler + ") – bitte die Stammliste neu einspielen; die Minijob-Grenze wird NICHT geprüft. ");
     box.appendChild(zuMitarbeiter());
   } else {
     const bis = minijobAbgerechnetBis(lage.stand.personen);
@@ -5076,9 +5181,24 @@ function minijobLeiste(ziel, lage) {
     const n = auto.d.mitarbeiter.filter((pn) => minijobGrenzeVon(lage, pn) !== null).length;
     box = el("div", "meldung " + (veraltet ? "schlecht" : "gut"), (veraltet ? "⚠ " : "✓ ") +
       "Minijob-Stand vom " + tagKurz(lage.stand.stand) + " (abgerechnet bis " + monatText(bis) + ") · " + n + " Minijobber mit Wochen-Obergrenze" +
-      (veraltet ? " · Minijob-Stand veraltet – bitte neu einspielen. " : ""));
+      (veraltet ? " · Minijob-Stand veraltet – bitte die Stammliste aktualisieren und neu einspielen. " : ""));
     if (veraltet) box.appendChild(zuMitarbeiter());
   }
+  ziel.appendChild(box);
+}
+
+// Schritt 2: wer laut Stammliste in dieser Woche (teilweise) nicht eingeplant wird – Einsatzzeitraum oder
+// beendeter Minijob-Vertrag. Dieselbe Filterregel (einsatzFiltern) wie in autoBerechnen.
+function einsatzLeiste(ziel, lage) {
+  const zeilen = einsatzHinweise(auto.d.verfuegbar, auto.profile, lage);
+  if (!zeilen.length) return;
+  const box = el("div", "meldung info");
+  box.appendChild(el("b", null, "Laut Stammliste nicht (ganz) eingeplant (" + zeilen.length + ")"));
+  const ul = el("ul");
+  ul.style.margin = "4px 0";
+  zeilen.forEach((t) => ul.appendChild(el("li", null, t)));
+  box.appendChild(ul);
+  box.appendChild(kleinerKnopf("→ Mitarbeiter", () => adminAnsicht("mitarbeiter")));
   ziel.appendChild(box);
 }
 
@@ -5162,6 +5282,7 @@ function autoZeichnen() {
   autoNamenLeiste(box);
   const mjLage = minijobLageAktuell();
   minijobLeiste(box, mjLage);
+  einsatzLeiste(box, mjLage);
   autoProfileZeichnen(box, mjLage);
   const dB = el("details", "block");
   dB.style.marginTop = "10px";
@@ -5174,7 +5295,7 @@ function autoZeichnen() {
   let cbTrotzdem = null;
   if (gate) {
     box.appendChild(el("div", "meldung schlecht", (tresor.zustand !== "offen" ? "Der Tresor ist nicht offen: " : ohneProfil + " Profile fehlen: ") +
-      "Kategorie und Fahrgemeinschaft sind dann unbekannt – Personen ohne Profil gelten als Minijob ohne Fahrgemeinschaft."));
+      "Kategorie, Fahrgemeinschaft und Einsatzzeitraum sind dann unbekannt – Personen ohne Profil gelten als Minijob ohne Fahrgemeinschaft."));
     cbTrotzdem = kontrollKaestchen("Trotzdem ohne vollständige Profile rechnen", false);
     box.appendChild(cbTrotzdem.label);
   }
@@ -5354,9 +5475,9 @@ function autoProfileZeichnen(ziel, mjLage) {
   sum.textContent = "Mitarbeiter-Profile aus der Stammliste (" + auto.d.mitarbeiter.length + " aktiv)";
   det.appendChild(sum);
   det.appendChild(el("p", "hinweisbox",
-    "Kategorie (Teilzeit zuerst) und Fahrgemeinschaft steuern die Verteilung. " +
-    "Geändert wird das in der Stammliste (Excel) auf deinem Rechner und dann neu eingespielt. " +
-    "„Minijob max/Wo“ ist die harte Wochen-Obergrenze aus dem Minijob-Stand (– = keine). " +
+    "Kategorie (Teilzeit zuerst) und Fahrgemeinschaft steuern die Verteilung; außerhalb des Einsatzzeitraums (Einsatz von/bis) " +
+    "wird niemand eingeplant. Geändert wird das in der Stammliste (Excel) auf deinem Rechner und dann neu eingespielt. " +
+    "„Minijob max/Wo“ ist die harte Obergrenze dieser Woche aus den Lohndaten der Stammliste (– = keine). " +
     "Die Daten liegen verschlüsselt im Tresor; lesbar nur mit dem Tresor-Passwort."));
 
   const wrap = el("div"); wrap.style.overflowX = "auto";
@@ -5373,7 +5494,7 @@ function autoProfileZeichnen(ziel, mjLage) {
       p.name || "⚠ kein Name",
       p.kategorie === "teilzeit" ? "Teilzeit" : "Minijob",
       p.fahrgemeinschaft || "–",
-      minijobStd(minijobGrenzeVon(lage, pn))
+      lage.beendet && lage.beendet[pn] ? "0 h (Vertrag beendet)" : minijobStd(minijobGrenzeVon(lage, pn))
     ].forEach((t) => tr.appendChild(el("td", null, t)));
     tab.appendChild(tr);
   });
@@ -5417,7 +5538,9 @@ function autoBerechnen() {
     const abg = new Map(d.abgaben.map((a) => [a.personalnummer, a]));
     const verf = new Map();
     auto.verfSet = new Set();
-    d.verfuegbar.forEach((v) => {
+    // Einsatzzeitraum laut Stammliste (fuer alle): Tage ausserhalb fallen vor dem Solver weg – auch in der
+    // Handkorrektur (verfSet) und in pruefe() gelten sie damit als "nicht verfuegbar". Hinweis steht in Schritt 2.
+    einsatzFiltern(d.verfuegbar, auto.profile).verfuegbar.forEach((v) => {
       if (!verf.has(v.personalnummer)) verf.set(v.personalnummer, []);
       verf.get(v.personalnummer).push({ datum: v.datum, schicht_id: v.schicht_id });
       auto.verfSet.add(v.personalnummer + "|" + v.datum + "|" + v.schicht_id);
@@ -5438,8 +5561,9 @@ function autoBerechnen() {
     d.mitarbeiter.forEach((pn) => { profile[pn] = autoProfilZeile(pn); });
     auto.eingabe = PlanungSolver.ausExport(json, profile);
     auto.eingabe.bedarf = auto.bedarf;
-    // Harte Minijob-Grenze (Minuten pro Woche, null = keine). Bleibt in auto.eingabe und gilt damit
-    // auch fuer pruefe/alternativen/bewertung nach Handaenderungen (autoNeuPruefen).
+    // Harte Minijob-Grenze (Minuten pro Woche, null = keine), anteilig fuer diese Planungswoche (Montag = auto.kw;
+    // Vertrag vor dem Montag beendet -> 0). Bleibt in auto.eingabe und gilt damit auch fuer
+    // pruefe/alternativen/bewertung nach Handaenderungen (autoNeuPruefen).
     const mjLage = minijobLageAktuell();
     auto.eingabe.personen.forEach((p) => { p.max_minuten_hart = minijobGrenzeVon(mjLage, p.personalnummer); });
     auto.minijobAbbild = minijobAbbild(auto.eingabe.personen, mjLage);
@@ -5590,11 +5714,20 @@ function autoErgebnisZeichnen(ziel) {
         "nur bewusst zulassen (eigenes Kästchen in Schritt 4)."));
     }
   }
-  // Minijobber mit Grenze 0 (Restbudget aufgebraucht): nur zur Info, blockiert nichts
-  const mjNull = auto.eingabe.personen.filter((p) => p.max_minuten_hart === 0).map((p) => nameVon(p.personalnummer))
+  // Minijobber mit Grenze 0 (Restbudget aufgebraucht): nur zur Info, blockiert nichts. Nicht hier: beendete Vertraege
+  // (stehen in Schritt 2) und eine Woche, die schon ganz abgerechnet ist (dort ist 0 kein "Restbudget aufgebraucht").
+  const mjL = minijobLageAktuell();
+  const sonntagMonat = addTage(auto.kw || admin.kw, 6).slice(0, 7);
+  const schonAbgerechnet = (pn) => {
+    const s = mjL.stand && mjL.stand.personen ? mjL.stand.personen[pn] : null;
+    return !!(s && s.abgerechnetBis && s.abgerechnetBis >= sonntagMonat);
+  };
+  const mjNull = auto.eingabe.personen
+    .filter((p) => p.max_minuten_hart === 0 && !mjL.beendet[p.personalnummer] && !schonAbgerechnet(p.personalnummer))
+    .map((p) => nameVon(p.personalnummer))
     .sort((a, b) => a.localeCompare(b, "de"));
   if (mjNull.length) {
-    ziel.appendChild(el("div", "meldung info", "Minijob-Grenze erreicht – bis Befristungsende keine Schichten mehr: " + mjNull.join(", ")));
+    ziel.appendChild(el("div", "meldung info", "Minijob-Grenze erreicht – bis Vertragsende keine Schichten mehr: " + mjNull.join(", ")));
   }
 
   // Plan je Tag, aufgebaut wie die Dispo-Excel

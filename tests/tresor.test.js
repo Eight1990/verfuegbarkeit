@@ -41,7 +41,8 @@ test("passwortPruefen: kurz und einförmig abgelehnt, Satz erlaubt", () => {
 test("inhaltBauen: Whitelist, Passwortfeld stoppt, fremde Zuordnung fällt weg", () => {
   const inhalt = T.inhaltBauen(PROFILE.map((p) => Object.assign({ extra: "x" }, p)), ZUORDNUNG, QUELLE);
   assert.deepStrictEqual(Object.keys(inhalt.profile[0]).sort(), T.PROFIL_FELDER.slice().sort());
-  assert.deepStrictEqual(T.PROFIL_FELDER.slice().sort(), ["fahrgemeinschaft", "kategorie", "name", "personalnummer"]);
+  // Teil 5 (11.11.2026): Einsatzzeitraum kam dazu
+  assert.deepStrictEqual(T.PROFIL_FELDER.slice().sort(), ["einsatz_bis", "einsatz_von", "fahrgemeinschaft", "kategorie", "name", "personalnummer"]);
   // Alte Profilfelder (bis 10.11.2026) fallen still weg
   ["nur_schicht", "gesperrte_tage", "max_schichten_woche", "schnitt_h", "notiz"].forEach((f) => {
     assert.ok(!(f in inhalt.profile[0]) && !(f in inhalt.profile[1]), "altes Feld " + f + " noch da");
@@ -272,6 +273,55 @@ test("Minijob: Stammlisten-Upload und Zuordnung behalten den Stand, Einspielen b
   assert.deepStrictEqual(Object.keys(nachMj.minijob.personen), ["10002"]);
   // ohne 5. Argument ist der Stand weg – genau das darf index.html nie tun
   assert.strictEqual(T.inhaltBauen(vorher.profile, vorher.zuordnung, vorher.quelle).minijob, null);
+});
+
+// ---------- Einsatzzeitraum (Profilfelder einsatz_von/einsatz_bis, seit Teil 5; erfundene Werte) ----------
+test("Einsatzzeitraum: gültig, fehlend und leer; Rundreise durch die Verschlüsselung", async () => {
+  const mitEinsatz = [
+    Object.assign({}, PROFILE[0], { einsatz_von: "2026-02-09", einsatz_bis: "2026-11-08" }),
+    Object.assign({}, PROFILE[1], { einsatz_von: "", einsatz_bis: null })   // leer und null = kein Datum
+  ];
+  const inhalt = T.inhaltBauen(mitEinsatz, {}, QUELLE);
+  assert.strictEqual(inhalt.profile[0].einsatz_von, "2026-02-09");
+  assert.strictEqual(inhalt.profile[0].einsatz_bis, "2026-11-08");
+  assert.strictEqual(inhalt.profile[1].einsatz_von, null);
+  assert.strictEqual(inhalt.profile[1].einsatz_bis, null);
+  // fehlende Felder (Profil wie bis Teil 4) → null
+  const ohne = T.inhaltBauen([{ personalnummer: "10003", name: "Fiktiv Frida", kategorie: "minijob", fahrgemeinschaft: null }], {}, QUELLE);
+  assert.deepStrictEqual(ohne.profile[0], { personalnummer: "10003", name: "Fiktiv Frida", kategorie: "minijob", fahrgemeinschaft: null,
+    einsatz_von: null, einsatz_bis: null });
+  // Reihenfolge der Felder stabil (Gegenprobe in tresorSchreiben vergleicht JSON-Texte)
+  assert.deepStrictEqual(Object.keys(inhalt.profile[0]), T.PROFIL_FELDER);
+  assert.strictEqual(JSON.stringify(T.inhaltPruefen(JSON.parse(JSON.stringify(inhalt)))), JSON.stringify(inhalt));
+  const salz = T.salzNeu();
+  const key = await T.schluesselAbleiten(PW, salz, ITER);
+  const h = await T.verschluesseln(key, T.b64(salz), ITER, inhalt);
+  assert.ok(!JSON.stringify(h).includes("2026-02-09"), "Einsatzdatum im Klartext der Hülle");
+  assert.deepStrictEqual(await T.entschluesseln(key, h), inhalt);
+});
+
+test("Einsatzzeitraum: ungültige Werte werden abgelehnt", () => {
+  const bau = (feld, wert) => () => T.inhaltBauen([Object.assign({}, PROFILE[0], { [feld]: wert })], {}, QUELLE);
+  ["09.02.2026", "2026-02-30", "2026-2-9", "2026-13-01", 20260209, 46062, true, {}, "  "].forEach((w) => {
+    assert.throws(bau("einsatz_von", w), /Profil 10001: Einsatz von ist kein gültiges Datum/, "einsatz_von " + JSON.stringify(w));
+    assert.throws(bau("einsatz_bis", w), /Profil 10001: Einsatz bis ist kein gültiges Datum/, "einsatz_bis " + JSON.stringify(w));
+  });
+  // Grenzfaelle: Schalttag gueltig, 29.02. im Nicht-Schaltjahr nicht
+  assert.strictEqual(T.inhaltBauen([Object.assign({}, PROFILE[0], { einsatz_bis: "2028-02-29" })], {}, QUELLE).profile[0].einsatz_bis, "2028-02-29");
+  assert.throws(bau("einsatz_bis", "2027-02-29"), /Einsatz bis/);
+});
+
+test("Einsatzzeitraum: alter Tresor-Inhalt ohne die Felder lädt weiter (null)", async () => {
+  // Klartext wie bis Teil 4: Profile mit vier Feldern, mit Minijob-Stand
+  const alt = { v: 1, profile: [{ personalnummer: "10001", name: "Mustermann Anna", kategorie: "teilzeit", fahrgemeinschaft: "G1" }],
+    zuordnung: { "anna mustermann": "10001" }, quelle: QUELLE, minijob: MINIJOB };
+  const salz = T.salzNeu();
+  const key = await T.schluesselAbleiten(PW, salz, ITER);
+  const zurueck = await T.entschluesseln(key, await alteHuelle(key, T.b64(salz), ITER, alt));
+  assert.deepStrictEqual(zurueck.profile[0], { personalnummer: "10001", name: "Mustermann Anna", kategorie: "teilzeit", fahrgemeinschaft: "G1",
+    einsatz_von: null, einsatz_bis: null });
+  assert.deepStrictEqual(Object.keys(zurueck.minijob.personen), ["10001", "10002", "10003"]);
+  assert.deepStrictEqual(zurueck.zuordnung, { "anna mustermann": "10001" });
 });
 
 test("Größe: 45 Profile bleiben klein", async () => {

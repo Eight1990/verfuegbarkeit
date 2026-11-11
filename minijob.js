@@ -16,7 +16,11 @@
  *     letzter bekannter Wert. Teilmonate anteilig nach Tagen.
  *   - Verträge laufen immer 9 Monate (übliche Monatsfrist): derselbe Kalendertag
  *     9 Monate nach dem Eintritt, Ende am Tag davor; fehlt der Tag im Zielmonat,
- *     Ende am Monatsletzten. Ist ein Austritt eingetragen, gilt das frühere Datum.
+ *     Ende am Monatsletzten. Vertragsende B = das früheste von Befristungsende,
+ *     „Einsatz bis“ aus der Stammliste (falls gesetzt) und Austritt – nie
+ *     „Einsatz bis“ allein (ein späteres Einsatzende lockert die Grenze nie).
+ *   - Mit Planungswoche (Montag): Restbudget je Tag × Tage der Woche, die in den
+ *     offenen Zeitraum fallen; endete der Vertrag vor dem Montag: 0 („beendet“).
  *   - Es zählt nur der Verdienst seit dem aktuellen Eintritt (so liefert ihn die
  *     CSV). Ohne abgerechneten Monat (Neue): keine Grenze.
  *   - Restbudget = Grenze von Eintritt bis Befristungsende − abgerechnetes
@@ -26,11 +30,14 @@
  *   - Euro → Minuten über den eigenen Satz (SV-Brutto / Stunden); ohne Stunden
  *     über einen Ersatzsatz (höchster Satz im Stand, sonst 16 €/h).
  *
- * Minijob-Stand (liegt verschlüsselt im Tresor, Abschnitt minijob):
+ * Minijob-Stand (liegt verschlüsselt im Tresor, Abschnitt minijob; seit Teil 5
+ * aus den Lohndaten-Spalten der Stammliste):
  *   { stand: "YYYY-MM-DD", dateiname, personen: { <Personalnummer>: {
  *       eintritt: "YYYY-MM-DD"|null, austritt: "YYYY-MM-DD"|null,
  *       abgerechnetBis: "YYYY-MM"|null, svBrutto: Euro, stunden: Stunden,
  *       minijobMerkmal: "ja"|"nein"|"?" } } }
+ * Profile (aus der Stammliste): { <Personalnummer>: { kategorie, einsatz_bis, … } }
+ * – einsatz_bis wird nur für das Vertragsende B gelesen und nie verändert.
  */
 (function (wurzel, fabrik) {
   if (typeof module === "object" && module.exports) module.exports = fabrik();
@@ -142,44 +149,93 @@
     return grenzeCent(isoPflicht(vonIso, "Beginn"), isoPflicht(bisIso, "Ende")) / 100;
   }
 
-  // ---------- Wochen-Obergrenze ----------
-  // Minuten je Woche (ganzzahlig, abgerundet) oder null = keine Grenze (kein
-  // Eintritt, kein abgerechneter Monat oder Beginn A nach Befristungsende B).
-  //   E = Eintritt, B = min(Befristungsende(E), Austritt),
-  //   A = max(E, 1. Tag des Monats nach abgerechnetBis)
-  //   rest = Grenze(E..B) − svBrutto;  tage = A..B inklusive
-  //   euroProWoche = min(rest, rest · 7 / tage) mit rest ≥ 0 (unter 7 Resttagen
-  //                  nie mehr als das ganze Restbudget)
-  //   satz = svBrutto / stunden (ohne Stunden oder ohne Brutto: satzErsatz, sonst 16)
-  //   minuten = floor(euroProWoche / satz · 60)
-  // Wirft bei kaputten Werten (csvLesen liefert nur gültige).
-  function wochenGrenzeMinuten(person, satzErsatz) {
-    var p = person || {};
-    if (leer(p.eintritt) || leer(p.abgerechnetBis)) return null;
-    var e = isoPflicht(p.eintritt, "Eintritt");
-    var abgerechnet = monatPflicht(p.abgerechnetBis, "Abgerechnet bis");
-    var b = isoLesen(befristungsende(p.eintritt));
+  // ---------- Vertragsende ----------
+  // B = frühestes von Befristungsende(E), Einsatz bis (Stammliste, falls gesetzt) und Austritt.
+  // „Einsatz bis“ allein zählt nie: liegt es nach dem Befristungsende, gilt das Befristungsende.
+  function endeVon(p, e) {
+    var b = isoLesen(befristungsende(isoText(e)));
+    if (!leer(p.einsatzBis)) {
+      var einsatzBis = isoPflicht(p.einsatzBis, "Einsatz bis");
+      if (vergleich(einsatzBis, b) < 0) b = einsatzBis;
+    }
     if (!leer(p.austritt)) {
       var austritt = isoPflicht(p.austritt, "Austritt");
       if (vergleich(austritt, b) < 0) b = austritt;
     }
+    return b;
+  }
+
+  // Vertragsende B einer Person als "YYYY-MM-DD" oder null (ohne Eintritt).
+  // person: Eintrag des Minijob-Stands, optional mit einsatzBis (aus dem Profil).
+  function vertragsende(person) {
+    var p = person || {};
+    if (leer(p.eintritt)) return null;
+    return isoText(endeVon(p, isoPflicht(p.eintritt, "Eintritt")));
+  }
+
+  // ---------- Wochen-Obergrenze ----------
+  // Ergebnis { minuten, beendet, ende }: minuten ganzzahlig (abgerundet) oder null =
+  // keine Grenze (kein Eintritt, kein abgerechneter Monat oder Beginn A nach B).
+  //   E = Eintritt, B = Vertragsende (siehe endeVon),
+  //   A = max(E, 1. Tag des Monats nach abgerechnetBis)
+  //   rest = Grenze(E..B) − svBrutto (≥ 0);  tage = A..B inklusive
+  //   satz = svBrutto / stunden (ohne Stunden oder ohne Brutto: satzErsatz, sonst 16)
+  // Ohne Montag (wie bis Teil 4):
+  //   euroProWoche = min(rest, rest · 7 / tage) (unter 7 Resttagen nie mehr als
+  //                  das ganze Restbudget);  minuten = floor(euroProWoche / satz · 60)
+  // Mit Montag der Planungswoche:
+  //   B vor dem Montag → 0 und beendet = true (Vertrag ist schon zu Ende)
+  //   r = rest / tage;  d = Tage der Woche (Montag..Sonntag) innerhalb A..B
+  //   minuten = floor(r · d / satz · 60)  – d ≤ tage, also nie mehr als das Restbudget;
+  //   liegt die ganze Woche vor A (schon abgerechnet), ist d = 0 → 0 (nicht „beendet“)
+  // Wirft bei kaputten Werten (Stammliste und Tresor liefern nur gültige).
+  function grenzeRechnen(person, satzErsatz, montagIso) {
+    var p = person || {};
+    var keine = { minuten: null, beendet: false, ende: null };
+    var montag = leer(montagIso) ? null : isoPflicht(montagIso, "Montag");
+    if (leer(p.eintritt)) return keine;
+    if (!montag && leer(p.abgerechnetBis)) return keine;   // ohne Montag genau wie bisher
+    var e = isoPflicht(p.eintritt, "Eintritt");
+    var b = endeVon(p, e);
+    keine.ende = isoText(b);
+    if (montag && vergleich(b, montag) < 0) return { minuten: 0, beendet: true, ende: isoText(b) };
+    if (leer(p.abgerechnetBis)) return keine;
+    var abgerechnet = monatPflicht(p.abgerechnetBis, "Abgerechnet bis");
     var naechster = abgerechnet.m === 12 ? { j: abgerechnet.j + 1, m: 1, t: 1 } : { j: abgerechnet.j, m: abgerechnet.m + 1, t: 1 };
     var a = vergleich(e, naechster) > 0 ? e : naechster;
-    if (vergleich(a, b) > 0) return null;
+    // A nach B: kein offener Tag mehr. Ohne Montag wie bisher keine Grenze; mit Montag ist
+    // A..B leer, also d = 0 → 0 (der Vertrag läuft noch, aber nichts mehr abzurechnen).
+    if (vergleich(a, b) > 0) return montag ? { minuten: 0, beendet: false, ende: isoText(b) } : keine;
 
     var svCent = Math.round(zahlPflicht(p.svBrutto, "SV-Brutto") * 100);
     var stundenH = leer(p.stunden) ? 0 : Math.round(zahlPflicht(p.stunden, "Stunden") * 100);
     var restCent = Math.max(0, grenzeCent(e, b) - svCent);
     var tage = tagNr(b) - tagNr(a) + 1;
-    // min(rest, rest · 7/tage) = rest · 7 / max(tage, 7)
-    var teiler = Math.max(tage, 7);
-    // floor(restCent/100 · 7/teiler / satz · 60) = floor(restCent · 420 / (100 · teiler · satz))
+    // minuten = floor(restCent/100 · faktor/60 / teiler / satz · 60) = floor(restCent · faktor / (100 · teiler · satz))
+    var faktor, teiler;
+    if (!montag) {
+      faktor = 420;                    // 7 Tage · 60 Minuten
+      teiler = Math.max(tage, 7);      // min(rest, rest · 7/tage) = rest · 7 / max(tage, 7)
+    } else {
+      var sonntag = tagNr(montag) + 6;
+      var von = Math.max(tagNr(montag), tagNr(a)), bis = Math.min(sonntag, tagNr(b));
+      faktor = 60 * Math.max(0, bis - von + 1);   // d Tage · 60 Minuten
+      teiler = tage;
+    }
+    var minuten;
     if (stundenH > 0 && svCent > 0) {
       // eigener Satz svBrutto / stunden – in Cent und 1/100 h ganzzahlig, also exakt
-      return Math.floor(restCent * 420 * stundenH / (100 * teiler * svCent));
+      minuten = Math.floor(restCent * faktor * stundenH / (100 * teiler * svCent));
+    } else {
+      var ersatz = typeof satzErsatz === "number" && isFinite(satzErsatz) && satzErsatz > 0 ? satzErsatz : SATZ_STANDARD;
+      minuten = Math.floor(restCent * faktor / (100 * teiler * ersatz));
     }
-    var ersatz = typeof satzErsatz === "number" && isFinite(satzErsatz) && satzErsatz > 0 ? satzErsatz : SATZ_STANDARD;
-    return Math.floor(restCent * 420 / (100 * teiler * ersatz));
+    return { minuten: minuten, beendet: false, ende: isoText(b) };
+  }
+
+  // Minuten je Woche oder null (= keine Grenze). montagIso (optional): Montag der Planungswoche.
+  function wochenGrenzeMinuten(person, satzErsatz, montagIso) {
+    return grenzeRechnen(person, satzErsatz, montagIso).minuten;
   }
 
   function personenVon(stand) {
@@ -207,18 +263,41 @@
     return hoechster > 0 ? hoechster : SATZ_STANDARD;
   }
 
-  function grenzeVon(pn, person, ersatz) {
-    try { return wochenGrenzeMinuten(person, ersatz); }
+  // Kopie des Stand-Eintrags mit „Einsatz bis“ aus dem Profil (der Stand selbst bleibt unverändert).
+  function mitEinsatz(pn, person, profile) {
+    var kopie = {}, p = person || {};
+    Object.keys(p).forEach(function (k) { kopie[k] = p[k]; });
+    var pr = eigen(profile, pn) ? profile[pn] : null;
+    if (pr && !leer(pr.einsatz_bis)) kopie.einsatzBis = pr.einsatz_bis;
+    return kopie;
+  }
+
+  function grenzeVon(pn, person, ersatz, montagIso) {
+    try { return grenzeRechnen(person, ersatz, montagIso); }
     catch (e) { throw new Error("Minijob-Stand, Personalnummer " + pn + ": " + e.message); }
   }
 
   // { <pn>: Minuten } für alle Minijobber mit Grenze; ohne Grenze (null) fehlt der Eintrag.
-  function wochenGrenzen(stand, profile) {
+  // montagIso (optional): Montag der Planungswoche – dann anteilig für diese Woche, beendete → 0.
+  function wochenGrenzen(stand, profile, montagIso) {
     var personen = personenVon(stand), ersatz = satzErsatzVon(personen), erg = {};
     Object.keys(personen).forEach(function (pn) {
       if (!istMinijobber(pn, personen[pn], profile)) return;
-      var min = grenzeVon(pn, personen[pn], ersatz);
+      var min = grenzeVon(pn, mitEinsatz(pn, personen[pn], profile), ersatz, montagIso).minuten;
       if (min !== null) erg[pn] = min;
+    });
+    return erg;
+  }
+
+  // { <pn>: Vertragsende "YYYY-MM-DD" } für Minijobber, deren Vertrag vor dem Montag der
+  // Planungswoche endete (Wochen-Obergrenze 0). Ohne Montag: {}.
+  function beendete(stand, profile, montagIso) {
+    var personen = personenVon(stand), erg = {};
+    if (leer(montagIso)) return erg;
+    Object.keys(personen).forEach(function (pn) {
+      if (!istMinijobber(pn, personen[pn], profile)) return;
+      var r = grenzeVon(pn, mitEinsatz(pn, personen[pn], profile), null, montagIso);
+      if (r.beendet) erg[pn] = r.ende;
     });
     return erg;
   }
@@ -228,20 +307,29 @@
   //   minijobberMitGrenze: Minijobber mit Wochen-Obergrenze (auch 0)
   //   ohneAbrechnung: Minijobber ohne abgerechneten Monat (keine Grenze)
   //   ohneRestbudget: Minijobber mit Obergrenze 0
-  function zusammenfassung(stand, profile) {
+  //   beendet (nur mit montagIso): Minijobber, deren Vertrag vor dem Montag endete –
+  //     sie zählen dann weder als „mit Grenze“ noch als „ohne Abrechnung“
+  function zusammenfassung(stand, profile, montagIso) {
     var personen = personenVon(stand), ersatz = satzErsatzVon(personen), anzahl = {};
+    var mitMontag = !leer(montagIso);
     var z = {
       stand: stand && typeof stand === "object" && typeof stand.stand === "string" && stand.stand ? stand.stand : null,
       abgerechnetBis: null, minijobberMitGrenze: 0, ohneAbrechnung: 0, ohneRestbudget: 0
     };
+    if (mitMontag) z.beendet = 0;
     Object.keys(personen).forEach(function (pn) {
       var p = personen[pn] || {};
       if (typeof p.abgerechnetBis === "string" && /^\d{4}-\d{2}$/.test(p.abgerechnetBis)) {
         anzahl[p.abgerechnetBis] = (anzahl[p.abgerechnetBis] || 0) + 1;
       }
       if (!istMinijobber(pn, p, profile)) return;
+      var r = null;
+      if (mitMontag) {
+        r = grenzeVon(pn, mitEinsatz(pn, p, profile), ersatz, montagIso);
+        if (r.beendet) { z.beendet++; return; }
+      }
       if (leer(p.abgerechnetBis)) { z.ohneAbrechnung++; return; }
-      var min = grenzeVon(pn, p, ersatz);
+      var min = (r || grenzeVon(pn, mitEinsatz(pn, p, profile), ersatz)).minuten;
       if (min === null) return;
       z.minijobberMitGrenze++;
       if (min === 0) z.ohneRestbudget++;
@@ -401,10 +489,12 @@
   return {
     GRENZEN: GRENZEN,
     befristungsende: befristungsende,
+    vertragsende: vertragsende,
     grenzeImZeitraum: grenzeImZeitraum,
     csvLesen: csvLesen,
     wochenGrenzeMinuten: wochenGrenzeMinuten,
     wochenGrenzen: wochenGrenzen,
+    beendete: beendete,
     zusammenfassung: zusammenfassung
   };
 });

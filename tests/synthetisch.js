@@ -88,16 +88,41 @@ function exportJson(start, anzahl) {
   };
 }
 
-// Erfundene Stammliste: Kopfzeile + eine Zeile je Mitarbeiter (Passwort nur Platzhalter).
+// Erfundene Stammliste: Kopfzeile + eine Zeile je Mitarbeiter (Passwort nur Platzhalter), Spalten A–M wie die
+// echte Liste (Teil 5): A–E Zugang und Profil, F–G Einsatzzeitraum, H–M Lohndaten (I–K nur bei Minijob).
+// Alle Werte als Text, abgeleitet aus Zeilennummer und Wochenbeginn – ohne r(), damit die Zufallsfolge von
+// exportJson unverändert bleibt. Besondere Zeilen (bei 32 Personen ab 2026-10-19):
+//   i = 4  Minijob, Einsatz endete am Freitag vor der Woche   i = 10 Minijob, neu, Einsatz endet Mittwoch
+//   i = 7  Minijob, Eintritt vor über 9 Monaten (Vertrag laut Lohndaten beendet, Einsatz läuft laut Liste weiter)
+//   i = 13 Minijob mit Minijob-Merkmal „nein“                 i = 16 Minijob über der Verdienstgrenze (0 h)
+//   i % 8 = 2 (Minijob) neu ohne Abrechnung                  Teilzeit (i % 3 = 0): Eintritt vor 2 Jahren
 function stammliste(json) {
   const vor = ["Anna", "Ben", "Clara", "David", "Eva", "Felix", "Greta", "Hannes", "Ida", "Jonas", "Klara", "Lukas",
     "Mia", "Noah", "Olga", "Paul", "Rita", "Sven", "Tina", "Uwe", "Vera", "Willi", "Xenia", "Yannik"];
   const nach = ["Mustermann", "Beispiel", "Testfrau", "Probst", "Erfunden", "Demo", "Platzhalter", "Fiktiv"];
-  // Seit 11.11.2026 nur noch Kategorie und Fahrgemeinschaft als Profilspalten.
-  const kopf = ["Personalnummer", "Passwort", "Name", "Kategorie", "Fahrgemeinschaft"];
-  return [kopf].concat(json.mitarbeiter.map((m, i) =>
-    [m.personalnummer, "Start-" + m.personalnummer + "!", nach[i % nach.length] + " " + vor[i % vor.length],
-      i % 3 === 0 ? "Teilzeit" : "Minijob", i % 6 < 2 ? "G" + (i % 4) : ""]));
+  const kopf = ["Personalnummer", "Passwort", "Name", "Kategorie", "Fahrgemeinschaft",
+    "Einsatz von", "Einsatz bis", "Eintritt", "Abgerechnet bis", "SV-Brutto seit Eintritt", "Stunden seit Eintritt",
+    "Minijob-Merkmal", "Stand Lohndaten"];
+  const start = json.meta.start;
+  const de = (iso) => iso.slice(8, 10) + "." + iso.slice(5, 7) + "." + iso.slice(0, 4);
+  const monatNr = (iso) => Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - 1;
+  const abgerechnet = monatNr(start) - 1;               // der Vormonat des Wochenbeginns ist abgerechnet
+  const komma = (x) => x.toFixed(2).replace(".", ",");
+  return [kopf].concat(json.mitarbeiter.map((m, i) => {
+    const teilzeit = i % 3 === 0;
+    const eintritt = plusTage(start, teilzeit ? -730 : i === 7 ? -290 : i % 8 === 2 ? -10 : -(20 + (i * 37) % 230));
+    const von = i % 4 === 1 ? plusTage(eintritt, 7) : eintritt;   // Eintritt vor Einsatz von
+    const bis = plusTage(start, i === 4 ? -3 : i === 10 ? 2 : 60);
+    const monate = abgerechnet - monatNr(eintritt) + 1;
+    const lohn = !teilzeit && monate > 0;
+    const sv = lohn ? monate * (i === 16 ? 700 : 350 + (i * 13) % 200) : 0;
+    return [m.personalnummer, "Start-" + m.personalnummer + "!", nach[i % nach.length] + " " + vor[i % vor.length],
+      teilzeit ? "Teilzeit" : "Minijob", i % 6 < 2 ? "G" + (i % 4) : "",
+      de(von), de(bis), de(eintritt),
+      lohn ? String(abgerechnet % 12 + 1).padStart(2, "0") + "/" + Math.floor(abgerechnet / 12) : "",
+      lohn ? komma(sv) : "", lohn ? komma(sv / (13 + i % 4)) : "",
+      teilzeit || i === 13 ? "nein" : "ja", de(plusTage(start, -3))];
+  }));
 }
 
 // Tabellen fuer das Fake-Backend (Spaltennamen wie in Supabase).

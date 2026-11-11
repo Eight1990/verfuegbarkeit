@@ -27,9 +27,10 @@ const P = { eintritt: "2026-04-16", austritt: null, abgerechnetBis: "2026-09", s
 // ---------------------------------------------------------------------
 // Schnittstelle
 // ---------------------------------------------------------------------
-test("Schnittstelle: genau GRENZEN und die sechs Funktionen des Vertrags", () => {
-  assert.deepStrictEqual(Object.keys(M).sort(), ["GRENZEN", "befristungsende", "csvLesen", "grenzeImZeitraum",
-    "wochenGrenzeMinuten", "wochenGrenzen", "zusammenfassung"]);
+test("Schnittstelle: genau GRENZEN und die Funktionen der Verträge Teil 4 und Teil 5", () => {
+  // Teil 5 (11.11.2026): vertragsende und beendete kamen dazu
+  assert.deepStrictEqual(Object.keys(M).sort(), ["GRENZEN", "beendete", "befristungsende", "csvLesen", "grenzeImZeitraum",
+    "vertragsende", "wochenGrenzeMinuten", "wochenGrenzen", "zusammenfassung"]);
   assert.deepStrictEqual(M.GRENZEN, { 2025: 556, 2026: 603, 2027: 633 });
   assert.ok(Object.isFrozen(M.GRENZEN), "GRENZEN soll unveränderlich sein");
 });
@@ -456,6 +457,139 @@ test("zusammenfassung: nimmt auch das Ergebnis von csvLesen (Upload-Vorschau, no
   assert.deepStrictEqual(M.zusammenfassung(r, null),
     { stand: null, abgerechnetBis: "2026-09", minijobberMitGrenze: 1, ohneAbrechnung: 1, ohneRestbudget: 0 });
   assert.deepStrictEqual(M.wochenGrenzen(r, null), { 10001: 2318 });
+});
+
+// ---------------------------------------------------------------------
+// Teil 5: Vertragsende B = min(Befristungsende, Einsatz bis, Austritt) und Planungswoche
+// (alle Rechnungen von Hand; P: E 16.04.2026, Befristungsende 15.01.2027, Satz 14 €/h)
+// ---------------------------------------------------------------------
+const MO = "2026-11-16"; // Montag
+// Q: Beispielzeile des Vertrags (E 02.02.2026 → Befristungsende 01.11.2026), ohne Montag 2318 Minuten
+const Q = { eintritt: "2026-02-02", austritt: null, abgerechnetBis: "2026-09", svBrutto: 2950, stunden: 210.5, minijobMerkmal: "ja" };
+
+test("vertragsende: frühestes von Befristungsende, Einsatz bis und Austritt – nie Einsatz bis allein", () => {
+  assert.strictEqual(M.vertragsende(P), "2027-01-15");                                        // nur Befristungsende
+  assert.strictEqual(M.vertragsende(mit(P, { einsatzBis: "2026-12-20" })), "2026-12-20");      // Einsatz endet früher
+  assert.strictEqual(M.vertragsende(mit(P, { einsatzBis: "2027-06-30" })), "2027-01-15");      // später: zählt nicht
+  assert.strictEqual(M.vertragsende(mit(P, { einsatzBis: "2026-12-20", austritt: "2026-11-30" })), "2026-11-30");
+  assert.strictEqual(M.vertragsende(mit(P, { einsatzBis: "", austritt: "" })), "2027-01-15");
+  assert.strictEqual(M.vertragsende(mit(P, { eintritt: null, einsatzBis: "2026-12-20" })), null); // ohne Eintritt kein B
+  assert.throws(() => M.vertragsende(mit(P, { einsatzBis: "20.12.2026" })), /Einsatz bis/);
+  // Einsatz bis später als das Befristungsende lockert die Grenze nicht: gleiche Minuten wie ohne
+  assert.strictEqual(M.wochenGrenzeMinuten(mit(P, { einsatzBis: "2027-06-30" })), 816);
+});
+
+test("Eintritt vor Einsatz von: Budget zählt ab Eintritt, Einsatz bis kürzt B (ohne Montag)", () => {
+  // Profil: Einsatz 04.05.–20.12.2026, Eintritt schon 16.04.2026 → E bleibt 16.04., B = 20.12.2026
+  // Grenze E..B: Apr 15/30 · 603 = 301,50 + Mai–Nov 7 · 603 = 4.221,00 + Dez 20/31 · 603 = 389,03… = 4.911,53
+  // rest 4.911,53 − 2.520 = 2.391,53; A 01.10., tage 31 + 30 + 20 = 81
+  // 2.391,53 · 7/81 = 206,675… €/Wo; /14 · 60 = 885,75… → 885
+  assert.strictEqual(M.grenzeImZeitraum("2026-04-16", "2026-12-20"), 4911.53);
+  const stand = { stand: "2026-11-05", personen: { 40001: P } };
+  const profil = { 40001: { personalnummer: "40001", kategorie: "minijob", einsatz_von: "2026-05-04", einsatz_bis: "2026-12-20" } };
+  assert.deepStrictEqual(M.wochenGrenzen(stand, profil), { 40001: 885 });
+  // Einsatz von ändert nichts (nur der Eintritt zählt für das Budget)
+  const ohneVon = { 40001: Object.assign({}, profil["40001"], { einsatz_von: null }) };
+  assert.deepStrictEqual(M.wochenGrenzen(stand, ohneVon), { 40001: 885 });
+  // der Stand selbst wird nicht verändert (kein einsatzBis hineingeschrieben)
+  assert.deepStrictEqual(Object.keys(stand.personen["40001"]).sort(), Object.keys(P).sort());
+});
+
+test("Planungswoche: volle Woche = bisherige Wochenformel (tage ≥ 7)", () => {
+  // d = 7 (16.–22.11. liegen in A..B = 01.10.2026–15.01.2027): r · 7 = rest · 7/107 → 816 wie ohne Montag
+  assert.strictEqual(M.wochenGrenzeMinuten(P, undefined, MO), 816);
+  // Ersatzsatz-Weg ebenso: floor(291179 · 420 / (100 · 107 · 16)) = floor(714,34) = 714
+  assert.strictEqual(M.wochenGrenzeMinuten(mit(P, { stunden: 0 }), 16, MO), 714);
+});
+
+test("Planungswoche: Teilwoche – Vertrag endet Mittwoch, nur 3 Tage zählen", () => {
+  // Einsatz bis Mi 18.11.2026 → B = 18.11.; Grenze E..B: 301,50 + Mai–Okt 6 · 603 + Nov 18/30 · 603 (361,80) = 4.281,30
+  // rest 1.761,30; A 01.10., tage 31 + 18 = 49; d = 16.–18.11. = 3
+  // r = 1.761,30/49 = 35,944… €/Tag; · 3 = 107,83… €; /14 · 60 = 462,15… → 462
+  const R = mit(P, { einsatzBis: "2026-11-18" });
+  assert.strictEqual(M.wochenGrenzeMinuten(R, undefined, MO), 462);
+  // ohne Montag: 1.761,30 · 7/49 = 251,61 €/Wo → 1078,35… → 1078
+  assert.strictEqual(M.wochenGrenzeMinuten(R), 1078);
+  // B genau am Montag: d = 1, tage 31 + 16 = 47; Grenze 301,50 + 3.618 + 16/30 · 603 (321,60) = 4.241,10
+  // rest 1.721,10; r = 36,619… → /14 · 60 = 156,94 → 156; nicht beendet
+  assert.strictEqual(M.wochenGrenzeMinuten(mit(P, { einsatzBis: MO }), undefined, MO), 156);
+  assert.deepStrictEqual(M.beendete({ personen: { 1: mit(P, { austritt: MO }) } }, null, MO), {});
+});
+
+test("Planungswoche: Vertrag endete vor dem Montag → 0 und „beendet“ (auch ohne Abrechnung)", () => {
+  // Q: Befristungsende 01.11.2026 < 16.11. → 0; ohne Montag weiter 2318 (Beispielzeile)
+  assert.strictEqual(M.wochenGrenzeMinuten(Q), 2318);
+  assert.strictEqual(M.wochenGrenzeMinuten(Q, undefined, MO), 0);
+  // Einsatz bis Freitag davor
+  assert.strictEqual(M.wochenGrenzeMinuten(mit(P, { einsatzBis: "2026-11-13" }), undefined, MO), 0);
+  // ohne abgerechneten Monat: ohne Montag keine Grenze, mit Montag beendet → 0
+  const neu = { eintritt: "2026-10-05", austritt: null, abgerechnetBis: null, svBrutto: 0, stunden: 0, minijobMerkmal: "?", einsatzBis: "2026-11-10" };
+  assert.strictEqual(M.wochenGrenzeMinuten(neu), null);
+  assert.strictEqual(M.wochenGrenzeMinuten(neu, undefined, MO), 0);
+});
+
+test("Planungswoche: A nach dem Montag – nur die Tage ab A zählen", () => {
+  // Montag 30.11.2026, abgerechnet bis 11/2026 → A = Di 01.12.; B 15.01.2027; svBrutto 3.360, 240 h (Satz 14)
+  // rest 5.431,79 − 3.360 = 2.071,79; tage 31 + 15 = 46; d = 01.–06.12. = 6
+  // r = 45,038… €/Tag; · 6 = 270,23… €; /14 · 60 = 1158,14… → 1158
+  const R = mit(P, { abgerechnetBis: "2026-11", svBrutto: 3360, stunden: 240 });
+  assert.strictEqual(M.wochenGrenzeMinuten(R, undefined, "2026-11-30"), 1158);
+  // ohne Montag: 2.071,79 · 7/46 = 315,27 €/Wo → 1351,17… → 1351
+  assert.strictEqual(M.wochenGrenzeMinuten(R), 1351);
+  // ganze Woche vor A (schon abgerechnet): d = 0 → 0, aber nicht „beendet“
+  assert.strictEqual(M.wochenGrenzeMinuten(P, undefined, "2026-09-21"), 0);
+  assert.deepStrictEqual(M.beendete({ personen: { 1: P } }, null, "2026-09-21"), {});
+  // A nach B, Vertrag läuft in der Woche noch (B 01.11. ≥ Montag 26.10.): ohne Montag keine Grenze, mit Montag 0
+  const S2 = mit(Q, { abgerechnetBis: "2026-11", svBrutto: 5300, stunden: 400 });
+  assert.strictEqual(M.wochenGrenzeMinuten(S2), null);
+  assert.strictEqual(M.wochenGrenzeMinuten(S2, undefined, "2026-10-26"), 0);
+});
+
+test("Planungswoche: Summe aller Wochen bleibt im Restbudget; ohne Montag unverändert", () => {
+  // Alle Wochen von 28.09.2026 bis 18.01.2027: Summe der Minuten ≤ rest/satz · 60 = 2.911,79/14 · 60 = 12.479,1
+  let summe = 0, wochen = 0;
+  for (let t = Date.UTC(2026, 8, 28); t <= Date.UTC(2027, 0, 18); t += 7 * 86400000) {
+    summe += M.wochenGrenzeMinuten(P, undefined, new Date(t).toISOString().slice(0, 10));
+    wochen++;
+  }
+  assert.ok(summe <= 12479 && summe >= 12479 - wochen, "Summe " + summe + " in " + wochen + " Wochen");
+  // leerer Montag = ohne Montag (genau das bisherige Verhalten)
+  [undefined, null, ""].forEach((x) => {
+    assert.strictEqual(M.wochenGrenzeMinuten(P, undefined, x), 816);
+    assert.strictEqual(M.wochenGrenzeMinuten(mit(P, { austritt: "2026-10-06" }), undefined, x), 3913);
+  });
+  assert.throws(() => M.wochenGrenzeMinuten(P, undefined, "16.11.2026"), /Montag/);
+});
+
+test("wochenGrenzen, beendete, zusammenfassung mit Montag und Einsatz bis aus dem Profil", () => {
+  const stand = { stand: "2026-11-05", personen: {
+    40001: P,                                                                       // Einsatz bis Mi → 462
+    40002: Q,                                                                       // Befristungsende 01.11. → beendet
+    40003: mit(P, { abgerechnetBis: "2026-08" }),                                   // Teilzeit: nicht berührt
+    40004: { eintritt: "2026-10-05", austritt: null, abgerechnetBis: null, svBrutto: 0, stunden: 0, minijobMerkmal: "?" },
+    40005: { eintritt: "2026-10-05", austritt: null, abgerechnetBis: null, svBrutto: 0, stunden: 0, minijobMerkmal: "?" }
+  } };
+  const vorher = JSON.stringify(stand);
+  const profile = {
+    40001: { kategorie: "minijob", einsatz_von: "2026-04-16", einsatz_bis: "2026-11-18" },
+    40002: { kategorie: "minijob", einsatz_von: null, einsatz_bis: null },
+    40003: { kategorie: "teilzeit", einsatz_von: null, einsatz_bis: "2026-11-13" },
+    40004: { kategorie: "minijob", einsatz_von: null, einsatz_bis: null },
+    40005: { kategorie: "minijob", einsatz_von: null, einsatz_bis: "2026-11-10" }  // Einsatz vorbei, ohne Abrechnung
+  };
+  assert.deepStrictEqual(M.wochenGrenzen(stand, profile, MO), { 40001: 462, 40002: 0, 40005: 0 });
+  assert.deepStrictEqual(M.beendete(stand, profile, MO), { 40002: "2026-11-01", 40005: "2026-11-10" });
+  assert.deepStrictEqual(M.beendete(stand, profile), {});
+  assert.deepStrictEqual(M.zusammenfassung(stand, profile, MO),
+    { stand: "2026-11-05", abgerechnetBis: "2026-09", minijobberMitGrenze: 1, ohneAbrechnung: 1, ohneRestbudget: 0, beendet: 2 });
+  // ohne Montag: wie bisher (Einsatz bis kürzt trotzdem B: 40001 → 1078), kein Feld „beendet“
+  assert.deepStrictEqual(M.wochenGrenzen(stand, profile), { 40001: 1078, 40002: 2318 });
+  assert.deepStrictEqual(M.zusammenfassung(stand, profile),
+    { stand: "2026-11-05", abgerechnetBis: "2026-09", minijobberMitGrenze: 2, ohneAbrechnung: 2, ohneRestbudget: 0 });
+  assert.strictEqual(JSON.stringify(stand), vorher, "Stand verändert");
+  // kaputtes Einsatz bis im Profil eines Minijobbers wirft mit Personalnummer
+  assert.throws(() => M.wochenGrenzen(stand, Object.assign({}, profile, { 40001: { kategorie: "minijob", einsatz_bis: "2026-02-30" } }), MO),
+    /Personalnummer 40001: Einsatz bis/);
 });
 
 for (const f of faelle) {
