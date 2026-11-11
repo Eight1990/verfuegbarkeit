@@ -12,6 +12,9 @@
  *      - keine Überschneidung, keine zwei Schichten gleicher Art am Tag
  *      - Ruhezeit zwischen zwei Arbeitstagen mindestens 11 Stunden (ArbZG § 5)
  *      - höchstens 10 Stunden pro Tag, 48 Stunden pro Woche
+ *      - harte Minijob-Grenze: höchstens personen[i].max_minuten_hart Minuten
+ *        in der Woche (Ganzzahl ≥ 0, 0 = keine Schicht; null = keine Grenze).
+ *        Ausnahmen nur von Hand: pruefe() meldet sie als Hinweis "minijob".
  *   1. L  alle Plätze besetzen (leerer Früh-/Spät-Platz 10, Office-Platz 1)
  *   2. U  Wunschgrenze "max. Schichten" des Mitarbeiters (aus der Abgabe)
  *         nicht überschreiten. Sie ist weich: überschritten wird nur, wenn
@@ -26,8 +29,10 @@
  * ist an einem Tag getrennt, wenn einer eine Schichtart arbeitet, die der
  * andere nicht hat, obwohl er könnte: Er hat sie als verfügbar abgegeben,
  * es gibt dort noch einen Platz für die Gruppe, und er käme entweder neu
- * dazu (dann nur unter seiner Wunschgrenze und unter 48 h) oder könnte von
- * einer anderen Art wechseln. In eine Doppelschicht wird niemand gedrängt.
+ * dazu (dann nur unter seiner Wunschgrenze) oder könnte von einer anderen Art
+ * wechseln – beides nur innerhalb seiner harten Wochengrenze (48 h bzw. seine
+ * Minijob-Grenze; Wechsel: Minuten − alte + neue Schicht). In eine
+ * Doppelschicht wird niemand gedrängt.
  * Ruhezeit und 10 h/Tag entschuldigen nicht – um sie plant der Solver herum.
  * Getrennt wird also nur, wenn sonst ein Platz leer bliebe oder jemand über
  * seinen Wunsch käme; begruenden() nennt für jede Ausnahme den Grund.
@@ -147,6 +152,15 @@
     return /^[-–—]*$/.test(s) ? "" : s;
   }
 
+  // Harte Minijob-Grenze in Minuten je Woche: Zahl (oder Zahl als Text) → ganze
+  // Minuten ≥ 0; null/undefined/""/sonstiges = keine Grenze. Anders als bei
+  // max_schichten heißt 0 hier "keine Schicht", nicht "keine Grenze".
+  function hartGrenze(x) {
+    if (typeof x === "string") x = x.trim() === "" ? NaN : Number(x);
+    if (typeof x !== "number" || !isFinite(x)) return null;
+    return x > 0 ? Math.floor(x) : 0;
+  }
+
   // Personen nach Personalnummer sortiert (Ergebnis unabhängig von der
   // Eingabereihenfolge). Gruppen nur aus Personen der Eingabe, ab 2 Personen.
   function personenBauen(rohe) {
@@ -167,6 +181,7 @@
       var m = Number(p.max_schichten);
       var hatWunsch = p.max_schichten !== null && p.max_schichten !== undefined &&
         p.max_schichten !== "" && isFinite(m) && m > 0;
+      var hart = hartGrenze(p.max_minuten_hart);
       liste.push({
         pn: pn,
         verf: verf,
@@ -175,7 +190,9 @@
         kategorie: String(p.kategorie || "").trim().toLowerCase() === "teilzeit" ? "teilzeit" : "minijob",
         gruppe: gruppeNorm(p.fahrgemeinschaft),
         partner: [],
-        wocheMaxMin: MAX_WOCHE_MIN   // Platz für eine spätere harte Minijob-Grenze
+        hart: hart,                  // harte Minijob-Grenze (Minuten) oder null
+        // harte Wochengrenze für alle Regeln und Züge: 48 h bzw. Minijob-Grenze
+        wocheMaxMin: hart === null ? MAX_WOCHE_MIN : Math.min(MAX_WOCHE_MIN, hart)
       });
     });
     liste.sort(function (a, b) { return a.pn < b.pn ? -1 : a.pn > b.pn ? 1 : 0; });
@@ -231,7 +248,7 @@
       }
     }
     if (tagMin > MAX_TAG_MIN) return { ok: false, grund: "tagesgrenze" };
-    if (wocheMin > person.wocheMaxMin) return { ok: false, grund: "wochengrenze" };
+    if (wocheMin > person.wocheMaxMin) return { ok: false, grund: wocheMin > MAX_WOCHE_MIN ? "wochengrenze" : "minijob" };
     return { ok: true, doppelt: doppelt, ueber: ueber };
   }
 
@@ -460,7 +477,13 @@
         if (k < 0 || gk[g * K + k] >= kAnz[k]) continue;          // kein Platz mehr für die Gruppe
         if (eigene === 0) {
           if (anz[x] + 1 <= lim[x] && minW[x] + kDauer[k] <= wmax[x]) return true;   // käme neu dazu
-        } else if (eigeneExtra !== 0) return true;                 // könnte wechseln
+        } else {
+          // könnte wechseln: eine eigene Art a, die der Partner nicht hat, gegen t
+          // tauschen (Anzahl gleich) – nur innerhalb der harten Wochengrenze
+          for (var a = 1; a <= 4; a <<= 1) {
+            if ((eigeneExtra & a) && minW[x] - kDauer[kVonTagBit[d * 8 + a]] + kDauer[k] <= wmax[x]) return true;
+          }
+        }
       }
       return false;
     }
@@ -478,8 +501,14 @@
     var cAnz = new Int32Array(N), cMin = new Int32Array(N);   // Anzahl/Minuten im gespeicherten Stand
     var cT = new Uint8Array(Math.max(1, PA * D));
     var gesL = 0, gesU = 0, gesT = 0, gesTZ = 0, gesW = 0;
-    var dauern = [];   // verschiedene Schichtdauern (für den Spielraum-Wechsel)
+    var dauern = [];   // verschiedene Schichtdauern (für den Spielraum beim Dazukommen)
     for (k = 0; k < K; k++) if (dauern.indexOf(kDauer[k]) < 0) dauern.push(kDauer[k]);
+    var wechsel = [];  // verschiedene Dauer-Differenzen neue − alte Art am selben Tag (Spielraum beim Wechsel)
+    for (k = 0; k < K; k++) {
+      for (var k2 = 0; k2 < K; k2++) {
+        if (k2 !== k && kTag[k2] === kTag[k] && wechsel.indexOf(kDauer[k2] - kDauer[k]) < 0) wechsel.push(kDauer[k2] - kDauer[k]);
+      }
+    }
 
     function neuBerechnen() {
       gesL = 0; gesU = 0; gesT = 0; gesTZ = 0; gesW = 0;
@@ -497,7 +526,9 @@
     // Inkrementelle Bewertung des protokollierten Zuges gegen den Stand.
     // Ein Paar-Tag kann sich nur ändern, wenn an diesem Tag ein Platz eines
     // Gruppenmitglieds wechselt (Arten, Kapazität) oder wenn bei einem der
-    // beiden der Spielraum "Anzahl+1 ≤ Wunsch und Minuten+Dauer ≤ 48 h" kippt.
+    // beiden der Spielraum "Anzahl+1 ≤ Wunsch und Minuten+Dauer ≤ Wochengrenze"
+    // oder "Minuten − alte + neue Dauer ≤ Wochengrenze" (Wechsel) kippt
+    // (Wochengrenze = 48 h bzw. harte Minijob-Grenze, wmax).
     var mark = new Int32Array(N), sMark = new Int32Array(Math.max(1, S));
     var epoche = 0, betr = new Int32Array(Math.max(1, N)), nBetr = 0;
     var pdMark = new Int32Array(Math.max(1, PA * D)), pdListe = new Int32Array(Math.max(1, PA * D)), nPD = 0;
@@ -519,10 +550,16 @@
       }
     }
     function spielraumKippt(p) {
-      var a0 = cAnz[p] + 1 <= lim[p], a1 = anz[p] + 1 <= lim[p];
-      if (!a0 && !a1) return false;
-      for (var i = 0; i < dauern.length; i++) {
-        if ((a0 && cMin[p] + dauern[i] <= wmax[p]) !== (a1 && minW[p] + dauern[i] <= wmax[p])) return true;
+      var a0 = cAnz[p] + 1 <= lim[p], a1 = anz[p] + 1 <= lim[p], i;
+      if (a0 || a1) {   // Dazukommen: Anzahl+1 ≤ Wunsch und Minuten+Dauer ≤ Wochengrenze
+        for (i = 0; i < dauern.length; i++) {
+          if ((a0 && cMin[p] + dauern[i] <= wmax[p]) !== (a1 && minW[p] + dauern[i] <= wmax[p])) return true;
+        }
+      }
+      if (cMin[p] !== minW[p]) {   // Wechsel: Minuten − alte + neue Dauer ≤ Wochengrenze
+        for (i = 0; i < wechsel.length; i++) {
+          if ((cMin[p] + wechsel[i] <= wmax[p]) !== (minW[p] + wechsel[i] <= wmax[p])) return true;
+        }
       }
       return false;
     }
@@ -623,9 +660,10 @@
     }
 
     // Reparaturkette: s geht an q; ist q Fahrgemeinschaftsmitglied, über
-    // seinem Wunsch oder im Konflikt mit s (gleicher Tag / Ruhezeit), darf q
-    // einen anderen Platz b abgeben, der an jemand anderen oder leer geht –
-    // bis Tiefe 3. Bewertet wird nur der jeweilige Gesamtzustand.
+    // seinem Wunsch, über seiner Wochengrenze (48 h bzw. harte Minijob-Grenze)
+    // oder im Konflikt mit s (gleicher Tag / Ruhezeit), darf q einen anderen
+    // Platz b abgeben, der an jemand anderen oder leer geht – bis Tiefe 3.
+    // Bewertet wird nur der jeweilige Gesamtzustand.
     // Rückgabe: 0 weiter, 1 übernommen (Zustand bleibt), 2 Abbruch.
     var puffer = new Int32Array((KETTE_TIEFE + 2) * (S + 1));
     function kette(s, q, tiefe, besuch) {
@@ -634,14 +672,14 @@
       var r = besuch();
       if (r === 1) return 1;
       if (r === 0 && tiefe < KETTE_TIEFE && q >= 0) {
-        var mitglied = grp[q] >= 0, ueber = anz[q] > lim[q];
+        var mitglied = grp[q] >= 0, ueber = anz[q] > lim[q], zuViel = minW[q] > wmax[q];
         var basis = tiefe * (S + 1), m = 0, l = pl[q], ks = slotK[s];
         for (var i = 0; i < l.length; i++) puffer[basis + m++] = l[i];
         for (i = 0; i < m && r === 0; i++) {
           var b = puffer[basis + i];
           if (b === s || fest[b] || halter[b] !== q) continue;
           var konflikt = slotTag[b] === slotTag[s] || !vertr[ks * K + slotK[b]];
-          if (!(mitglied || ueber || konflikt)) continue;
+          if (!(mitglied || ueber || zuViel || konflikt)) continue;
           var kb = slotK[b], kl = kand[kb];
           for (var j = 0; j < kl.length && r === 0; j++) {
             var z = kl[j];
@@ -1415,19 +1453,22 @@
       }
       return out;
     }
+    // minijob: q läge danach über seiner harten Minijob-Grenze (nur die
+    // Minijob-Grenze selbst, nicht 48 h)
     function wahlIdx(s, q) {
       aendere(s, q); bewerte();
-      var ergebnis = { ueber: q >= 0 && anz[q] > lim[q], trennt: dT > 0 };
+      var ergebnis = { ueber: q >= 0 && anz[q] > lim[q], trennt: dT > 0,
+        minijob: q >= 0 && pers[q].hart !== null && minW[q] > pers[q].hart };
       zurueckBis(0);
       return ergebnis;
     }
     function wahl(slotId, pn) {
       var s = slotIdx[slotId];
-      if (s === undefined) return { ueber: false, trennt: false };
+      if (s === undefined) return { ueber: false, trennt: false, minijob: false };
       var q = -1;
       if (pn !== null && pn !== undefined && pn !== "") {
         q = pnIdx[String(pn)];
-        if (q === undefined) return { ueber: false, trennt: false };
+        if (q === undefined) return { ueber: false, trennt: false, minijob: false };
       }
       return wahlIdx(s, q);
     }
@@ -1472,7 +1513,8 @@
   /*
    * eingabe: { schichten, tage, bedarf?, personen: [{personalnummer,
    *   verfuegbar:[{datum,schicht_id}], max_schichten, kategorie,
-   *   fahrgemeinschaft}], fest?: { slotId: pn } }  (fest = vorbelegt, bleibt)
+   *   fahrgemeinschaft, max_minuten_hart?}], fest?: { slotId: pn } }
+   *   (fest = vorbelegt, bleibt – auch über einer Minijob-Grenze)
    * Altfelder (nur_schicht, gesperrte_tage, max_schichten_woche, schnitt_h,
    * notiz) werden ignoriert.
    */
@@ -1504,7 +1546,8 @@
 
   // ---------- Alternativen (Spalte J der Dispo, Auswahlfeld) ----------
   // Wer hat die Schicht als verfügbar abgegeben, ist an dem Tag nicht
-  // geplant und würde keine harte Regel brechen? Zuerst, wer dadurch weder
+  // geplant und würde keine harte Regel brechen (auch nicht seine harte
+  // Minijob-Grenze)? Zuerst, wer dadurch weder
   // über seinen Wunsch käme noch eine Fahrgemeinschaft trennte; dann
   // wenigste Stunden, dann Personalnummer.
   function alternativen(eingabe, slots, zuw) {
@@ -1513,7 +1556,8 @@
     return M.alternativen();
   }
 
-  // Kennzeichen für eine Handänderung: wahl(slotId, pn|null) → {ueber, trennt}
+  // Kennzeichen für eine Handänderung: wahl(slotId, pn|null) → {ueber, trennt, minijob}
+  // (minijob: pn läge danach über seiner harten Minijob-Grenze)
   function bewertung(eingabe, slots, zuw) {
     var M = Modell(eingabe, slots);
     M.laden(zuw);
@@ -1521,6 +1565,9 @@
   }
 
   // ---------- Prüfer (auch für händische Änderungen) ----------
+  // Zehntelstunden (ganze Zahl ≥ 0) als "9,5"
+  function zehntelText(z) { return Math.floor(z / 10) + "," + (z % 10); }
+
   function pruefe(eingabe, slots, zuw) {
     var P = personenBauen(eingabe.personen || []);
     var v = [];
@@ -1572,8 +1619,15 @@
         if (tage[d] > MAX_TAG_MIN)
           v.push({ art: "fehler", typ: "tagesgrenze", pn: pn, text: "Mehr als 10 h am " + d });
       });
-      if (wocheMin > p.wocheMaxMin)
+      if (wocheMin > MAX_WOCHE_MIN)
         v.push({ art: "fehler", typ: "wochengrenze", pn: pn, text: "Mehr als 48 h in der Woche" });
+      // Harte Minijob-Grenze: der Solver plant nie darüber, also nur nach einer
+      // Handänderung. Hinweis (blockiert nicht), kein grund. Text: geplant auf
+      // 0,1 h aufgerundet, Grenze abgerundet – so wirken beide Zahlen nie gleich.
+      if (p.hart !== null && wocheMin > p.hart)
+        v.push({ art: "hinweis", typ: "minijob", pn: pn, minuten: wocheMin, grenzeMinuten: p.hart,
+          text: "Minijob-Grenze: " + zehntelText(Math.ceil(wocheMin / 6)) + " h geplant, höchstens " +
+            zehntelText(Math.floor(p.hart / 6)) + " h" });
       if (l.length > p.limit)
         v.push({ art: "hinweis", typ: "limit", pn: pn, anzahl: l.length, grenze: p.limit,
           slots: l.map(function (s) { return s.id; }),
@@ -1591,6 +1645,7 @@
   // werden die Reparaturzüge durchprobiert. Gemeldet wird, was dabei neu
   // entstünde (Lücke vor Überschreitung vor Trennung); entsteht nichts
   // Gleichrangiges oder Schlimmeres, ist die Ausnahme "vermeidbar".
+  // "minijob" bekommt keinen Grund: Die harte Grenze reißt nur eine Handänderung.
   function begruenden(eingabe, slots, zuw, befunde) {
     if (!befunde || !befunde.length) return befunde;
     var relevant = befunde.some(function (b) { return b && (b.typ === "limit" || b.typ === "fahrgemeinschaft"); });
@@ -1609,19 +1664,22 @@
 
   // ---------- Umwandlung aus dem Export-JSON der App ----------
   // profile: { pn: {kategorie, fahrgemeinschaft} } aus der Stammliste;
-  // max_schichten_woche der Abgabe = Wunsch des Mitarbeiters
+  // max_schichten_woche der Abgabe = Wunsch des Mitarbeiters;
+  // max_minuten_hart wird nur durchgereicht, wenn der Eintrag es hat
   function ausExport(json, profile) {
     profile = profile || {};
     var personen = (json.mitarbeiter || []).filter(function (m) { return m.abgegeben !== false; })
       .map(function (m) {
         var pr = profile[m.personalnummer] || {};
-        return {
+        var person = {
           personalnummer: m.personalnummer,
           verfuegbar: m.verfuegbar || [],
           max_schichten: m.max_schichten_woche === undefined ? null : m.max_schichten_woche,
           kategorie: pr.kategorie,
           fahrgemeinschaft: pr.fahrgemeinschaft
         };
+        if (m.max_minuten_hart !== undefined) person.max_minuten_hart = m.max_minuten_hart;
+        return person;
       });
     return { schichten: json.schichten, tage: json.tage, personen: personen };
   }

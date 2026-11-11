@@ -63,7 +63,9 @@ function refKontext(e) {
     const verf = {};
     (p.verfuegbar || []).forEach((x) => { verf[x.datum + "|" + x.schicht_id] = true; });
     P[String(p.personalnummer)] = { verf, wunsch: p.max_schichten > 0 ? Number(p.max_schichten) : Infinity,
-      gruppe: refNorm(p.fahrgemeinschaft) };
+      gruppe: refNorm(p.fahrgemeinschaft),
+      // harte Minijob-Grenze in Minuten je Woche (fehlt/null = keine; 0 = keine Schicht)
+      hart: leer(p.max_minuten_hart) ? Infinity : Number(p.max_minuten_hart) };
   });
   const dauer = {}, plaetze = {}, tage = [];
   slots.forEach((s) => {
@@ -105,16 +107,25 @@ function refAuswerten(ctx, zuw) {
     const w = ctx.P[pn] ? ctx.P[pn].wunsch : Infinity;
     if (anzahl[pn] > w) { U += anzahl[pn] - w; ueber.push({ pn, anzahl: anzahl[pn], grenze: w }); }
   });
+  // Überschreitungen der harten Minijob-Grenze (nur nach Handänderung möglich)
+  const ueberHart = [];
+  Object.keys(minuten).sort().forEach((pn) => {
+    if (ctx.P[pn] && minuten[pn] > ctx.P[pn].hart) ueberHart.push({ pn, minuten: minuten[pn], grenze: ctx.P[pn].hart });
+  });
   const artenVon = (pn, d) => ((arten[pn] || {})[d] || []).slice().sort();
-  // koennte(x, eigene, andere, d, t) wörtlich nach Vertrag (präzisiert 11.11.)
+  // koennte(x, eigene, andere, d, t) wörtlich nach Vertrag (präzisiert 11.11.);
+  // harte Wochengrenze = min(48 h, Minijob-Grenze) beim Dazukommen UND beim Wechsel
+  // (Entscheidung 11.11.: Wechsel = eine eigene Art a, die der andere nicht hat, gegen t)
   function koennte(x, eigene, andere, d, t, g) {
     if (!refVerfuegbar(ctx.P[x], d, t)) return false;
     const schonDa = ctx.gruppen[g].filter((m) => artenVon(m, d).indexOf(t) >= 0).length;
     if (!((ctx.plaetze[d + "|" + t] || 0) > schonDa)) return false;            // Kapazität
+    const grenze = Math.min(WOCHE_MAX_MIN, ctx.P[x].hart), m = minuten[x] || 0;
     if (eigene.length === 0) {                                                 // käme an d neu dazu
-      return (anzahl[x] || 0) + 1 <= ctx.P[x].wunsch && (minuten[x] || 0) + ctx.dauer[d + "|" + t] <= WOCHE_MAX_MIN;
+      return (anzahl[x] || 0) + 1 <= ctx.P[x].wunsch && m + ctx.dauer[d + "|" + t] <= grenze;
     }
-    return eigene.some((a) => andere.indexOf(a) < 0);                          // Wechsel
+    return eigene.some((a) => andere.indexOf(a) < 0 &&                        // Wechsel a → t
+      m - ctx.dauer[d + "|" + a] + ctx.dauer[d + "|" + t] <= grenze);
   }
   const getrennt = [];
   ctx.paare.forEach(({ p, q, g }) => {
@@ -127,12 +138,14 @@ function refAuswerten(ctx, zuw) {
       }
     });
   });
-  return { kosten: [L, U, getrennt.length], getrennt, ueber, anzahl };
+  return { kosten: [L, U, getrennt.length], getrennt, ueber, anzahl, minuten, ueberHart };
 }
 const referenz = (e, zuw) => refAuswerten(refKontext(e), zuw).kosten;
 
 // Harte Regeln: verfügbar (LANG deckt SPAET), keine gleiche Art/Überlappung am Tag,
-// Ruhezeit ≥ 11 h zwischen Tagen, ≤ 10 h/Tag, ≤ 48 h/Woche
+// Ruhezeit ≥ 11 h zwischen Tagen, ≤ 10 h/Tag, ≤ 48 h/Woche, ≤ harte Minijob-Grenze.
+// Die Minijob-Grenze ist hier UNZULÄSSIG, obwohl pruefe() sie nur als Hinweis meldet
+// (sonst entstünden falsche Optima).
 function refPasst(ctx, pn, s, liste) {
   if (!refVerfuegbar(ctx.P[pn], s.datum, s.schicht_id)) return false;
   let tag = s.dauer, woche = s.dauer;
@@ -143,7 +156,7 @@ function refPasst(ctx, pn, s, liste) {
       tag += a.dauer;
     } else if ((a.end <= s.start ? s.start - a.end : a.start - s.end) < RUHE_MIN) return false;
   }
-  return tag <= TAG_MAX_MIN && woche <= WOCHE_MAX_MIN;
+  return tag <= TAG_MAX_MIN && woche <= WOCHE_MAX_MIN && woche <= ctx.P[pn].hart;
 }
 function refZulaessig(ctx, zuw) {
   const proPn = {};
@@ -315,6 +328,44 @@ function refFall(gruppe, name, e, teil, soll, getrennt) { REF_FAELLE.push({ grup
   refFall("gruppe3", "beide Richtungen am selben Tag zählen einmal, jeder Tag einzeln",
     e2, { [pl(D1, "FRUEH", 1)]: "A", [pl(D1, "SPAET", 1)]: "B", [pl(D2, "FRUEH", 1)]: "A", [pl(D2, "SPAET", 1)]: "B" }, [40, 0, 2], ["A+B@" + D1, "A+B@" + D2]);
 })();
+(function () {
+  // harte Minijob-Grenze (Vertrag Teil 4) wirkt beim Dazukommen wie 48 h:
+  // B hat Office am D1 (390 min); Früh am D2 (180 min) passt bei Grenze 570 genau noch
+  const mk = (hartB) => instanz({ [D1]: { LANG: 1 }, [D2]: { FRUEH: 2 } }, [
+    person("A", v(D2, "FRUEH"), { fahrgemeinschaft: "G1" }),
+    person("B", v(D1, "LANG").concat(v(D2, "FRUEH")), { fahrgemeinschaft: "G1", max_minuten_hart: hartB })]);
+  const teil = { [pl(D1, "LANG", 1)]: "B", [pl(D2, "FRUEH", 1)]: "A" };
+  refFall("minijob", "Grenze 570: 390 + 180 = 570 min → könnte noch → getrennt", mk(570), teil, [10, 0, 1], ["A+B@" + D2]);
+  refFall("minijob", "Grenze 569: 390 + 180 min → könnte nicht → nicht getrennt", mk(569), teil, [10, 0, 0], []);
+  refFall("minijob", "ohne Grenze (null) → getrennt", mk(null), teil, [10, 0, 1], ["A+B@" + D2]);
+  refFall("minijob", "Grenze 0, B arbeitet nicht → könnte nicht dazu → nicht getrennt", mk(0), { [pl(D2, "FRUEH", 1)]: "A" }, [11, 0, 0], []);
+  refFall("minijob", "Grenze 300 von Hand überschritten (390 min) → könnte nicht → nicht getrennt", mk(300), teil, [10, 0, 0], []);
+  // Wechsel (Entscheidung 11.11.): harte Wochengrenze gilt auch hier. B arbeitet Früh (180 min),
+  // A Office (390 min, 2 Plätze); B könnte nur wechseln, wenn 180 − 180 + 390 ≤ seine Grenze
+  const mkW = (hartB) => instanz({ [D1]: { FRUEH: 1, LANG: 2 } }, [
+    person("A", v(D1, "LANG"), { fahrgemeinschaft: "G1" }),
+    person("B", v(D1, "FRUEH", "LANG"), { fahrgemeinschaft: "G1", max_minuten_hart: hartB })]);
+  const teilW = { [pl(D1, "FRUEH", 1)]: "B", [pl(D1, "LANG", 1)]: "A" };
+  refFall("minijob", "Wechsel Früh → Office über der Grenze (390 > 200) → könnte nicht → nicht getrennt", mkW(200), teilW, [1, 0, 0], []);
+  refFall("minijob", "Wechsel: Grenze 390 = 180 − 180 + 390 → könnte noch → getrennt", mkW(390), teilW, [1, 0, 1], ["A+B@" + D1]);
+  refFall("minijob", "Wechsel: Grenze 389 → könnte nicht → nicht getrennt", mkW(389), teilW, [1, 0, 0], []);
+  refFall("minijob", "Wechsel ohne Grenze → getrennt", mkW(null), teilW, [1, 0, 1], ["A+B@" + D1]);
+  // 48 h gelten beim Wechsel genauso: B hat 4 × 10 h + Früh = 2580 min; Office am D5 dauert 480 bzw. 481 min
+  const mkW48 = (officeBeginn) => {
+    const tage = [D1, D2, D3, D4], bedarf = { [D5]: { FRUEH: 1, LANG: 2 } };
+    tage.forEach((d) => { bedarf[d] = { LANG: 1 }; });
+    return {
+      schichten: tage.map((d) => schicht(d, "LANG", "08:00", "18:00")).concat([schicht(D5, "FRUEH"), schicht(D5, "LANG", officeBeginn, "22:30")]),
+      tage: tage.concat([D5]).map((d) => ({ datum: d, gesperrt: false })), bedarf,
+      personen: [person("A", v(D5, "LANG"), { fahrgemeinschaft: "G1" }),
+        person("B", tage.map((d) => ({ datum: d, schicht_id: "LANG" })).concat(v(D5, "FRUEH", "LANG")), { fahrgemeinschaft: "G1" })]
+    };
+  };
+  const teilW48 = { [pl(D1, "LANG", 1)]: "B", [pl(D2, "LANG", 1)]: "B", [pl(D3, "LANG", 1)]: "B", [pl(D4, "LANG", 1)]: "B",
+    [pl(D5, "FRUEH", 1)]: "B", [pl(D5, "LANG", 1)]: "A" };
+  refFall("minijob", "48 h beim Wechsel: 2580 − 180 + 480 = 2880 min → könnte noch → getrennt", mkW48("14:30"), teilW48, [1, 0, 1], ["A+B@" + D5]);
+  refFall("minijob", "48 h beim Wechsel: 2580 − 180 + 481 min → könnte nicht → nicht getrennt", mkW48("14:29"), teilW48, [1, 0, 0], []);
+})();
 
 // ---------- Selbsttests der Referenz (ohne Solver) ----------
 test("Referenz: Plätze und Standardbedarf (Mo 9/10, sonst 6/10, Office 0; inaktiv/gesperrt ohne Plätze)", () => {
@@ -336,7 +387,8 @@ test("Referenz: Plätze und Standardbedarf (Mo 9/10, sonst 6/10, Office 0; inakt
   ["doppel", "Referenz: Doppelschicht – niemand wird in eine zweite Schicht gedrängt"],
   ["lang", "Referenz: LANG-Verfügbarkeit deckt SPAET ab (nicht umgekehrt)"],
   ["kennung", "Referenz: Kennungen normalisiert („fg 1“ = „FG1“, NFC), Einzelkennungen zählen nicht"],
-  ["gruppe3", "Referenz: 3er-Gruppe paarweise, je Paar und Tag höchstens 1"]
+  ["gruppe3", "Referenz: 3er-Gruppe paarweise, je Paar und Tag höchstens 1"],
+  ["minijob", "Referenz: harte Wochengrenze (Minijob-Grenze bzw. 48 h) beim Dazukommen und beim Wechsel → sonst nicht getrennt (Grenze zählt noch)"]
 ].forEach(([gruppe, name]) => test(name, () => {
   REF_FAELLE.filter((f) => f.gruppe === gruppe).forEach((f) => {
     const r = refAuswerten(refKontext(f.e), f.z);
@@ -373,6 +425,20 @@ test("Referenz: eigene Prüfung der harten Regeln", () => {
     return refZulaessig(refKontext(e3), plan(e3, teil));
   };
   assert.ok(woche("16:00") && !woche("16:01"), "48 h in der Woche: genau 48 h erlaubt, mehr nicht");
+});
+
+test("Referenz: harte Minijob-Grenze ist in der eigenen Prüfung unzulässig (genau die Grenze erlaubt, 0 = keine Schicht)", () => {
+  const mk = (hart) => instanz({ [D1]: { FRUEH: 1, LANG: 1 }, [D2]: { FRUEH: 1 } },
+    [person("A", v(D1, "FRUEH", "LANG").concat(v(D2, "FRUEH")), { max_minuten_hart: hart })]);
+  const ok = (hart, teil) => { const e = mk(hart); return refZulaessig(refKontext(e), plan(e, teil)); };
+  const fruehOffice = { [pl(D1, "FRUEH", 1)]: "A", [pl(D1, "LANG", 1)]: "A" };   // 180 + 390 = 570 min
+  assert.ok(ok(570, fruehOffice) && !ok(569, fruehOffice), "570 min: Grenze 570 erlaubt, 569 nicht");
+  assert.ok(ok(null, fruehOffice) && ok(undefined, fruehOffice), "null/undefined = keine Grenze");
+  assert.ok(!ok(0, { [pl(D2, "FRUEH", 1)]: "A" }) && ok(0, {}), "Grenze 0: keine Schicht");
+  assert.ok(ok(360, { [pl(D1, "FRUEH", 1)]: "A", [pl(D2, "FRUEH", 1)]: "A" }) &&
+    !ok(359, { [pl(D1, "FRUEH", 1)]: "A", [pl(D2, "FRUEH", 1)]: "A" }), "über zwei Tage summiert");
+  const e = mk(569), r = refAuswerten(refKontext(e), plan(e, fruehOffice));
+  assert.deepStrictEqual(r.ueberHart, [{ pn: "A", minuten: 570, grenze: 569 }]);
 });
 
 // ======================================================================
@@ -597,7 +663,10 @@ function bruteForce(e, sSlots, opt) {
   slots.forEach((s) => { zuw[s.id] = null; });
   pns.forEach((pn) => { proPn[pn] = []; });
   const erg = { min: null, beispiel: null, optimal: [], blaetter: 0, uneinig: [] };
-  const amtlichOk = () => !S.pruefe(e, sSlots, Object.assign({}, zuw)).some((b) => b.art === "fehler");
+  // pruefe() meldet eine Überschreitung der harten Minijob-Grenze nur als Hinweis
+  // „minijob“; zulässig ist ein Plan hier nur ohne Fehler UND ohne diesen Hinweis.
+  // Gegengeprüft gegen die eigene Prüfung (refPasst/refZulaessig rechnet die Grenze selbst).
+  const amtlichOk = () => !S.pruefe(e, sSlots, Object.assign({}, zuw)).some((b) => b.art === "fehler" || b.typ === "minijob");
   function blatt() {
     erg.blaetter++;
     if (opt.voll) {
@@ -685,9 +754,25 @@ const sortiert = (z) => Object.keys(z).sort().map((id) => [id, leer(z[id]) ? nul
 // ist als Einziger für einen gebrauchten Platz verfügbar. So entstehen echte
 // Abwägungen Lücke / Wunsch / Trennung (gemessen 11.11. an Seeds 1–1000: bei 20 % der
 // Instanzen entscheidet die Fahrgemeinschaft mit, bei 41 % die Wunschgrenze; Optimum
-// mit Trennung 17-mal, mit Überschreitung 95-mal).
+// mit Trennung 17-mal, mit Überschreitung 95-mal – ohne Minijob-Grenzen; mit ihnen
+// gemessen 11.11.: Lücke 639, Überschreitung 104, Trennung 14; 350 Instanzen mit Grenze,
+// davon ändert sie das Optimum in 113).
 // Reihenfolge der Zufallszüge NICHT ändern: Seeds sind Fehlernummern.
+// Harte Minijob-Grenze (max_minuten_hart, ab 11.11.): kommt aus einem EIGENEN
+// Zufallsstrom (grenzenAuflegen), die Instanzen bleiben sonst wie vorher.
 const SCHREIBWEISEN = [["G1", "g1", " G 1", "g 1 "], ["FG2", "fg 2", "Fg2", "F G2"]];
+// Etwa 35 % der Instanzen bekommen Grenzen, dort jede Person mit 50 %: eine Summe
+// von Schichtdauern (Früh 180, Spät 240, Office 390 min), oft 1 min darunter, oder 0.
+const GRENZ_WERTE = [0, 180, 240, 360, 390, 420, 480, 570];
+function grenzenAuflegen(seed, personen) {
+  const r = mulberry32(seed * 104729 + 71);
+  if (r() >= 0.35) return;
+  personen.forEach((p) => {
+    if (r() < 0.5) return;
+    const g = GRENZ_WERTE[Math.floor(r() * GRENZ_WERTE.length)];
+    p.max_minuten_hart = g > 0 && r() < 0.3 ? g - 1 : g;
+  });
+}
 function miniInstanz(seed) {
   const r = mulberry32(seed * 7919 + 13), ganz = (n) => Math.floor(r() * n);
   const tage = [D1, D2].slice(0, r() < 0.85 ? 2 : 1);
@@ -735,8 +820,10 @@ function miniInstanz(seed) {
     personen.forEach((p) => { if (p !== q) p.verfuegbar = p.verfuegbar.filter((x) => !(x.datum === z[0] && weg.indexOf(x.schicht_id) >= 0)); });
     if (!q.verfuegbar.some((x) => x.datum === z[0] && x.schicht_id === z[1])) q.verfuegbar.push({ datum: z[0], schicht_id: z[1] });
   }
+  grenzenAuflegen(seed, personen);
   return { schichten, tage: tage.map((d) => ({ datum: d, gesperrt: false })), bedarf, personen };
 }
+const hatGrenze = (e) => e.personen.some((p) => !leer(p.max_minuten_hart));
 
 // Feste Fundfälle (vom Generator unabhängig, bleiben auch bei geändertem Generator erhalten)
 const FUNDFAELLE = [
@@ -757,7 +844,25 @@ const FUNDFAELLE = [
         person("P2", v(D1, "SPAET").concat(v(D2, "SPAET")), { fahrgemeinschaft: "Fg2" }),
         person("P3", v(D1, "FRUEH", "SPAET").concat(v(D2, "SPAET", "FRUEH")), { fahrgemeinschaft: "g1" }),
         person("P4", v(D1, "SPAET").concat(v(D2, "FRUEH", "SPAET")), { kategorie: "teilzeit", fahrgemeinschaft: "F G2" }),
-        person("P5", v(D1, "FRUEH", "SPAET").concat(v(D2, "SPAET")), { max_schichten: 1, fahrgemeinschaft: "g1" })] } }
+        person("P5", v(D1, "FRUEH", "SPAET").concat(v(D2, "SPAET")), { max_schichten: 1, fahrgemeinschaft: "g1" })] } },
+  // harte Minijob-Grenze: beide brauchen das Kettenglied „über der Grenze → einen Platz abgeben“
+  { name: "Minijob-Grenze: P2 (570 min) muss Office abgeben, um Spät zu übernehmen (Fund 11.11. bei BRUTE_N=6000, Seed 5569; ohne Kettenglied [10,0,0] statt [1,0,0])",
+    e: { schichten: [D1, D2].reduce((l, d) => l.concat(["FRUEH", "SPAET", "LANG"].map((t) => schicht(d, t))), []),
+      tage: [{ datum: D1, gesperrt: false }, { datum: D2, gesperrt: false }],
+      bedarf: { [D1]: { FRUEH: 1, SPAET: 1, LANG: 1 }, [D2]: { FRUEH: 0, SPAET: 2, LANG: 0 } },
+      personen: [
+        person("P1", v(D1, "SPAET").concat(v(D2, "LANG")), { max_schichten: 2 }),
+        person("P2", v(D1, "SPAET", "LANG").concat(v(D2, "FRUEH", "SPAET", "LANG")), { max_minuten_hart: 570 }),
+        person("P3", v(D1, "FRUEH"), { max_schichten: 1, max_minuten_hart: 420 })] } },
+  { name: "Minijob-Grenze: P2 (359 min) passt nur eine Schicht, Umbau über zwei Tage (Fund 11.11. bei BRUTE_N=6000, Seed 4555; ohne Kettenglied [10,0,0] statt [0,0,1])",
+    e: { schichten: [schicht(D1, "FRUEH"), schicht(D1, "SPAET"), schicht(D2, "FRUEH"), schicht(D2, "SPAET")],
+      tage: [{ datum: D1, gesperrt: false }, { datum: D2, gesperrt: false }],
+      bedarf: { [D1]: { FRUEH: 1, SPAET: 2, LANG: 0 }, [D2]: { FRUEH: 1, SPAET: 1, LANG: 0 } },
+      personen: [
+        person("P1", v(D1, "FRUEH").concat(v(D2, "SPAET")), { max_schichten: 2 }),
+        person("P2", v(D1, "FRUEH", "SPAET").concat(v(D2, "SPAET")), { kategorie: "teilzeit", max_minuten_hart: 359 }),
+        person("P3", v(D1, "SPAET"), { max_schichten: 1, kategorie: "teilzeit", fahrgemeinschaft: "g1", max_minuten_hart: 480 }),
+        person("P4", v(D1, "SPAET").concat(v(D2, "FRUEH")), { max_schichten: 2, kategorie: "teilzeit", fahrgemeinschaft: "G1" })] } }
 ];
 
 const MINI_N = Number(process.env.BRUTE_N) || 1000;
@@ -1073,6 +1178,11 @@ function abgleich(e, slots, z) {
   const lim = bef.filter((b) => b.typ === "limit").map((b) => b.pn + ":" + b.anzahl + "/" + b.grenze).sort().join(", ");
   const refLim = ref.ueber.map((x) => x.pn + ":" + x.anzahl + "/" + x.grenze).sort().join(", ");
   if (lim !== refLim) p.push("pruefe-Hinweise Wunschgrenze [" + lim + "] ≠ Referenz [" + refLim + "]");
+  const mj = bef.filter((b) => b.typ === "minijob");
+  if (mj.some((b) => b.art !== "hinweis")) p.push("Minijob-Befund ist kein Hinweis");
+  const mjText = mj.map((b) => b.pn + ":" + b.minuten + "/" + b.grenzeMinuten).sort().join(", ");
+  const refMj = ref.ueberHart.map((x) => x.pn + ":" + x.minuten + "/" + x.grenze).sort().join(", ");
+  if (mjText !== refMj) p.push("pruefe-Hinweise Minijob-Grenze [" + mjText + "] ≠ Referenz [" + refMj + "]");
   return p;
 }
 
@@ -1261,6 +1371,329 @@ test("Laufzeit: loese auf der erfundenen Standardwoche mit Profilen unter 2000 m
   const erg = S.loese(e);
   const ms = Number(process.hrtime.bigint() - t0) / 1e6;
   console.log("     Standardwoche mit Profilen: " + ms.toFixed(0) + " ms (" + erg.slots.length + " Plätze)");
+  assert.ok(ms < 2000, ms.toFixed(0) + " ms");
+});
+
+// ======================================================================
+// Teil G – harte Minijob-Grenze (personen[].max_minuten_hart, Vertrag Teil 4).
+// Max 11.11.: „Hart, Ausnahmen nur von Hand“. Eingehalten wird immer mit eigenen
+// Minutensummen geprüft (refKontext/refZulaessig), nie über das Fehlen eines Hinweises.
+// ======================================================================
+function minutenVon(ctx, z) {
+  const m = {};
+  ctx.slots.forEach((s) => { const pn = z[s.id]; if (!leer(pn)) m[pn] = (m[pn] || 0) + s.dauer; });
+  return m;
+}
+// Grenzen für Minijobber einer Testwoche (deterministisch, auch 0); Teilzeit bleibt ohne
+const GRENZ_WOCHE = [0, 180, 240, 300, 360, 420, 480, 540, 600, 720];
+function mitGrenzen(e, startwert, anteil) {
+  const r = mulberry32(startwert);
+  e.personen.forEach((p) => {
+    if (p.kategorie === "teilzeit" || r() >= anteil) return;
+    p.max_minuten_hart = GRENZ_WOCHE[Math.floor(r() * GRENZ_WOCHE.length)];
+  });
+  return e;
+}
+const ohneGrenzen = (e) => { const x = kopie(e); x.personen.forEach((p) => { delete p.max_minuten_hart; }); return x; };
+const GRENZ_WOCHEN = {
+  standard: () => mitGrenzen(S.ausExport(json, stammProfile(json)), 501, 0.8),
+  std23: () => { const e = mitGrenzen(S.ausExport(json, stammProfile(json)), 502, 0.6); e.bedarf = bedarf(2, 3); return e; },
+  std46: () => { const e = mitGrenzen(S.ausExport(json, stammProfile(json)), 503, 0.8); e.bedarf = bedarf(4, 6); return e; },
+  haerte: () => mitGrenzen(haertefallEingabe(false), 504, 0.7),
+  haerteMini: () => mitGrenzen(haertefallEingabe(true), 505, 0.5)
+};
+
+test("Minijob-Grenze: Löser plant nie darüber – Testwochen mit zufälligen Grenzen (auch 0), Lücke ⇒ keine Alternative", () => {
+  const probleme = [];
+  let greift = 0, nullMitVerf = 0, anGrenze = 0;
+  Object.keys(GRENZ_WOCHEN).forEach((k) => {
+    const e = GRENZ_WOCHEN[k](), ctx = refKontext(e);
+    const t0 = process.hrtime.bigint();
+    const erg = S.loese(GRENZ_WOCHEN[k]());
+    const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+    const z = erg.zuweisung, min = minutenVon(ctx, z);
+    let mitGrenze = 0;
+    e.personen.forEach((p) => {
+      if (leer(p.max_minuten_hart)) return;
+      mitGrenze++;
+      const pn = p.personalnummer, m = min[pn] || 0;
+      if (m > p.max_minuten_hart) probleme.push(k + ": " + pn + " hat " + m + " min, Grenze " + p.max_minuten_hart);
+      if (p.max_minuten_hart === 0 && p.verfuegbar.length) nullMitVerf++;
+      if (m > 0 && m === p.max_minuten_hart) anGrenze++;
+    });
+    if (!refZulaessig(ctx, z)) probleme.push(k + ": eigene Prüfung findet harten Verstoß in " + kurz(z));
+    if (fehler(erg).length) probleme.push(k + ": Fehler " + JSON.stringify(fehler(erg)));
+    if (hinweise(erg, "minijob").length) probleme.push(k + ": Hinweis „minijob“ ohne Handänderung");
+    // jede Ausnahme des Löser-Plans ist begründet und nie „vermeidbar“
+    hinweise(erg, "limit").concat(hinweise(erg, "fahrgemeinschaft")).forEach((b) => {
+      const g = b.grund;
+      if (!g || ["luecke", "limit", "fahrgemeinschaft"].indexOf(g.typ) < 0) probleme.push(k + ": " + b.typ + " " + b.pn + " ohne gültigen Grund " + JSON.stringify(g));
+    });
+    erg.unbesetzt.forEach((id) => {
+      if ((erg.alternativen[id] || []).length) probleme.push(k + ": unbesetzt " + id + " hat Alternativen " + erg.alternativen[id]);
+    });
+    ctx.slots.forEach((s) => (erg.alternativen[s.id] || []).forEach((pn) => {
+      const z2 = Object.assign({}, z);
+      z2[s.id] = pn;
+      if (!refZulaessig(ctx, z2) || artenAm(z, pn, s.datum).length) probleme.push(k + ": Alternative " + pn + " für " + s.id + " unzulässig");
+    }));
+    const kv = S.kostenVon(e, erg.slots, z);
+    if (JSON.stringify(kv) !== JSON.stringify(erg.kosten)) probleme.push(k + ": loese().kosten " + JSON.stringify(erg.kosten) + " ≠ kostenVon " + JSON.stringify(kv));
+    abgleich(e, erg.slots, z).forEach((x) => probleme.push(k + ": " + x));
+    if (ms >= 2000) probleme.push(k + ": " + ms.toFixed(0) + " ms");
+    // Greift die Grenze überhaupt? Ohne Grenzen plant der Löser über mindestens eine,
+    // oder auf demselben Plan fielen ohne Grenzen mehr Alternativen an (Grenze filtert).
+    const reisst = !refZulaessig(ctx, S.loese(ohneGrenzen(e)).zuweisung);
+    const altOhne = S.alternativen(ohneGrenzen(e), erg.slots, z);
+    const gefiltert = Object.keys(altOhne).filter((id) => altOhne[id].length > (erg.alternativen[id] || []).length).length;
+    if (reisst || gefiltert) greift++;
+    console.log("     " + k + ": " + mitGrenze + " mit Grenze; Lücken " + erg.unbesetzt.length + ", Kosten " +
+      JSON.stringify(erg.kosten.slice(0, 3)) + (reisst ? "; ohne Grenze gerissen" : "") + "; Alternativen gefiltert an " +
+      gefiltert + " Plätzen; loese " + ms.toFixed(0) + " ms");
+  });
+  assert.ok(!probleme.length, probleme.length + " Probleme:\n     " + probleme.slice(0, 8).join("\n     "));
+  assert.strictEqual(greift, Object.keys(GRENZ_WOCHEN).length, "Grenzen greifen nicht in jeder Woche – Test zu schwach");
+  assert.ok(nullMitVerf > 0 && anGrenze > 0, "keine verfügbare Person mit Grenze 0 (" + nullMitVerf + ") oder keine genau an der Grenze (" + anGrenze + ")");
+});
+
+test("Minijob-Grenze: deterministisch und unabhängig von der Eingabereihenfolge", () => {
+  ["standard", "haerte"].forEach((k) => {
+    const a = S.loese(GRENZ_WOCHEN[k]()), b = S.loese(GRENZ_WOCHEN[k]());
+    assert.deepStrictEqual(b.zuweisung, a.zuweisung, k);
+    const e = GRENZ_WOCHEN[k]();
+    mischen(e.personen, mulberry32(77));
+    const c = S.loese(e);
+    assert.deepStrictEqual(c.zuweisung, a.zuweisung, k + " gemischt");
+    assert.deepStrictEqual(c.kosten, a.kosten, k + " gemischt");
+  });
+});
+
+test("Minijob-Grenze: lieber bleibt ein Platz leer (0 = keine Schicht); leerer Platz ⇒ keine Alternative; Packen unter der Grenze", () => {
+  const mk = (hart) => instanz({ [D1]: { FRUEH: 1 }, [D2]: { FRUEH: 1 } },
+    [person("A", v(D1, "FRUEH").concat(v(D2, "FRUEH")), { max_minuten_hart: hart })]);
+  [[null, [0, 0, 0], 2], [360, [0, 0, 0], 2], [359, [10, 0, 0], 1], [180, [10, 0, 0], 1], [179, [20, 0, 0], 0], [0, [20, 0, 0], 0]]
+    .forEach(([hart, soll, n]) => {
+      const e = mk(hart);
+      erwartetesOptimum(e, soll);
+      const erg = loeseFall(e, soll);
+      assert.strictEqual(Object.values(erg.zuweisung).filter((pn) => pn === "A").length, n, "Grenze " + hart);
+      assert.deepStrictEqual(hinweise(erg, "minijob"), [], "Grenze " + hart);
+      const bew = S.bewertung(e, erg.slots, erg.zuweisung);
+      erg.unbesetzt.forEach((id) => {
+        assert.deepStrictEqual(erg.alternativen[id], [], "Grenze " + hart + ": " + id);
+        assert.strictEqual(bew.wahl(id, "A").minijob, true, "Grenze " + hart + ": wahl " + id);
+      });
+    });
+  // Packen: A (420) nimmt Früh + Spät am D1 (420 min), B (390) das Office am D2 – sonst bliebe etwas leer
+  const e = instanz({ [D1]: { FRUEH: 1, SPAET: 1 }, [D2]: { LANG: 1 } }, [
+    person("A", v(D1, "FRUEH", "SPAET").concat(v(D2, "LANG")), { max_minuten_hart: 420 }),
+    person("B", v(D1, "FRUEH").concat(v(D2, "LANG")), { max_minuten_hart: 390 })]);
+  const bf = erwartetesOptimum(e, [0, 0, 0]);
+  bf.optimal.forEach((z) => assert.deepStrictEqual(wer(z, D2, "LANG"), ["B"], "Erwartung nicht eindeutig: " + kurz(z)));
+  const erg = loeseFall(e, [0, 0, 0]);
+  assert.deepStrictEqual([wer(erg.zuweisung, D1, "FRUEH"), wer(erg.zuweisung, D1, "SPAET"), wer(erg.zuweisung, D2, "LANG")], [["A"], ["A"], ["B"]]);
+});
+
+test("Minijob-Grenze von Hand überschritten: Hinweis „minijob“ mit Minuten und Text, kein Fehler, kein Grund", () => {
+  const e = instanz({ [D1]: { FRUEH: 1, LANG: 1 }, [D2]: { FRUEH: 1 } }, [
+    person("A", v(D1, "FRUEH", "LANG").concat(v(D2, "FRUEH")), { max_minuten_hart: 420 }),
+    person("B", v(D1, "FRUEH", "LANG").concat(v(D2, "FRUEH")))]);
+  const slots = sSlotsVon(e);
+  const z = plan(e, { [pl(D1, "FRUEH", 1)]: "A", [pl(D1, "LANG", 1)]: "A", [pl(D2, "FRUEH", 1)]: "B" });   // A: 180 + 390 = 570 min
+  assert.ok(!refZulaessig(refKontext(e), z), "eigene Prüfung: der Handplan ist hart unzulässig");
+  const bef = S.pruefe(e, slots, z);
+  assert.deepStrictEqual(bef.filter((b) => b.art === "fehler"), [], "kein Fehler – blockiert das Veröffentlichen nicht");
+  const mj = bef.filter((b) => b.typ === "minijob");
+  assert.deepStrictEqual(mj, [{ art: "hinweis", typ: "minijob", pn: "A", minuten: 570, grenzeMinuten: 420,
+    text: "Minijob-Grenze: 9,5 h geplant, höchstens 7,0 h" }]);
+  assert.strictEqual(S.begruenden(e, slots, z, bef), bef, "begruenden() liefert dasselbe Array");
+  assert.ok(!Object.prototype.hasOwnProperty.call(mj[0], "grund"), "„minijob“ bekommt keinen Grund: " + JSON.stringify(mj[0]));
+  assert.deepStrictEqual(abgleich(e, slots, z), []);
+  // dasselbe über loese() mit Vorbelegung (fest): der Löser legt nichts dazu
+  const ef = Object.assign(kopie(e), { fest: { [pl(D1, "FRUEH", 1)]: "A", [pl(D1, "LANG", 1)]: "A" } });
+  const erg = S.loese(ef);
+  assert.deepStrictEqual(fehler(erg), []);
+  assert.deepStrictEqual(Object.keys(erg.zuweisung).filter((id) => erg.zuweisung[id] === "A").sort(), [pl(D1, "FRUEH", 1), pl(D1, "LANG", 1)].sort());
+  assert.deepStrictEqual(hinweise(erg, "minijob").map((b) => [b.art, b.pn, b.minuten, b.grenzeMinuten, b.grund]), [["hinweis", "A", 570, 420, undefined]]);
+  // Text: geplant auf 0,1 h aufgerundet, Grenze abgerundet – nie zwei gleich aussehende Zahlen
+  const text = (beginn, ende, hart) => {
+    const e1 = { schichten: [schicht(D1, "LANG", beginn, ende)], tage: [{ datum: D1 }], bedarf: { [D1]: { LANG: 1 } },
+      personen: [person("A", v(D1, "LANG"), { max_minuten_hart: hart })] };
+    return S.pruefe(e1, sSlotsVon(e1), plan(e1, { [pl(D1, "LANG", 1)]: "A" })).filter((b) => b.typ === "minijob").map((b) => b.text);
+  };
+  assert.deepStrictEqual(text("15:00", "22:30", 449), ["Minijob-Grenze: 7,5 h geplant, höchstens 7,4 h"]);
+  assert.deepStrictEqual(text("15:00", "22:31", 450), ["Minijob-Grenze: 7,6 h geplant, höchstens 7,5 h"]);
+  assert.deepStrictEqual(text("16:00", "22:30", 0), ["Minijob-Grenze: 6,5 h geplant, höchstens 0,0 h"]);
+  assert.deepStrictEqual(text("15:00", "22:30", 450), [], "genau an der Grenze: kein Hinweis");
+  assert.deepStrictEqual(text("15:00", "22:30", null), [], "ohne Grenze: kein Hinweis");
+  // 48 h bleibt ein Fehler; die Minijob-Grenze daneben nur ein Hinweis (5 × 10 h = 3000 min)
+  const lang5 = (hart) => {
+    const tage = [D1, D2, D3, D4, D5], bed = {}, teil = {};
+    tage.forEach((d) => { bed[d] = { LANG: 1 }; teil[pl(d, "LANG", 1)] = "A"; });
+    const e5 = { schichten: tage.map((d) => schicht(d, "LANG", "08:00", "18:00")), tage: tage.map((d) => ({ datum: d })), bedarf: bed,
+      personen: [person("A", tage.map((d) => ({ datum: d, schicht_id: "LANG" })), { max_minuten_hart: hart })] };
+    return S.pruefe(e5, sSlotsVon(e5), plan(e5, teil)).filter((b) => b.typ === "wochengrenze" || b.typ === "minijob")
+      .map((b) => b.art + ":" + b.typ).sort();
+  };
+  assert.deepStrictEqual(lang5(null), ["fehler:wochengrenze"]);
+  assert.deepStrictEqual(lang5(3000), ["fehler:wochengrenze"]);
+  assert.deepStrictEqual(lang5(2999), ["fehler:wochengrenze", "hinweis:minijob"]);
+});
+
+test("Minijob-Grenze: wer darüber käme, ist keine Alternative (Handplan und Löser)", () => {
+  const e = instanz({ [D1]: { FRUEH: 1 }, [D2]: { FRUEH: 1 }, [D3]: { FRUEH: 1 } }, [
+    person("A", v(D1, "FRUEH").concat(v(D2, "FRUEH"), v(D3, "FRUEH")), { max_minuten_hart: 360 }),
+    person("B", v(D2, "FRUEH")),
+    person("C", v(D2, "FRUEH"), { max_minuten_hart: 0 }),
+    person("D", v(D3, "FRUEH"), { max_minuten_hart: 179 })]);
+  const slots = sSlotsVon(e);
+  // A hat 360 min (= Grenze): für keinen weiteren Platz Alternative; C (0) und D (179 < 180) nie
+  const voll = plan(e, { [pl(D1, "FRUEH", 1)]: "A", [pl(D2, "FRUEH", 1)]: "B", [pl(D3, "FRUEH", 1)]: "A" });
+  const a1 = S.alternativen(e, slots, voll);
+  assert.deepStrictEqual([a1[pl(D1, "FRUEH", 1)], a1[pl(D2, "FRUEH", 1)], a1[pl(D3, "FRUEH", 1)]], [[], [], []]);
+  // A hat 180 min: für D2 und den leeren Platz D3 ist A Alternative
+  const halb = plan(e, { [pl(D1, "FRUEH", 1)]: "A", [pl(D2, "FRUEH", 1)]: "B" });
+  const a2 = S.alternativen(e, slots, halb);
+  assert.deepStrictEqual([a2[pl(D2, "FRUEH", 1)], a2[pl(D3, "FRUEH", 1)]], [["A"], ["A"]]);
+  // Löser: alles besetzt (A: D1 + D3, B: D2), Grenzen gehalten, keine Alternativen
+  erwartetesOptimum(e, [0, 0, 0]);
+  const erg = loeseFall(e, [0, 0, 0]);
+  assert.deepStrictEqual(Object.keys(erg.alternativen).filter((id) => erg.alternativen[id].length), []);
+});
+
+// erwartetes Kennzeichen „minijob“ laut Referenz: pn läge nach der Wahl über seiner Grenze
+function refMinijob(ctx, z, id, pn) {
+  if (pn === null) return false;
+  const z2 = Object.assign({}, z);
+  z2[id] = pn;
+  return (minutenVon(ctx, z2)[pn] || 0) > ctx.P[pn].hart;
+}
+
+test("bewertung().wahl(): Kennzeichen „minijob“ (Handfall und systematisch, auch bei hart unzulässiger Wahl)", () => {
+  const e = instanz({ [D1]: { FRUEH: 1, SPAET: 1 }, [D2]: { FRUEH: 1 } }, [
+    person("A", v(D1, "FRUEH", "SPAET").concat(v(D2, "FRUEH")), { max_minuten_hart: 360 }),
+    person("B", v(D1, "FRUEH", "SPAET").concat(v(D2, "FRUEH"))),
+    person("C", v(D1, "SPAET"), { max_minuten_hart: 0 })]);
+  const slots = sSlotsVon(e);
+  const z = plan(e, { [pl(D1, "FRUEH", 1)]: "A", [pl(D1, "SPAET", 1)]: "B", [pl(D2, "FRUEH", 1)]: "B" });
+  const b = S.bewertung(e, slots, z);
+  assert.strictEqual(b.wahl(pl(D2, "FRUEH", 1), "A").minijob, false, "A: 180 + 180 = 360 = Grenze");
+  assert.strictEqual(b.wahl(pl(D1, "SPAET", 1), "A").minijob, true, "A: 180 + 240 = 420 > 360");
+  assert.strictEqual(b.wahl(pl(D1, "SPAET", 1), "C").minijob, true, "C: Grenze 0");
+  assert.strictEqual(b.wahl(pl(D1, "SPAET", 1), "B").minijob, false, "B ohne Grenze");
+  assert.strictEqual(b.wahl(pl(D1, "FRUEH", 1), null).minijob, false, "Platz leeren");
+  assert.deepStrictEqual(b.wahl("gibt-es-nicht", "A"), { ueber: false, trennt: false, minijob: false });
+  assert.deepStrictEqual(b.wahl(pl(D1, "FRUEH", 1), "unbekannt"), { ueber: false, trennt: false, minijob: false });
+  // A schon von Hand über der Grenze: auch die Wahl seines eigenen Platzes zeigt es; wer ihn entlastet, nicht
+  const ueber = S.bewertung(e, slots, plan(e, { [pl(D1, "FRUEH", 1)]: "A", [pl(D1, "SPAET", 1)]: "A", [pl(D2, "FRUEH", 1)]: "B" }));
+  assert.strictEqual(ueber.wahl(pl(D1, "FRUEH", 1), "A").minijob, true);
+  assert.strictEqual(ueber.wahl(pl(D1, "SPAET", 1), "B").minijob, false);
+  // systematisch: jede Wahl (auch hart unzulässige) auf Mini-Instanzen mit Grenze, Basis Optimum und Löser-Plan
+  const probleme = [];
+  let instanzen = 0, geprueft = 0, wahr = 0;
+  for (let seed = 1; seed <= Math.min(400, MINI_N); seed++) {
+    const m = mini(seed);
+    if (m.fehler || !hatGrenze(m.e)) continue;
+    instanzen++;
+    [miniBf(m).beispiel, m.erg.zuweisung].forEach((z0) => {
+      const bw = S.bewertung(m.e, m.sSlots, z0);
+      m.ctx.slots.forEach((s) => [null].concat(Object.keys(m.ctx.P).sort()).forEach((pn) => {
+        const w = bw.wahl(s.id, pn), soll = refMinijob(m.ctx, z0, s.id, pn);
+        geprueft++;
+        if (soll) wahr++;
+        if (!w || w.minijob !== soll) probleme.push("Seed " + seed + " " + s.id + " ← " + pn + ": " + JSON.stringify(w) + " statt minijob " + soll + "; Plan " + kurz(z0));
+        // ueber/trennt stammen aus der inkrementellen Bewertung: auch bei hart unzulässiger Wahl wie
+        // die Referenz (prüft u. a., dass ein Kippen des Spielraums beim Wechsel erkannt wird)
+        const rw = refWahl(m.e, z0, s.id, pn);
+        if (w && (w.ueber !== rw.ueber || w.trennt !== rw.trennt)) {
+          probleme.push("Seed " + seed + " " + s.id + " ← " + pn + ": " + JSON.stringify(w) + " statt " + JSON.stringify(rw) + "; Plan " + kurz(z0));
+        }
+      }));
+    });
+  }
+  console.log("     " + instanzen + " Mini-Instanzen mit Grenze, " + geprueft + " Wahlen, davon " + wahr + " über der Grenze");
+  assert.ok(!probleme.length, probleme.length + " Abweichungen, z. B.\n     " + probleme.slice(0, 5).join("\n     "));
+  if (MINI_N >= 200) assert.ok(wahr >= 100, "zu wenige Wahlen über der Grenze: " + wahr);
+});
+
+test("Fahrgemeinschaft: Partner an seiner harten Minijob-Grenze – der andere arbeitet allein, keine Trennung (wie 48 h)", () => {
+  // nur A und B können am D1 → B (Grenze 240) ist danach voll und könnte am D2 nicht dazukommen
+  const e = instanz({ [D1]: { SPAET: 2 }, [D2]: { SPAET: 2 } }, [
+    person("A", v(D1, "SPAET").concat(v(D2, "SPAET")), { fahrgemeinschaft: "G1" }),
+    person("B", v(D1, "SPAET").concat(v(D2, "SPAET")), { fahrgemeinschaft: "G1", max_minuten_hart: 240 }),
+    person("C", v(D2, "SPAET"))]);
+  const bf = erwartetesOptimum(e, [0, 0, 0]);
+  bf.optimal.forEach((z) => assert.deepStrictEqual(wer(z, D2, "SPAET"), ["A", "C"], "Erwartung nicht eindeutig: " + kurz(z)));
+  const erg = loeseFall(e, [0, 0, 0]);
+  assert.deepStrictEqual(wer(erg.zuweisung, D2, "SPAET"), ["A", "C"]);
+  assert.deepStrictEqual(hinweise(erg, "fahrgemeinschaft").concat(hinweise(erg, "minijob"), hinweise(erg, "limit")), []);
+  // ohne Grenze wäre derselbe Plan eine Trennung (B könnte am D2 dazukommen)
+  const ohne = ohneGrenzen(e);
+  assert.deepStrictEqual(referenz(ohne, erg.zuweisung), [0, 0, 1]);
+  assert.deepStrictEqual(S.kostenVon(ohne, erg.slots, erg.zuweisung).slice(0, 3), [0, 0, 1]);
+  assert.deepStrictEqual(schluesselMenge(S.getrenntePaarTage(ohne, erg.slots, erg.zuweisung)), ["A+B@" + D2]);
+  // B statt C am D2: über der Grenze, Paar dann zusammen
+  const idC = Object.keys(erg.zuweisung).find((id) => erg.zuweisung[id] === "C");
+  const w = S.bewertung(e, erg.slots, erg.zuweisung).wahl(idC, "B");
+  assert.deepStrictEqual(w, { ueber: false, trennt: false, minijob: true });
+  // Wechsel (Entscheidung 11.11.): B (Wunsch 2, Grenze 660) hat Früh D1 + Spät D2 + Spät D3 = 660 min und
+  // kann am D1 nicht auf Spät wechseln (660 − 180 + 240 > 660). Gibt er nur seine Spät am D3 ab, kann er
+  // es (420 − 180 + 240 ≤ 660) → neue Trennung am D1, obwohl sich nur der D3 ändert (inkrementell erkannt)
+  const ew = instanz({ [D1]: { FRUEH: 1, SPAET: 2 }, [D2]: { SPAET: 1 }, [D3]: { SPAET: 1 } }, [
+    person("A", v(D1, "SPAET"), { fahrgemeinschaft: "G1" }),
+    person("B", v(D1, "FRUEH", "SPAET").concat(v(D2, "SPAET"), v(D3, "SPAET")), { fahrgemeinschaft: "G1", max_schichten: 2, max_minuten_hart: 660 })]);
+  const zw = plan(ew, { [pl(D1, "FRUEH", 1)]: "B", [pl(D1, "SPAET", 1)]: "A", [pl(D2, "SPAET", 1)]: "B", [pl(D3, "SPAET", 1)]: "B" });
+  assert.ok(refZulaessig(refKontext(ew), zw), "Ausgangsplan ist hart zulässig");
+  assert.deepStrictEqual(referenz(ew, zw), [10, 1, 0]);
+  assert.deepStrictEqual(refWahl(ew, zw, pl(D3, "SPAET", 1), null), { ueber: false, trennt: true }, "Erwartung laut Referenz");
+  assert.deepStrictEqual(S.bewertung(ew, sSlotsVon(ew), zw).wahl(pl(D3, "SPAET", 1), null), { ueber: false, trennt: true, minijob: false });
+});
+
+test("ausExport: max_minuten_hart wird durchgereicht, wenn vorhanden (sonst kein Feld – rückwärtskompatibel)", () => {
+  const j = synth.exportJson("2026-10-19");
+  assert.ok(S.ausExport(j).personen.every((p) => !Object.prototype.hasOwnProperty.call(p, "max_minuten_hart")), "ohne Angabe kein Feld");
+  const ab = j.mitarbeiter.filter((m) => m.abgegeben !== false && m.verfuegbar.length);
+  ab[0].max_minuten_hart = 0; ab[1].max_minuten_hart = 420; ab[2].max_minuten_hart = null;
+  const e = S.ausExport(j, stammProfile(j)), nach = {};
+  e.personen.forEach((p) => { nach[p.personalnummer] = p; });
+  assert.deepStrictEqual([0, 1, 2].map((i) => nach[ab[i].personalnummer].max_minuten_hart), [0, 420, null]);
+  assert.ok(ab.slice(3).every((m) => !Object.prototype.hasOwnProperty.call(nach[m.personalnummer], "max_minuten_hart")), "andere ohne Feld");
+  const erg = S.loese(e), min = minutenVon(refKontext(e), erg.zuweisung);
+  assert.strictEqual(min[ab[0].personalnummer] || 0, 0, "Grenze 0 → keine Schicht");
+  assert.ok((min[ab[1].personalnummer] || 0) <= 420, "Grenze 420");
+  assert.deepStrictEqual(fehler(erg), []);
+});
+
+test("Brute-Force mit harter Minijob-Grenze: Grenze ändert das Optimum auf vielen Mini-Instanzen (dort Löser optimal, s. Teil D)", () => {
+  let mitGrenze = 0, bindend = 0, greift = 0, entschuldigt = 0;
+  const probleme = [];
+  for (let seed = 1; seed <= MINI_N; seed++) {
+    const m = mini(seed);
+    if (m.fehler || !hatGrenze(m.e)) continue;
+    mitGrenze++;
+    const ohne = ohneGrenzen(m.e), bfOhne = bruteForce(ohne, sSlotsVon(ohne)), mit = miniBf(m).min;
+    // Lücken/Überschreitungen können mit Grenze nur schlechter werden (weniger zulässige Pläne);
+    // Trennungen dagegen auch weniger: wer an seiner Grenze ist, „könnte“ nicht dazukommen/wechseln.
+    if (lexVgl(mit.slice(0, 2), bfOhne.min.slice(0, 2)) < 0) probleme.push("Seed " + seed + ": mit Grenze " + JSON.stringify(mit) + " besser als ohne " + JSON.stringify(bfOhne.min));
+    if (lexVgl(mit, bfOhne.min) !== 0) bindend++;
+    if (lexVgl(mit, bfOhne.min) < 0) entschuldigt++;
+    if (!refZulaessig(m.ctx, S.loese(kopie(ohne)).zuweisung)) greift++;
+  }
+  console.log("     " + mitGrenze + "/" + MINI_N + " Mini-Instanzen mit Grenze; Grenze ändert das Optimum in " + bindend +
+    " (davon " + entschuldigt + "-mal weniger Trennungen, weil der Partner nicht dazukommen oder wechseln könnte), Löser ohne Grenze risse sie in " + greift);
+  assert.ok(!probleme.length, probleme.slice(0, 5).join("\n     "));
+  if (MINI_N >= 200) assert.ok(bindend >= MINI_N / 20 && greift >= MINI_N / 10, "Grenze bindet zu selten – Test zu schwach");
+});
+
+test("Laufzeit: Standardwoche mit Profilen und Minijob-Grenzen (fast alle Minijobber, auch 0) unter 2000 ms", () => {
+  const j = synth.exportJson("2026-10-19");
+  const e = mitGrenzen(S.ausExport(j, stammProfile(j)), 506, 0.95);
+  const n = e.personen.filter((p) => !leer(p.max_minuten_hart)).length;
+  const t0 = process.hrtime.bigint();
+  const erg = S.loese(e);
+  const ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  console.log("     Standardwoche mit Profilen und Grenzen: " + ms.toFixed(0) + " ms (" + erg.slots.length + " Plätze, " + n + " mit Grenze)");
+  assert.ok(refZulaessig(refKontext(e), erg.zuweisung), "eigene Prüfung: harter Verstoß");
   assert.ok(ms < 2000, ms.toFixed(0) + " ms");
 });
 

@@ -25,7 +25,13 @@
  * Klartext (nur entschlüsselt im Browser):
  *   { v: 1, profile: [ {personalnummer, name, kategorie, fahrgemeinschaft} ],
  *     zuordnung: { <Dispo-Schreibweise>: <personalnummer> },
- *     quelle: { dateiname, zeilen, eingelesen_am } }
+ *     quelle: { dateiname, zeilen, eingelesen_am },
+ *     minijob: null | { stand: "JJJJ-MM-TT", dateiname,
+ *       personen: { <personalnummer>: { eintritt, austritt, abgerechnetBis,
+ *                                      svBrutto, stunden, minijobMerkmal } } } }
+ *   minijob (seit 11.11.2026, optional) ist der Minijob-Stand aus der monatlichen
+ *   Lohnabrechnung (CSV des DocuWare-Skripts): keine Namen, nur diese Felder.
+ *   Inhalte ohne minijob laden weiter (minijob = null); VERSION bleibt 1.
  */
 (function (wurzel, fabrik) {
   if (typeof module === "object" && module.exports) module.exports = fabrik(globalThis.crypto);
@@ -45,6 +51,10 @@
   // Seit 11.11.2026 nur noch diese Felder. Aeltere Inhalte (mit nur_schicht, gesperrte_tage,
   // max_schichten_woche, schnitt_h, notiz) laden weiter; die alten Felder fallen dabei weg.
   var PROFIL_FELDER = ["personalnummer", "name", "kategorie", "fahrgemeinschaft"];
+  // Minijob-Stand je Personalnummer (Whitelist; alles andere aus der CSV faellt weg)
+  var MINIJOB_FELDER = ["eintritt", "austritt", "abgerechnetBis", "svBrutto", "stunden", "minijobMerkmal"];
+  var MINIJOB_MERKMALE = ["ja", "nein", "?"];
+  var PN_MUSTER = /^[A-Za-z0-9._-]{1,20}$/; // wie in supabase/functions/import-stammliste
   var FEHLER_PASSWORT = "Tresor-Passwort falsch oder Tresor beschädigt.";
 
   function subtle() {
@@ -230,11 +240,71 @@
     };
   }
 
+  // ---------- Minijob-Stand (Whitelist, streng geprueft) ----------
+  function isoTagGueltig(t) {
+    if (typeof t !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(t)) return false;
+    var d = new Date(t + "T00:00:00Z");
+    return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === t;
+  }
+  function monatGueltig(t) { return typeof t === "string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(t); }
+  function zahlGueltig(z) { return typeof z === "number" && isFinite(z) && z >= 0; }
+
+  // Prueft einen Minijob-Stand und gibt eine saubere Kopie zurueck (Personen nach
+  // Personalnummer sortiert, damit die Gegenprobe nach dem Speichern stabil ist).
+  // null/undefined = kein Stand. Ungueltige Werte brechen ab: nichts Kaputtes in den Tresor.
+  function minijobPruefen(m) {
+    if (m === null || m === undefined) return null;
+    if (typeof m !== "object" || Array.isArray(m)) throw new Error("Tresor: Der Minijob-Stand ist kein Objekt.");
+    if (!isoTagGueltig(m.stand)) throw new Error("Tresor: Der Minijob-Stand hat kein gültiges Datum (JJJJ-MM-TT).");
+    var roh = m.personen;
+    if (!roh || typeof roh !== "object" || Array.isArray(roh)) throw new Error("Tresor: Im Minijob-Stand fehlen die Personen.");
+    var personen = {};
+    Object.keys(roh).sort().forEach(function (pn) {
+      var e = roh[pn];
+      var wo = "Tresor: Minijob-Stand, Personalnummer " + JSON.stringify(String(pn).slice(0, 30)) + ": ";
+      if (!PN_MUSTER.test(pn) || pn === "__proto__") throw new Error(wo + "ungültige Personalnummer.");
+      if (!e || typeof e !== "object" || Array.isArray(e)) throw new Error(wo + "kein Objekt.");
+      Object.keys(e).forEach(function (k) {
+        if (/pass/i.test(k)) throw new Error("Sicherheitsstopp: Das Feld \"" + k + "\" darf nicht in den Tresor.");
+      });
+      var leer = function (w) { return w === null || w === undefined || w === ""; };
+      var eintritt = leer(e.eintritt) ? null : e.eintritt;
+      var austritt = leer(e.austritt) ? null : e.austritt;
+      var bis = leer(e.abgerechnetBis) ? null : e.abgerechnetBis;
+      if (eintritt !== null && !isoTagGueltig(eintritt)) throw new Error(wo + "Eintritt ist kein gültiges Datum.");
+      if (austritt !== null && !isoTagGueltig(austritt)) throw new Error(wo + "Austritt ist kein gültiges Datum.");
+      if (bis !== null && !monatGueltig(bis)) throw new Error(wo + "\"abgerechnet bis\" ist kein gültiger Monat (JJJJ-MM).");
+      // Ohne Abrechnung duerfen Betrag und Stunden fehlen (= 0); mit Abrechnung muessen sie stimmen.
+      var zahl = function (w, name) {
+        if (leer(w) && bis === null) return 0;
+        if (!zahlGueltig(w)) throw new Error(wo + name + " ist keine gültige Zahl (mindestens 0).");
+        return w;
+      };
+      var merkmal = leer(e.minijobMerkmal) ? "?" : e.minijobMerkmal;
+      if (MINIJOB_MERKMALE.indexOf(merkmal) < 0) throw new Error(wo + "Minijob-Merkmal muss ja, nein oder ? sein.");
+      personen[pn] = {
+        eintritt: eintritt,
+        austritt: austritt,
+        abgerechnetBis: bis,
+        svBrutto: zahl(e.svBrutto, "SV-Brutto"),
+        stunden: zahl(e.stunden, "Stunden"),
+        minijobMerkmal: merkmal
+      };
+    });
+    return {
+      stand: m.stand,
+      dateiname: m.dateiname == null ? "" : String(m.dateiname).slice(0, 200),
+      personen: personen
+    };
+  }
+
   // Baut den Klartext aus Profilen (z. B. aus stammProfileLesen), gemerkten
   // Dispo-Schreibweisen und einer Quellenangabe. Nur Whitelist-Felder.
   // verboten (optional): Liste/Set der Excel-Passwoerter; gleicht ein Profilwert
   // einem davon, bricht der Aufbau ab (nichts davon darf in den Tresor).
-  function inhaltBauen(profile, zuordnung, quelle, verboten) {
+  // minijob (optional): Minijob-Stand; wer den Tresor neu speichert, MUSS den
+  // vorhandenen Stand hier durchreichen, sonst ist er danach weg.
+  function inhaltBauen(profile, zuordnung, quelle, verboten, minijob) {
     if (!Array.isArray(profile)) throw new Error("Tresor: Profile fehlen.");
     var gesehen = {};
     var liste = profile.map(function (p, i) {
@@ -260,7 +330,8 @@
         dateiname: q.dateiname == null ? "" : String(q.dateiname).slice(0, 200),
         zeilen: Number.isInteger(q.zeilen) ? q.zeilen : liste.length,
         eingelesen_am: typeof q.eingelesen_am === "string" ? q.eingelesen_am : ""
-      }
+      },
+      minijob: minijobPruefen(minijob)
     };
   }
 
@@ -270,7 +341,8 @@
     if (obj.v !== VERSION) {
       throw new Error("Tresor-Inhalt v" + obj.v + " wird von dieser App-Version nicht gelesen – bitte die Seite neu laden (Strg+F5).");
     }
-    return inhaltBauen(obj.profile, obj.zuordnung, obj.quelle);
+    // minijob wird durchgereicht: Laden, Passwortwechsel und Gegenprobe behalten den Minijob-Stand
+    return inhaltBauen(obj.profile, obj.zuordnung, obj.quelle, undefined, obj.minijob);
   }
 
   return {
@@ -279,6 +351,7 @@
     PASSWORT_MIN: PASSWORT_MIN,
     SALZ_BYTES: SALZ_BYTES,
     PROFIL_FELDER: PROFIL_FELDER.slice(),
+    MINIJOB_FELDER: MINIJOB_FELDER.slice(),
     FEHLER_PASSWORT: FEHLER_PASSWORT,
     b64: b64,
     vonB64: vonB64,
@@ -292,6 +365,7 @@
     huelleKodieren: huelleKodieren,
     huelleDekodieren: huelleDekodieren,
     inhaltBauen: inhaltBauen,
-    inhaltPruefen: inhaltPruefen
+    inhaltPruefen: inhaltPruefen,
+    minijobPruefen: minijobPruefen
   };
 });

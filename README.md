@@ -380,7 +380,8 @@ Passwort können Mitarbeitende nicht selbst zurücksetzen; sie melden sich bei d
 
 ## Tresor (Namen verschlüsselt)
 
-**Was er ist.** Namen und Planungsprofile liegen in der Datenbank (Tabelle
+**Was er ist.** Namen und Planungsprofile (und der
+[Minijob-Stand](#minijob-grenze-minijob-stand)) liegen in der Datenbank (Tabelle
 `app_dateien`, Schlüssel `stammliste_tresor`) **ausschließlich verschlüsselt**
 (AES-256-GCM). Der Schlüssel wird im Browser aus einem eigenen
 **Tresor-Passwort** abgeleitet (PBKDF2 mit 600.000 Runden) und verlässt den
@@ -417,8 +418,8 @@ einem anderen Admin) und bietet:
 - **Tresor auf diesem Gerät vergessen** — löscht den gemerkten Schlüssel.
 - **Passwort vergessen?** — erscheint nur bei gesperrtem Tresor und
   überschreibt ihn mit einem neuen Passwort. Danach die Stammliste **ohne
-  Passwortspalte** neu einspielen. Die Zugänge bleiben erhalten; verloren gehen
-  nur die gemerkten Dispo-Schreibweisen (siehe
+  Passwortspalte** neu einspielen, anschließend den Minijob-Stand. Die Zugänge
+  bleiben erhalten; verloren gehen nur die gemerkten Dispo-Schreibweisen (siehe
   [Geplante Schichten](#geplante-schichten-dispo-einlesen)).
 
 **Einmalig anlegen.** Der Tresor wird als eigener Schritt auf der Startseite
@@ -472,7 +473,11 @@ Das ist der Standardweg: sechs bis sieben Klicks, **kein Upload**.
    stehen untereinander auf einer Seite:
    - **1 · Abgaben** — „x von y haben abgegeben" und die Frist. Aufklappbar:
      **Wer fehlt** und **Alle Mitarbeiter**.
-   - **2 · Planung berechnen** — die Profile kommen aus dem Tresor. **Bedarf
+   - **2 · Planung berechnen** — die Profile kommen aus dem Tresor. Darunter
+     steht der **Minijob-Stand** („Minijob-Stand vom TT.MM. (abgerechnet bis
+     MM/JJJJ) · n Minijobber mit Wochen-Obergrenze“, siehe
+     [Minijob-Grenze](#minijob-grenze-minijob-stand)); die Profiltabelle hat
+     die Spalte **Minijob max/Wo**. **Bedarf
      anpassen** (Plätze je Tag und Schichtart) ist eingeklappt. Dann **Planung
      berechnen**. Ist der Tresor nicht offen oder fehlen Profile, rechnet die
      App nur mit dem Haken **Trotzdem ohne vollständige Profile rechnen** —
@@ -485,8 +490,10 @@ Das ist der Standardweg: sechs bis sieben Klicks, **kein Upload**.
      Planung, steht das hier mit „neu +x / entfernt −y". Haken **Ich habe die
      Planung für KW n geprüft …** setzen. Gibt es Punkte zum Klären, steht die
      Liste hier noch einmal, und zusätzlich ist der Haken **Ich habe die
-     Betroffenen informiert** Pflicht. Dann **Planung KW n (k Schichten) für
-     Mitarbeiter veröffentlichen**. Danach liest die App die Woche zurück:
+     Betroffenen informiert** Pflicht. Liegt jemand von Hand über seiner
+     Minijob-Grenze, ist zusätzlich der eigene Haken **Ich lasse die
+     Überschreitung der Minijob-Grenze bewusst zu (…)** Pflicht. Dann
+     **Planung KW n (k Schichten) für Mitarbeiter veröffentlichen**. Danach liest die App die Woche zurück:
      „x von y Schichten stimmen mit der Datenbank überein" muss erscheinen.
 3. **← Start**. Fertig.
 
@@ -500,7 +507,8 @@ geht allen folgenden vor.
 
 1. **Harte Regeln** (werden nie gebrochen): nur eingesetzt, wer die Schicht
    abgegeben hat; mindestens 11 Stunden Ruhezeit; höchstens 10 Stunden am Tag
-   und 48 Stunden pro Woche.
+   und 48 Stunden pro Woche; Minijobber höchstens bis zu ihrer
+   Wochen-Obergrenze aus dem Minijob-Stand (siehe unten).
 2. **Alle Plätze besetzen.**
 3. **Wunsch des Mitarbeiters einhalten:** die Höchstzahl an Schichten, die er
    selbst bei der Abgabe mit dem Regler angegeben hat. Darüber plant die App
@@ -530,11 +538,66 @@ Kandidaten mit „(über Wunsch)" bzw. „(trennt Fahrgem.)" markiert. So kannst
 die Betroffenen vorher informieren. Veröffentlichen lässt sich erst mit dem
 Haken **Ich habe die Betroffenen informiert** in Schritt 4.
 
-**Geplant, noch nicht gebaut:** Die Minijob-Verdienstgrenze soll als weitere
-harte Regel dazukommen (Verdienst- und Lohndaten aus zvoove). Bis dahin
-behältst du sie selbst im Blick.
-
 Prüfe das Ergebnis trotzdem, bevor du es veröffentlichst.
+
+### Minijob-Grenze (Minijob-Stand)
+
+Die App sorgt dafür, dass Minijobber durch die Planung **nicht zu viel
+verdienen**. Ob jemand genug Stunden bekommt, prüft sie nicht (das bleibt bei
+dir).
+
+**Minijob-Stand einspielen (monatlich, nach der Lohnabrechnung).** Dein
+lokales DocuWare-Skript erzeugt eine CSV mit dem bisher abgerechneten Verdienst
+je Personalnummer. **Mitarbeiter › Minijob-Stand einspielen** → CSV wählen →
+Vorschau prüfen (gelesene Personen, Minijobber mit Wochen-Obergrenze, ohne
+Abrechnung, „abgerechnet bis“, Zahl der Abweichungen „laut Stammliste Minijob,
+laut Abrechnung kein Minijob“, nicht lesbare Zeilen) → **Minijob-Stand
+übernehmen**. Der Tresor muss offen sein. Gespeichert wird der Stand
+**verschlüsselt im Tresor** (Abschnitt `minijob`), und zwar nur Personalnummer,
+Ein- und Austritt, „abgerechnet bis“, SV-Brutto, Stunden und das
+Minijob-Merkmal — keine Namen und nur für Minijobber (Kategorie aus der
+Stammliste; ohne Profil zählt das Minijob-Merkmal „ja“). Teilzeitkräfte aus
+der CSV werden nicht gespeichert. Jeder neue Stand ersetzt den alten
+vollständig. Die CSV enthält Lohndaten: nur lokal aufbewahren, nicht per
+E-Mail oder Chat weitergeben, nie ins Repo.
+
+**So entsteht die Wochen-Obergrenze** (Rechnung in `minijob.js`):
+- Verträge laufen immer **9 Monate**: Befristungsende = Tag vor dem Eintritt
+  plus 9 Monate, höchstens bis zum Monatsende (Eintritt 02.02.2026 → Ende
+  01.11.2026). Steht ein Austritt in der CSV, gilt das frühere Datum.
+- Erlaubt ist je Kalendermonat die Minijob-Grenze des Jahres (2025: 556 €,
+  2026: 603 €, 2027: 633 €); angebrochene Monate **anteilig nach Tagen**.
+- Es zählt nur der Verdienst seit dem **aktuellen** Eintritt. Restbudget =
+  Grenze von Eintritt bis Befristungsende minus abgerechnetes SV-Brutto.
+- Das Restbudget wird **gleichmäßig auf alle Tage** vom 1. des ersten noch
+  nicht abgerechneten Monats bis zum Befristungsende verteilt. Gearbeitete,
+  aber noch nicht abgerechnete Wochen verbrauchen damit rechnerisch ihren
+  Anteil; geschätzt wird nichts.
+- Euro je Woche → Stunden über den eigenen Stundensatz (SV-Brutto / Stunden),
+  abgerundet auf ganze Minuten. Neue ohne abgerechneten Monat haben **keine**
+  Grenze; ist das Budget aufgebraucht, ist die Grenze **0 h**.
+
+**Harte Regel.** Der Solver plant nie über die Wochen-Obergrenze (wie bei
+48 Stunden). Schritt 2 zeigt „Minijob-Stand vom … · n Minijobber mit
+Wochen-Obergrenze“; ohne Stand steht dort „Kein Minijob-Stand –
+Minijob-Grenze wird nicht geprüft“. Liegt „abgerechnet bis“ mehr als zwei
+Monate vor dem Planungsmonat, warnt die Zeile „Minijob-Stand veraltet – bitte
+neu einspielen“. Ändert sich der Stand nach dem Berechnen, muss neu berechnet
+werden, bevor veröffentlicht werden kann. Minijobber mit Grenze 0 stehen unter
+dem Ergebnis als Hinweis „Minijob-Grenze erreicht – bis Befristungsende keine
+Schichten mehr“.
+
+**Ausnahme nur von Hand.** Im Auswahlfeld sind Kandidaten, die dadurch über
+ihre Grenze kämen, mit „(Minijob-Grenze)“ markiert. Wählst du so jemanden
+trotzdem, zeigt die Box **Vor dem Veröffentlichen klären** den Abschnitt
+**Minijob-Grenze von Hand überschritten** (Name, geplant, höchstens).
+Veröffentlichen ist dann möglich, aber erst mit dem eigenen Haken **Ich lasse
+die Überschreitung der Minijob-Grenze bewusst zu (…)** in Schritt 4.
+
+Einspielen dieser Version: `minijob.js` gehört mit `index.html`, `tresor.js`
+und `planung-solver.js` zusammen hochgeladen (keine Datenbank-Migration). Der
+Tresor-Inhalt bleibt Version 1; ältere Tresore laden unverändert (ohne
+Minijob-Stand).
 
 Eine fertige Dispo von außen einlesen (**Mehr > Fertige Dispo einlesen**) ist
 nur noch die Ausnahme, siehe
@@ -787,9 +850,15 @@ Was du selbst beachten musst:
 - Ergänzt euer Verzeichnis von Verarbeitungstätigkeiten um diese Anwendung
   (Zweck: Einsatzplanung; Daten: Personalnummer, Verfügbarkeitsangaben
   einschließlich der gewünschten Höchstzahl an Schichten, geplante Schichten
-  sowie Name, Beschäftigungskategorie, Fahrgemeinschaft — diese verschlüsselt,
-  Schlüssel nur bei ZiG; Empfänger: Supabase als Auftragsverarbeiter, GitHub
-  für das Hosting der Webseite).
+  sowie Name, Beschäftigungskategorie, Fahrgemeinschaft und — nur bei
+  Minijobbern, zur Einhaltung der Verdienstgrenze — Ein-/Austrittsdatum,
+  abgerechnetes SV-Brutto, abgerechnete Stunden und Minijob-Merkmal aus der
+  Lohnabrechnung — diese verschlüsselt, Schlüssel nur bei ZiG; Empfänger:
+  Supabase als Auftragsverarbeiter, GitHub für das Hosting der Webseite).
+- **Minijob-Stand:** Die CSV aus der Lohnabrechnung enthält Lohndaten. Sie wird
+  nur im Browser gelesen; gespeichert werden nur die genannten Felder der
+  Minijobber, verschlüsselt im Tresor. Die Datei selbst nicht weitergeben und
+  nach dem Einspielen nicht in geteilte Ordner legen.
 - **Löschfrist:** Die Datenschutzerklärung in der App nennt 12 Monate (Verfügbarkeiten:
   12 Monate nach Ende der Woche; deaktivierte Zugänge: 12 Monate nach Deaktivierung).
   Umgesetzt wird das mit `supabase/migrations/0004_loeschfrist.sql` (Funktion) und
@@ -807,8 +876,10 @@ Was du selbst beachten musst:
   verschlüsselte Speicherung von Name und Profil auf dem Server. Seit dem Solver-Umbau
   (11.11.2026) besteht das Profil nur noch aus Beschäftigungskategorie und
   Fahrgemeinschaft; „Schichtwünsche und -sperren" und die interne Notiz sind gestrichen
-  (weniger Daten als vorher). Die Freigabe durch den Datenschutzbeauftragten bzw. Anwalt
-  steht noch aus.
+  (weniger Daten als vorher). Mit der Minijob-Grenze (Teil 4) nennt der Text zusätzlich
+  die verschlüsselt gespeicherten Abrechnungsangaben der Minijobber (Ein-/Austritt,
+  abgerechnetes Entgelt, Stunden, Minijob-Kennzeichen; mit jedem Monatsstand ersetzt).
+  Die Freigabe durch den Datenschutzbeauftragten bzw. Anwalt steht noch aus.
 
 ---
 
@@ -901,6 +972,7 @@ gebaut, dass sie später ergänzt werden können:
 index.html                                   die komplette App (Mitarbeiter + Admin)
 tresor.js                                    Verschlüsselung des Stammlisten-Tresors (lädt nur im Admin-Bereich)
 planung-solver.js                            regelbasierte Wochenplanung (lädt nur im Admin-Bereich)
+minijob.js                                   Minijob-Stand lesen, Wochen-Obergrenzen berechnen (lädt nur im Admin-Bereich)
 dispo-export.js                              füllt die Dispo-Vorlage (.xlsm) für den Kunden (lädt nur im Admin-Bereich)
 beispiel_stammliste.xlsx                     Beispiel für die kurze Form (nur Personalnummer und Passwort)
 README.md                                    diese Anleitung
@@ -929,6 +1001,7 @@ supabase/tests/rls_selbsttest.sql             Sicherheitsregeln nachprüfen (ink
 tests/tresor.test.js                          Verschlüsselung prüfen (node tests/tresor.test.js)
 tests/syntax.test.js                          alle Skripte auf Syntaxfehler prüfen (vor jedem Push)
 tests/solver.test.js                          Wochenplanung mit erfundenen Daten
+tests/minijob.test.js                         Minijob-Grenze mit erfundenen Daten
 tests/dispo-export.test.js                    Dispo-Export (wird übersprungen, wenn keine Vorlage lokal liegt)
 tests/synthetisch.js                          erfundene Daten für Tests und Vorschau (keine echten Personen)
 tests/stamm_synthetisch.xlsx                  erfundene Stammliste im vollständigen Format
@@ -939,11 +1012,11 @@ tests/vorschau.js                             App lokal mit Fake-Backend starten
 
 ### Technischer Kurzüberblick
 
-- **Frontend:** eine HTML-Datei plus drei kleine Modul-Dateien (`tresor.js`,
-  `planung-solver.js`, `dispo-export.js`), kein Bauprozess, gehostet auf GitHub
+- **Frontend:** eine HTML-Datei plus vier kleine Modul-Dateien (`tresor.js`,
+  `planung-solver.js`, `dispo-export.js`, `minijob.js`), kein Bauprozess, gehostet auf GitHub
   Pages. Bibliotheken liegen lokal im Ordner `vendor/` (kein CDN, keine IP-Weitergabe an
   Dritte): `supabase-js 2.45.4`, `SheetJS 0.20.3` und `JSZip 3.10.1`. SheetJS, JSZip
-  und die drei Module werden erst geladen, wenn sie im Admin-Bereich wirklich
+  und die vier Module werden erst geladen, wenn sie im Admin-Bereich wirklich
   gebraucht werden — Mitarbeitende am Handy laden sie nie. Verschlüsselung und
   Geräteschlüssel nutzen WebCrypto und IndexedDB: beides browser-nativ, kein CDN.
 - **Admin-Bereich:** Startseite mit globaler Wochenzeile und drei Knöpfen

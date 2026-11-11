@@ -31,7 +31,7 @@ while ((m = re.exec(html)) !== null) {
   const zeilenVorher = vorher.split("\n").length - 1;
   pruefe("index.html <script> Nr. " + nr, m[1], zeilenVorher);
 }
-["tresor.js", "planung-solver.js", "dispo-export.js", "tests/vorschau.js", "tests/synthetisch.js"].forEach((f) => {
+["tresor.js", "planung-solver.js", "dispo-export.js", "minijob.js", "tests/vorschau.js", "tests/synthetisch.js"].forEach((f) => {
   pruefe(f, fs.readFileSync(path.join(root, f), "utf8"), 0);
 });
 if (fehler) { console.error(fehler + " Datei(en) mit Syntaxfehler"); process.exitCode = 1; }

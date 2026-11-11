@@ -18,7 +18,7 @@ const PORT = Number(process.env.VORSCHAU_PORT || process.argv[2]) || 8765; // z.
 
 fs.rmSync(ziel, { recursive: true, force: true });
 fs.mkdirSync(path.join(ziel, "vendor"), { recursive: true });
-["planung-solver.js", "dispo-export.js", "tresor.js"].forEach((f) => fs.copyFileSync(path.join(root, f), path.join(ziel, f)));
+["planung-solver.js", "dispo-export.js", "tresor.js", "minijob.js"].forEach((f) => fs.copyFileSync(path.join(root, f), path.join(ziel, f)));
 fs.readdirSync(path.join(root, "vendor")).forEach((f) =>
   fs.copyFileSync(path.join(root, "vendor", f), path.join(ziel, "vendor", f)));
 
@@ -230,7 +230,7 @@ function indexBauen() {
 }
 indexBauen();
 const LIVE = { "/index.html": indexBauen };
-["tresor.js", "planung-solver.js", "dispo-export.js"].forEach((f) => { LIVE["/" + f] = () => fs.readFileSync(path.join(root, f), "utf8"); });
+["tresor.js", "planung-solver.js", "dispo-export.js", "minijob.js"].forEach((f) => { LIVE["/" + f] = () => fs.readFileSync(path.join(root, f), "utf8"); });
 
 const typen = { ".html": "text/html;charset=utf-8", ".js": "text/javascript", ".xlsx": "application/octet-stream" };
 http.createServer((q, r) => {
