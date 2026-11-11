@@ -41,7 +41,12 @@ test("passwortPruefen: kurz und einförmig abgelehnt, Satz erlaubt", () => {
 test("inhaltBauen: Whitelist, Passwortfeld stoppt, fremde Zuordnung fällt weg", () => {
   const inhalt = T.inhaltBauen(PROFILE.map((p) => Object.assign({ extra: "x" }, p)), ZUORDNUNG, QUELLE);
   assert.deepStrictEqual(Object.keys(inhalt.profile[0]).sort(), T.PROFIL_FELDER.slice().sort());
-  assert.deepStrictEqual(inhalt.profile[0].gesperrte_tage, [1, 3]);
+  assert.deepStrictEqual(T.PROFIL_FELDER.slice().sort(), ["fahrgemeinschaft", "kategorie", "name", "personalnummer"]);
+  // Alte Profilfelder (bis 10.11.2026) fallen still weg
+  ["nur_schicht", "gesperrte_tage", "max_schichten_woche", "schnitt_h", "notiz"].forEach((f) => {
+    assert.ok(!(f in inhalt.profile[0]) && !(f in inhalt.profile[1]), "altes Feld " + f + " noch da");
+  });
+  assert.strictEqual(inhalt.profile[0].fahrgemeinschaft, "G1");
   assert.deepStrictEqual(inhalt.zuordnung, { "anna mustermann": "10001" });
   assert.strictEqual(inhalt.quelle.dateiname, "stamm.xlsx");
   assert.ok(!JSON.stringify(inhalt).includes("extra"));
@@ -121,7 +126,8 @@ test("inhaltPruefen lehnt fremde Versionen und kaputte Inhalte ab", () => {
 test("Größe: 45 Profile bleiben klein", async () => {
   const viele = [];
   for (let i = 0; i < 45; i++) {
-    viele.push({ personalnummer: String(10000 + i), name: "Erfunden Person" + i, kategorie: "minijob", notiz: "x".repeat(40) });
+    viele.push({ personalnummer: String(10000 + i), name: "Erfunden Person" + i + " " + "x".repeat(40), kategorie: "minijob",
+      fahrgemeinschaft: "FG" + (i % 10) });
   }
   const salz = T.salzNeu();
   const key = await T.schluesselAbleiten(PW, salz, ITER);
@@ -130,24 +136,32 @@ test("Größe: 45 Profile bleiben klein", async () => {
 });
 
 test("inhaltBauen: Profilwert gleich Passwort stoppt", () => {
-  const p = Object.assign({}, PROFILE[0], { notiz: "Start-10001!" });
+  // Traeger ist die Fahrgemeinschaft (Freitext) ...
+  const p = Object.assign({}, PROFILE[0], { fahrgemeinschaft: "Start-10001!" });
   assert.throws(() => T.inhaltBauen([p], {}, QUELLE, ["Start-10001!"]), /Sicherheitsstopp/);
   assert.throws(() => T.inhaltBauen([p], {}, QUELLE, new Set(["Start-10001!"])), /Sicherheitsstopp/);
-  assert.strictEqual(T.inhaltBauen([p], {}, QUELLE).profile[0].notiz, "Start-10001!");
+  assert.strictEqual(T.inhaltBauen([p], {}, QUELLE).profile[0].fahrgemeinschaft, "Start-10001!");
   assert.strictEqual(T.inhaltBauen([p], {}, QUELLE, ["anderes"]).profile.length, 1);
-  // Teilstring in der Notiz stoppt ebenfalls; Personalnummer gleich Passwort ist erlaubt
-  const q = Object.assign({}, PROFILE[0], { notiz: "PW: Start-10001! merken" });
+  // ... Teilstring stoppt ebenfalls, auch im Namen; Personalnummer gleich Passwort ist erlaubt
+  const q = Object.assign({}, PROFILE[0], { fahrgemeinschaft: "PW: Start-10001! merken" });
   assert.throws(() => T.inhaltBauen([q], {}, QUELLE, ["Start-10001!"]), /Sicherheitsstopp/);
-  const r = Object.assign({}, PROFILE[0], { personalnummer: "1000123", notiz: null });
+  const n = Object.assign({}, PROFILE[0], { name: "Mustermann Start-10001!" });
+  assert.throws(() => T.inhaltBauen([n], {}, QUELLE, ["Start-10001!"]), /Sicherheitsstopp/);
+  const r = Object.assign({}, PROFILE[0], { personalnummer: "1000123", fahrgemeinschaft: null });
   assert.strictEqual(T.inhaltBauen([r], {}, QUELLE, ["1000123"]).profile[0].personalnummer, "1000123");
+  // Eine alte Notiz mit Passwort wird gar nicht mehr gespeichert (kein Leck, kein Abbruch)
+  const alt = Object.assign({}, PROFILE[0], { notiz: "Start-10001!" });
+  assert.ok(!JSON.stringify(T.inhaltBauen([alt], {}, QUELLE, ["Start-10001!"])).includes("Start-"));
 });
 
 test("Leck-Test mit erfundener Stammliste: Passwort-Marker nie in Hülle oder Klartext", async () => {
   const S = require("./synthetisch.js");
   const zeilen = S.stammliste(S.exportJson("2026-10-19"));
   const idx = (n) => zeilen[0].indexOf(n);
+  assert.ok(idx("Fahrgemeinschaft") >= 0 && idx("Passwort") >= 0, "Testliste ohne Fahrgemeinschaft/Passwort – Test liefe ins Leere");
   const profile = zeilen.slice(1).map((z) => ({ personalnummer: String(z[idx("Personalnummer")]), name: z[idx("Name")],
-    kategorie: String(z[idx("Kategorie")]).toLowerCase(), notiz: z[idx("Notiz")] || null }));
+    kategorie: String(z[idx("Kategorie")]).toLowerCase(), fahrgemeinschaft: z[idx("Fahrgemeinschaft")] || null }));
+  assert.ok(profile.some((p) => p.fahrgemeinschaft), "keine Fahrgemeinschaft in der Testliste");
   const passwoerter = zeilen.slice(1).map((z) => z[idx("Passwort")]);
   const inhalt = T.inhaltBauen(profile, {}, QUELLE, passwoerter);
   const salz = T.salzNeu();

@@ -287,20 +287,25 @@ Statt `deinname.github.io/verfuegbarkeit` geht auch z. B.
 
 Es gibt **eine** Stammliste für alles: Zugänge, Namen und Planungsprofile.
 Zeile 1 enthält die Überschriften. Die ersten drei Spalten sind die wichtigen,
-alle weiteren sind optional und dürfen fehlen:
+die beiden weiteren sind optional und dürfen fehlen:
 
-| Personalnummer | Passwort | Name | Kategorie | Fahrgemeinschaft | Max. Schichten | Ø h/Wo | Nur Schicht | Gesperrte Tage | Notiz |
-|---|---|---|---|---|---|---|---|---|---|
-| 10001 | BEISPIEL-Passwort1 | Mustermann Anna | Teilzeit | G1 | 4 | 24,5 | | Mi | |
-| 10002 | BEISPIEL-Passwort2 | Beispiel Ben | Minijob | | | | Früh | | |
-| 00345 | BEISPIEL-Passwort3 | Muster Chris | Minijob | G1 | 3 | | | Mo, Fr | nur vormittags erreichbar |
+| Personalnummer | Passwort | Name | Kategorie | Fahrgemeinschaft |
+|---|---|---|---|---|
+| 10001 | BEISPIEL-Passwort1 | Mustermann Anna | Teilzeit | FG1 |
+| 10002 | BEISPIEL-Passwort2 | Beispiel Ben | Minijob | |
+| 00345 | BEISPIEL-Passwort3 | Muster Chris | | fg 1 |
 
 Bedeutung der optionalen Spalten: **Kategorie** `Teilzeit` oder `Minijob`
 (leer = Minijob), **Fahrgemeinschaft** ein frei gewähltes Kürzel für Personen,
-die zusammen fahren, **Max. Schichten** Höchstzahl pro Woche, **Ø h/Wo** der
-Stundenschnitt der letzten Monate (steuert die faire Verteilung), **Nur
-Schicht** `Früh` oder `Spät`, **Gesperrte Tage** `Mo`, `Di`, `Mi`, `Do`, `Fr`
-(mit Komma getrennt), **Notiz** ein kurzer Planungshinweis.
+die zusammen fahren. Gleiche Kennung = eine Fahrgemeinschaft; Groß- und
+Kleinschreibung und Leerzeichen zählen nicht (`fg 1` = `FG1`). Im Beispiel
+fahren also Anna und Chris zusammen. Wie die Planung Fahrgemeinschaften
+behandelt, steht unter [Wochenplanung](#wochenplanung-auto-planung).
+
+Die früheren Spalten **Max. Schichten**, **Ø h/Wo**, **Nur Schicht**,
+**Gesperrte Tage** und **Notiz** gibt es nicht mehr. Eine ältere Datei, die sie
+noch enthält, wird trotzdem angenommen; diese Spalten werden einfach ignoriert.
+Die Höchstzahl an Schichten gibt jeder Mitarbeiter selbst bei seiner Abgabe an.
 
 `tests/stamm_synthetisch.xlsx` zeigt das vollständige Format mit erfundenen
 Daten. `.xlsx` und `.csv` funktionieren beide; es zählt das erste Tabellenblatt.
@@ -311,7 +316,7 @@ Daten. `.xlsx` und `.csv` funktionieren beide; es zählt das erste Tabellenblatt
   Unterstrich enthalten, höchstens 20 Zeichen. **Führende Nullen bleiben
   erhalten** — formatiere die Spalte in Excel als *Text*.
 - Keine Geburtsdaten, keine Gesundheitsangaben, keine weiteren
-  personenbezogenen Spalten. Auch die Notiz ist nur für Planungshinweise da.
+  personenbezogenen Spalten.
 
 **Was wohin geht:**
 - **Personalnummer und Passwort** gehen an den Server und werden zu Zugängen.
@@ -471,12 +476,16 @@ Das ist der Standardweg: sechs bis sieben Klicks, **kein Upload**.
      anpassen** (Plätze je Tag und Schichtart) ist eingeklappt. Dann **Planung
      berechnen**. Ist der Tresor nicht offen oder fehlen Profile, rechnet die
      App nur mit dem Haken **Trotzdem ohne vollständige Profile rechnen** —
-     Personen ohne Profil gelten dann als Minijob ohne Einschränkungen.
+     Personen ohne Profil gelten dann als Minijob ohne Fahrgemeinschaft.
+     Unter dem Ergebnis erscheint bei Bedarf die Box **Vor dem Veröffentlichen
+     klären** (siehe unten).
    - **3 · Dispo-Datei für den Kunden** — die fertige `.xlsm` herunterladen.
      Fehlt die Dispo-Vorlage noch, kannst du sie hier einmalig auswählen.
    - **4 · Veröffentlichen** — Gibt es für die Woche schon eine veröffentlichte
      Planung, steht das hier mit „neu +x / entfernt −y". Haken **Ich habe die
-     Planung für KW n geprüft …** setzen, dann **Planung KW n (k Schichten) für
+     Planung für KW n geprüft …** setzen. Gibt es Punkte zum Klären, steht die
+     Liste hier noch einmal, und zusätzlich ist der Haken **Ich habe die
+     Betroffenen informiert** Pflicht. Dann **Planung KW n (k Schichten) für
      Mitarbeiter veröffentlichen**. Danach liest die App die Woche zurück:
      „x von y Schichten stimmen mit der Datenbank überein" muss erscheinen.
 3. **← Start**. Fertig.
@@ -486,9 +495,45 @@ nie still verloren: Die App fragt nach und bietet **Zurück zu KW n** oder
 **Entwurf verwerfen und KW m laden**.
 
 Die Berechnung ist regelbasiert und läuft komplett im Browser (kein KI-Dienst,
-nichts verlässt das Gerät). Harte Regeln: nur eingesetzt, wer die Schicht
-abgegeben hat; mindestens 11 Stunden Ruhezeit; höchstens 10 Stunden am Tag
-und 48 Stunden pro Woche; Wunschgrenzen und Profil-Sperren werden eingehalten.
+nichts verlässt das Gerät). Sie folgt einer **festen Rangfolge**: Jede Stufe
+geht allen folgenden vor.
+
+1. **Harte Regeln** (werden nie gebrochen): nur eingesetzt, wer die Schicht
+   abgegeben hat; mindestens 11 Stunden Ruhezeit; höchstens 10 Stunden am Tag
+   und 48 Stunden pro Woche.
+2. **Alle Plätze besetzen.**
+3. **Wunsch des Mitarbeiters einhalten:** die Höchstzahl an Schichten, die er
+   selbst bei der Abgabe mit dem Regler angegeben hat. Darüber plant die App
+   nur, wenn sonst ein Platz leer bliebe.
+4. **Fahrgemeinschaften zusammen, wo beide können:** Haben beide dieselbe
+   Schicht abgegeben, arbeiten sie dieselbe Schicht oder haben beide frei.
+   Allein arbeiten ist in Ordnung, wenn der Partner diese Schicht nicht
+   abgegeben hat oder dafür über seinen Wunsch bzw. über 48 Stunden käme.
+   Getrennt wird nur, wenn sonst ein Platz leer bliebe oder jemand über seinen
+   Wunsch käme. Lässt sich ein Platz nur durch Trennen **oder** durch eine
+   Überschreitung besetzen, wird getrennt.
+5. **Teilzeit zuerst**, dann Minijob. Weil die Fahrgemeinschaft vorgeht, kann
+   eine Teilzeitkraft, die mit einem Minijobber fährt, weniger Stunden bekommen
+   als ohne Fahrgemeinschaft.
+6. **Gleichmäßig verteilen:** möglichst keine zwei Schichten am selben Tag und
+   Früh und Spät in einer Woche nicht mischen.
+
+Mehr Schichten als gewünscht oder eine getrennte Fahrgemeinschaft sind
+**Hinweise**, keine Fehler. Gibt es solche Punkte, zeigt Schritt 2 die Box
+**Vor dem Veröffentlichen klären** mit zwei Listen: **Mehr Schichten als
+gewünscht** (Name, geplant/Wunsch, Platz) und **Fahrgemeinschaft getrennt**
+(Namen, Tag, Schichten). Zu jedem Punkt steht der Grund, z. B. dass sonst ein
+Platz leer bliebe, oder dass die Ausnahme vermeidbar wäre (etwa nach einer
+Handänderung). Die Box rechnet
+nach jeder Handänderung neu; im Auswahlfeld zur Handkorrektur sind solche
+Kandidaten mit „(über Wunsch)" bzw. „(trennt Fahrgem.)" markiert. So kannst du
+die Betroffenen vorher informieren. Veröffentlichen lässt sich erst mit dem
+Haken **Ich habe die Betroffenen informiert** in Schritt 4.
+
+**Geplant, noch nicht gebaut:** Die Minijob-Verdienstgrenze soll als weitere
+harte Regel dazukommen (Verdienst- und Lohndaten aus zvoove). Bis dahin
+behältst du sie selbst im Blick.
+
 Prüfe das Ergebnis trotzdem, bevor du es veröffentlichst.
 
 Eine fertige Dispo von außen einlesen (**Mehr > Fertige Dispo einlesen**) ist
@@ -554,7 +599,7 @@ richtig. **Eine Zeile je möglicher Schicht:**
 | `schicht_name` | Klartext | `Lange Spätschicht` |
 | `beginn` / `ende` | Uhrzeit dieser Woche | `16:00` / `22:30` |
 | `dauer_h` | Stunden mit Komma | `6,5` |
-| `max_schichten_woche` | Wunschgrenze, leer = keine | `4` |
+| `max_schichten_woche` | eigener Wunsch aus der Abgabe (Regler), leer = keine Angabe | `4` |
 | `hinweis` | Freitext, max. 200 Zeichen | |
 | `abgegeben_am` | deutsche Zeit, sortierbar | `2026-09-25 18:12` |
 
@@ -571,8 +616,8 @@ Enthält dasselbe, nur strukturiert:
 - **`tage`** — die fünf Tage, inklusive `gesperrt` und `grund`
 - **`schichten`** — alle Schichten der Woche mit Datum, Beginn, Ende, Dauer
 - **`mitarbeiter`** — je Personalnummer: `abgegeben`, `abgegeben_am`,
-  `max_schichten_woche`, `hinweis` und `verfuegbar` als Liste von
-  `{datum, schicht_id}`
+  `max_schichten_woche` (eigener Wunsch aus der Abgabe, Regler), `hinweis` und
+  `verfuegbar` als Liste von `{datum, schicht_id}`
 
 ### Wichtig für die Planung
 
@@ -740,11 +785,11 @@ Was du selbst beachten musst:
   weitergeben, nicht in Chatgruppen. Das Tresor-Passwort nur persönlich an die
   Vertretung.
 - Ergänzt euer Verzeichnis von Verarbeitungstätigkeiten um diese Anwendung
-  (Zweck: Einsatzplanung; Daten: Personalnummer, Verfügbarkeitsangaben,
-  geplante Schichten sowie Name, Beschäftigungskategorie, Schichtwünsche
-  und -sperren, Fahrgemeinschaft, Notiz — diese verschlüsselt, Schlüssel nur
-  bei ZiG; Empfänger: Supabase als Auftragsverarbeiter, GitHub für das Hosting
-  der Webseite).
+  (Zweck: Einsatzplanung; Daten: Personalnummer, Verfügbarkeitsangaben
+  einschließlich der gewünschten Höchstzahl an Schichten, geplante Schichten
+  sowie Name, Beschäftigungskategorie, Fahrgemeinschaft — diese verschlüsselt,
+  Schlüssel nur bei ZiG; Empfänger: Supabase als Auftragsverarbeiter, GitHub
+  für das Hosting der Webseite).
 - **Löschfrist:** Die Datenschutzerklärung in der App nennt 12 Monate (Verfügbarkeiten:
   12 Monate nach Ende der Woche; deaktivierte Zugänge: 12 Monate nach Deaktivierung).
   Umgesetzt wird das mit `supabase/migrations/0004_loeschfrist.sql` (Funktion) und
@@ -758,9 +803,12 @@ Was du selbst beachten musst:
 - Die Datenschutzerklärung in der App ist ein Entwurf und sollte von einem Anwalt oder
   Datenschutzbeauftragten geprüft werden. Falls es einen Betriebsrat gibt, ist er wegen
   § 87 BetrVG zu beteiligen.
-- **Mit dieser Version geändert:** Der Datenschutztext in `index.html` nennt jetzt die
-  verschlüsselte Speicherung von Name und Profil (auch der Notiz-Spalte) auf dem Server.
-  Diese Fassung **vor dem Deploy** vom Datenschutzbeauftragten bzw. Anwalt freigeben lassen.
+- **Mit dieser Version geändert:** Der Datenschutztext in `index.html` nennt die
+  verschlüsselte Speicherung von Name und Profil auf dem Server. Seit dem Solver-Umbau
+  (11.11.2026) besteht das Profil nur noch aus Beschäftigungskategorie und
+  Fahrgemeinschaft; „Schichtwünsche und -sperren" und die interne Notiz sind gestrichen
+  (weniger Daten als vorher). Die Freigabe durch den Datenschutzbeauftragten bzw. Anwalt
+  steht noch aus.
 
 ---
 

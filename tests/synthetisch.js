@@ -93,11 +93,11 @@ function stammliste(json) {
   const vor = ["Anna", "Ben", "Clara", "David", "Eva", "Felix", "Greta", "Hannes", "Ida", "Jonas", "Klara", "Lukas",
     "Mia", "Noah", "Olga", "Paul", "Rita", "Sven", "Tina", "Uwe", "Vera", "Willi", "Xenia", "Yannik"];
   const nach = ["Mustermann", "Beispiel", "Testfrau", "Probst", "Erfunden", "Demo", "Platzhalter", "Fiktiv"];
-  const kopf = ["Personalnummer", "Passwort", "Name", "Kategorie", "Fahrgemeinschaft", "Max. Schichten", "Ø h/Wo", "Nur Schicht", "Gesperrte Tage", "Notiz"];
+  // Seit 11.11.2026 nur noch Kategorie und Fahrgemeinschaft als Profilspalten.
+  const kopf = ["Personalnummer", "Passwort", "Name", "Kategorie", "Fahrgemeinschaft"];
   return [kopf].concat(json.mitarbeiter.map((m, i) =>
     [m.personalnummer, "Start-" + m.personalnummer + "!", nach[i % nach.length] + " " + vor[i % vor.length],
-      i % 3 === 0 ? "Teilzeit" : "Minijob", i % 6 < 2 ? "G" + (i % 4) : "", i % 5 === 0 ? 3 : "",
-      i % 3 === 0 ? 24.5 : 9, i % 7 === 0 ? "Früh" : "", i % 8 === 0 ? "Mi, Fr" : "", ""]));
+      i % 3 === 0 ? "Teilzeit" : "Minijob", i % 6 < 2 ? "G" + (i % 4) : ""]));
 }
 
 // Tabellen fuer das Fake-Backend (Spaltennamen wie in Supabase).

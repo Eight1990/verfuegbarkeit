@@ -533,7 +533,7 @@
         <p>Personalnummer und Passwort zur Anmeldung (das Passwort wird nur als nicht umkehrbarer
            Hashwert gespeichert), Ihre Verfügbarkeiten pro Woche, die gewünschte Höchstzahl an
            Schichten sowie der Zeitpunkt Ihrer Abgabe. Ihr Name und planungsrelevante Angaben aus der Stammliste
-           (Beschäftigungskategorie, Schichtwünsche und -sperren, Fahrgemeinschaft, interne Notiz) werden ausschließlich
+           (Beschäftigungskategorie, Fahrgemeinschaft) werden ausschließlich
            verschlüsselt (AES-256) gespeichert; der Schlüssel liegt nur bei den für die Einsatzplanung zuständigen
            Personen, nicht beim Datenbank-Anbieter.</p>
 
@@ -778,7 +778,7 @@ const TEXTE_DE = {
   admin_keine_ma:        "Es sind noch keine Personalnummern angelegt.",
 
   admin_stamm_titel:     "Stammliste einspielen",
-  admin_stamm_hinweis:   "Eine Excel (.xlsx) oder CSV mit den Spalten Personalnummer, Passwort und Name; optional Kategorie, Fahrgemeinschaft, Max. Schichten, Ø h/Wo, Nur Schicht, Gesperrte Tage, Notiz. Zum Server gehen nur Personalnummer und Passwort (für die Zugänge); Passwörter werden nirgends gespeichert. Name und Profil werden in diesem Browser verschlüsselt und im Tresor abgelegt. Nummern, die in der Datei fehlen, werden deaktiviert. Eine Datei ohne Passwortspalte ändert nur Namen und Profile.",
+  admin_stamm_hinweis:   "Eine Excel (.xlsx) oder CSV mit den Spalten Personalnummer, Passwort und Name; optional Kategorie (Teilzeit/Minijob) und Fahrgemeinschaft (gleiche Kennung = eine Fahrgemeinschaft). Zum Server gehen nur Personalnummer und Passwort (für die Zugänge); Passwörter werden nirgends gespeichert. Name und Profil werden in diesem Browser verschlüsselt und im Tresor abgelegt. Nummern, die in der Datei fehlen, werden deaktiviert. Eine Datei ohne Passwortspalte ändert nur Namen und Profile.",
   admin_vorschau:        "Vorschau prüfen",
   admin_uebernehmen:     "Jetzt übernehmen",
   admin_gelesen:         " Zeilen gelesen.",
@@ -3803,18 +3803,9 @@ function dispoParsen(mappe) {
   return erg;
 }
 
-// Stammliste: Spalten Personalnummer + Name, optional Profilspalten (Passwort wird nie gelesen).
+// Stammliste: Spalten Personalnummer + Name, optional Kategorie und Fahrgemeinschaft (Passwort wird nie gelesen).
+// Weitere Spalten (z. B. aus aelteren Vorlagen) werden still ignoriert.
 // Namen/Profile werden verschluesselt im Tresor (app_dateien) gespeichert; Klartext nur im Admin-Browser.
-const STAMM_TAGE = { mo: 1, di: 2, mi: 3, do: 4, fr: 5 };
-
-function stammZahl(wert, zeile, spalte) {
-  const t = String(wert).trim().replace(",", ".");
-  if (t === "") return null;
-  const n = Number(t);
-  if (!isFinite(n) || n < 0) throw new Error('Zeile ' + zeile + ', Spalte "' + spalte + '": "' + wert + '" ist keine gültige Zahl.');
-  return n;
-}
-
 function stammProfilZeile(z, sp, zeilenNr) {
   const roh = (s) => (s ? String(z[s]).trim() : "");
   const kat = roh(sp.kategorie).toLowerCase();
@@ -3823,30 +3814,13 @@ function stammProfilZeile(z, sp, zeilenNr) {
   else if (kat !== "" && !/^mini/.test(kat)) {
     throw new Error('Zeile ' + zeilenNr + ', Spalte "Kategorie": "' + roh(sp.kategorie) + '" – erlaubt sind Teilzeit oder Minijob.');
   }
-  const nur = roh(sp.nur_schicht).toLowerCase();
-  let nur_schicht = null;
-  if (/^fr/.test(nur)) nur_schicht = "FRUEH";
-  else if (/^sp/.test(nur)) nur_schicht = "SPAET";
-  else if (nur !== "" && nur !== "-" && nur !== "–") {
-    throw new Error('Zeile ' + zeilenNr + ', Spalte "Nur Schicht": "' + roh(sp.nur_schicht) + '" – erlaubt sind Früh oder Spät.');
-  }
-  const tage = new Set();
-  roh(sp.gesperrte_tage).toLowerCase().split(/[\s,;/]+/).filter(Boolean).forEach((t) => {
-    const nr = STAMM_TAGE[t.slice(0, 2)];
-    if (!nr) throw new Error('Zeile ' + zeilenNr + ', Spalte "Gesperrte Tage": "' + t + '" ist kein Wochentag (Mo, Di, Mi, Do, Fr).');
-    tage.add(nr);
-  });
-  const max = stammZahl(roh(sp.max_schichten_woche), zeilenNr, "Max. Schichten");
   return {
     personalnummer: roh(sp.pn),
     name: roh(sp.name),
     kategorie,
-    nur_schicht,
-    gesperrte_tage: Array.from(tage).sort(),
-    max_schichten_woche: max === null ? null : Math.round(max),
-    fahrgemeinschaft: roh(sp.fahrgemeinschaft) || null,
-    schnitt_h: stammZahl(roh(sp.schnitt_h), zeilenNr, "Ø h/Wo"),
-    notiz: roh(sp.notiz) || null
+    // Kennung nur fuer die Anzeige vereinheitlicht (mehrere Leerzeichen -> eines); der Solver normalisiert selbst.
+    // Nur Striche ("-", "–", "—") zaehlen als leer, sonst bildeten alle mit "-" eine Gruppe.
+    fahrgemeinschaft: /^[-–—]*$/.test(roh(sp.fahrgemeinschaft)) ? null : roh(sp.fahrgemeinschaft).replace(/\s+/g, " ")
   };
 }
 
@@ -3861,12 +3835,7 @@ async function stammProfileLesen(datei) {
     pn: finde(/personal/i),
     name: finde(/^\s*name\s*$/i) || finde(/name/i),
     kategorie: finde(/kategorie/i),
-    fahrgemeinschaft: finde(/fahrgem/i),
-    max_schichten_woche: finde(/max/i),
-    schnitt_h: finde(/ø|schnitt|durchschn/i),
-    nur_schicht: finde(/^\s*nur/i),
-    gesperrte_tage: finde(/gesperr|nicht an/i),
-    notiz: finde(/notiz|bemerkung/i)
+    fahrgemeinschaft: finde(/fahrgem/i)
   };
   if (!sp.pn) throw new Error('Spalte "Personalnummer" fehlt.');
   if (!sp.name) { const e = new Error(TEXTE.plan_kein_name); e.code = "KEIN_NAME"; throw e; }
@@ -4665,7 +4634,8 @@ const autoBibliothekenLaden = () => Promise.all([
 const auto = {
   kw: null, d: null, profile: stammProfile, bedarf: null,
   vorlage: null, eingabe: null, erg: null, zuw: null, verfSet: null, box: null,
-  ladeNr: 0,            // Lade-Token gegen veraltete Ergebnisse beim Wochenwechsel
+  zuwSolver: null,      // Kopie der Solver-Zuweisung (erkennt Handaenderungen im Auswahlfeld)
+  ladeNr: 0,           // Lade-Token gegen veraltete Ergebnisse beim Wochenwechsel
   bisher: null,         // veroeffentlichte Planung der Woche (fuer den Diff)
   stand: null,          // planung_stand der Woche
   veroeffentlicht: false,
@@ -4681,7 +4651,7 @@ function schrittKopf(nr, titel) {
 }
 
 function autoZuruecksetzen() {
-  auto.kw = null; auto.d = null; auto.erg = null; auto.zuw = null; auto.bedarf = null; auto.eingabe = null;
+  auto.kw = null; auto.d = null; auto.erg = null; auto.zuw = null; auto.zuwSolver = null; auto.bedarf = null; auto.eingabe = null;
   auto.bisher = null; auto.stand = null; auto.veroeffentlicht = false; auto.profilVersion = null;
 }
 
@@ -4771,7 +4741,7 @@ async function autoLaden() {
     auto.stand = (stand.data || []).find((s) => s.kw_start_datum === kw) || null;
     auto.bisher = bisher.data || [];
     auto.bedarf = autoStandardBedarf();
-    auto.erg = null; auto.zuw = null; auto.eingabe = null; auto.veroeffentlicht = false; auto.profilVersion = null;
+    auto.erg = null; auto.zuw = null; auto.zuwSolver = null; auto.eingabe = null; auto.veroeffentlicht = false; auto.profilVersion = null;
     if (!auto.vorlage) await autoVorlageAusDbLaden();
     if (nr !== auto.ladeNr || kw !== admin.kw) return;
     if (auto.vorlage) await autoVorlageAuswerten();
@@ -4904,7 +4874,7 @@ function autoZeichnen() {
   let cbTrotzdem = null;
   if (gate) {
     box.appendChild(el("div", "meldung schlecht", (tresor.zustand !== "offen" ? "Der Tresor ist nicht offen: " : ohneProfil + " Profile fehlen: ") +
-      "Nur Schicht, gesperrte Tage und Kategorie können dann nicht geprüft werden – Personen ohne Profil gelten als Minijob ohne Einschränkungen."));
+      "Kategorie und Fahrgemeinschaft sind dann unbekannt – Personen ohne Profil gelten als Minijob ohne Fahrgemeinschaft."));
     cbTrotzdem = kontrollKaestchen("Trotzdem ohne vollständige Profile rechnen", false);
     box.appendChild(cbTrotzdem.label);
   }
@@ -5004,7 +4974,7 @@ function nameVon(pn) {
   return autoHatName(pn) ? String(auto.profile[pn].name).trim() : "⚠ Nr. " + pn + " (kein Name)";
 }
 
-// Stammliste-Leiste: Profile (Name, Kategorie, Wünsche, Fahrgemeinschaft ...) kommen nur aus der
+// Stammliste-Leiste: Profile (Name, Kategorie, Fahrgemeinschaft) kommen nur aus der
 // Stammliste und liegen verschluesselt im Tresor; Klartext nur hier im Admin-Browser.
 // Die Dispo-Vorlage wird einmal hochgeladen und privat in der Datenbank abgelegt (nur Admin).
 function bytesAlsBase64(puffer) {
@@ -5069,12 +5039,7 @@ function autoProfilZeile(pn) {
     personalnummer: pn,
     name: (p.name || "").trim() || null,
     kategorie: p.kategorie === "teilzeit" ? "teilzeit" : "minijob",
-    nur_schicht: p.nur_schicht || null,
-    gesperrte_tage: p.gesperrte_tage || [],
-    max_schichten_woche: p.max_schichten_woche ? Number(p.max_schichten_woche) : null,
-    fahrgemeinschaft: (p.fahrgemeinschaft || "").trim() || null,
-    schnitt_h: (p.schnitt_h === "" || p.schnitt_h === null || p.schnitt_h === undefined) ? null : Number(p.schnitt_h),
-    notiz: p.notiz || null
+    fahrgemeinschaft: (p.fahrgemeinschaft || "").trim() || null
   };
 }
 
@@ -5086,17 +5051,16 @@ function autoProfileZeichnen(ziel) {
   sum.textContent = "Mitarbeiter-Profile aus der Stammliste (" + auto.d.mitarbeiter.length + " aktiv)";
   det.appendChild(sum);
   det.appendChild(el("p", "hinweisbox",
-    "Kategorie, feste Wünsche und der Stundenschnitt der letzten 9 Monate steuern die faire Verteilung. " +
+    "Kategorie (Teilzeit zuerst) und Fahrgemeinschaft steuern die Verteilung. " +
     "Geändert wird das in der Stammliste (Excel) auf deinem Rechner und dann neu eingespielt. " +
     "Die Daten liegen verschlüsselt im Tresor; lesbar nur mit dem Tresor-Passwort."));
 
   const wrap = el("div"); wrap.style.overflowX = "auto";
   const tab = el("table", "liste");
   const kopf = el("tr");
-  ["Pers.-Nr.", "Name", "Kategorie", "Nur", "Nicht an", "Max/Wo", "Fahrgem.", "Ø h/Wo"]
+  ["Pers.-Nr.", "Name", "Kategorie", "Fahrgem."]
     .forEach((t) => kopf.appendChild(el("th", null, t)));
   tab.appendChild(kopf);
-  const SCHICHT_TEXT = { FRUEH: "Früh", SPAET: "Spät" };
   auto.d.mitarbeiter.forEach((pn) => {
     const p = autoProfilZeile(pn);
     const tr = el("tr");
@@ -5104,11 +5068,7 @@ function autoProfileZeichnen(ziel) {
       pn,
       p.name || "⚠ kein Name",
       p.kategorie === "teilzeit" ? "Teilzeit" : "Minijob",
-      SCHICHT_TEXT[p.nur_schicht] || "–",
-      p.gesperrte_tage.map((t) => AUTO_TAGE[t - 1]).join(", ") || "–",
-      p.max_schichten_woche === null ? "–" : String(p.max_schichten_woche),
-      p.fahrgemeinschaft || "–",
-      p.schnitt_h === null ? "–" : String(p.schnitt_h)
+      p.fahrgemeinschaft || "–"
     ].forEach((t) => tr.appendChild(el("td", null, t)));
     tab.appendChild(tr);
   });
@@ -5177,6 +5137,8 @@ function autoBerechnen() {
     auto.erg = PlanungSolver.loese(auto.eingabe);
     auto.erg.dauerMs = Date.now() - t0;
     auto.zuw = auto.erg.zuweisung;
+    // auto.zuw ist dasselbe Objekt wie erg.zuweisung und wird im Auswahlfeld veraendert -> Kopie merken
+    auto.zuwSolver = Object.assign({}, auto.erg.zuweisung);
     auto.profilVersion = stammProfileVersion;
     auto.veroeffentlicht = false;
     autoZeichnen();
@@ -5188,7 +5150,11 @@ function autoBerechnen() {
 
 function autoNeuPruefen() {
   auto.veroeffentlicht = false;
-  auto.erg.verstoesse = PlanungSolver.pruefe(auto.eingabe, auto.erg.slots, auto.zuw);
+  const befunde = PlanungSolver.pruefe(auto.eingabe, auto.erg.slots, auto.zuw);
+  // begruenden ergaenzt bei "limit"/"fahrgemeinschaft" den Grund (Schutz: aeltere planung-solver.js im Cache)
+  auto.erg.verstoesse = typeof PlanungSolver.begruenden === "function"
+    ? PlanungSolver.begruenden(auto.eingabe, auto.erg.slots, auto.zuw, befunde)
+    : befunde;
   auto.erg.alternativen = PlanungSolver.alternativen(auto.eingabe, auto.erg.slots, auto.zuw);
   const ziel = $("auto-ergebnis");
   ziel.textContent = "";
@@ -5215,16 +5181,29 @@ function autoErgebnisZeichnen(ziel) {
   const fehler = erg.verstoesse.filter((v) => v.art === "fehler");
   const unbesetzt = erg.slots.filter((s) => !auto.zuw[s.id]);
   const gut = fehler.length === 0;
+  // Ausnahmen, ueber die Betroffene vor dem Veroeffentlichen informiert werden muessen (Schritt 2 und 4)
+  const ueberWunsch = erg.verstoesse.filter((v) => v.typ === "limit");
+  const fgGetrennt = erg.verstoesse.filter((v) => v.typ === "fahrgemeinschaft");
+  const betroffen = new Set();
+  ueberWunsch.forEach((v) => betroffen.add(v.pn));
+  fgGetrennt.forEach((v) => { betroffen.add(v.pn); betroffen.add(v.partner); });
+  const klaerNamen = Array.from(betroffen).map(nameVon).sort((a, b) => a.localeCompare(b, "de"));
+  const klaerZahlen = [
+    ueberWunsch.length ? "Wunsch überschritten: " + ueberWunsch.length : "",
+    fgGetrennt.length ? "Fahrgemeinschaft getrennt: " + fgGetrennt.length : ""
+  ].filter(Boolean).join(" · ");
 
   const kopf = el("div", "meldung " + (gut && unbesetzt.length === 0 ? "gut" : gut ? "info" : "schlecht"));
   kopf.textContent =
     erg.slots.length + " Plätze, " + (erg.slots.length - unbesetzt.length) + " besetzt, " +
     unbesetzt.length + " unbesetzt, " + fehler.length + " Regelverstöße." +
+    (klaerZahlen ? " " + klaerZahlen + "." : "") +
     (erg.dauerMs !== undefined ? " (berechnet in " + erg.dauerMs + " ms)" : "");
   kopf.style.marginTop = "12px";
   ziel.appendChild(kopf);
 
-  const verstoesse = erg.verstoesse.filter((v) => v.typ !== "unbesetzt");
+  // "limit" und "fahrgemeinschaft" stehen nur in der Box "Vor dem Veroeffentlichen klaeren"
+  const verstoesse = erg.verstoesse.filter((v) => v.typ !== "unbesetzt" && v.typ !== "limit" && v.typ !== "fahrgemeinschaft");
   if (verstoesse.length) {
     const ul = el("ul");
     verstoesse.forEach((v) => {
@@ -5238,6 +5217,49 @@ function autoErgebnisZeichnen(ziel) {
     ziel.appendChild(ul);
   }
 
+  if (ueberWunsch.length || fgGetrennt.length) {
+    const slotNachId = {};
+    erg.slots.forEach((s) => { slotNachId[s.id] = s; });
+    const artenText = (arten) => (arten && arten.length ? arten.map((t) => AUTO_ART[t] || t).join(" + ") : "frei");
+    // Grund vom Solver (begruenden): was waere ohne diese Ausnahme passiert?
+    const grundText = (g) => {
+      if (!g) return "";
+      if (g.typ === "luecke") return "sonst bliebe " + (slotNachId[g.slot] ? autoSlotText(slotNachId[g.slot]) : "ein Platz") + " leer";
+      if (g.typ === "limit") return "sonst läge " + nameVon(g.pn) + " über seinem Wunsch (" + g.anzahl + " statt " + g.grenze + ")";
+      if (g.typ === "fahrgemeinschaft") {
+        return "sonst wäre die Fahrgemeinschaft von " + nameVon(g.pn) + " und " + nameVon(g.partner) + " am " + wochentagKurz(g.datum) + " getrennt";
+      }
+      if (g.typ === "vermeidbar") return "vermeidbar – ein Plan ohne diese Ausnahme ist möglich";
+      return "";
+    };
+    // Von Hand geaendert: ein Platz dieser Person(en) ist jetzt anders besetzt als im Solver-Ergebnis
+    const vonHand = (pns) => !!auto.zuwSolver && erg.slots.some((s) => {
+      const jetzt = auto.zuw[s.id] || null, vorher = auto.zuwSolver[s.id] || null;
+      return jetzt !== vorher && (pns.indexOf(jetzt) >= 0 || pns.indexOf(vorher) >= 0);
+    });
+    const zusatz = (v, pns) => {
+      const g = grundText(v.grund);
+      return (g ? " – " + g : "") + (vonHand(pns) ? " (von Hand geändert)" : "");
+    };
+    const box = el("div", "meldung schlecht");
+    box.appendChild(el("b", null, "Vor dem Veröffentlichen klären"));
+    const abschnitt = (titel, zeilen) => {
+      if (!zeilen.length) return;
+      box.appendChild(el("div", null, titel + ":"));
+      const ul = el("ul");
+      ul.style.margin = "4px 0 8px";
+      zeilen.forEach((t) => ul.appendChild(el("li", null, t)));
+      box.appendChild(ul);
+    };
+    abschnitt("Mehr Schichten als gewünscht", ueberWunsch.map((v) =>
+      nameVon(v.pn) + ": " + v.anzahl + " Schichten, Wunsch höchstens " + v.grenze + zusatz(v, [v.pn])));
+    abschnitt("Fahrgemeinschaft getrennt", fgGetrennt.map((v) =>
+      wochentagKurz(v.datum) + ": " + nameVon(v.pn) + " (" + artenText(v.arten_pn) + ") und " +
+      nameVon(v.partner) + " (" + artenText(v.arten_partner) + ")" + zusatz(v, [v.pn, v.partner])));
+    ziel.appendChild(box);
+    ziel.appendChild(el("p", "hinweisbox", "Bitte die Betroffenen informieren, bevor du veröffentlichst."));
+  }
+
   // Plan je Tag, aufgebaut wie die Dispo-Excel
   const TAGNAMEN = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag"];
   const ARTEN = [["FRUEH", "ZiG AM", "ZiG AM · Früh"], ["SPAET", "ZiG PM", "ZiG PM · Spät"], ["LANG", "ZiG Office", "ZiG Office"]];
@@ -5246,6 +5268,14 @@ function autoErgebnisZeichnen(ziel) {
     auto.verfSet.has(pn + "|" + s.datum + "|" + s.schicht_id) ||
     (s.schicht_id === "SPAET" && auto.verfSet.has(pn + "|" + s.datum + "|LANG"));
   const stdText = (min) => dauerText(min / 60);
+  // Kennzeichen im Auswahlfeld (nur dort, nie in der Dispo-Datei); einmal je Zeichnen berechnet.
+  // Ohne bewertung() (aeltere planung-solver.js) gibt es keine Kennzeichen.
+  const bew = typeof PlanungSolver.bewertung === "function" ? PlanungSolver.bewertung(auto.eingabe, erg.slots, auto.zuw) : null;
+  const kennzeichen = (sid, pn) => {
+    if (!bew) return "";
+    const w = bew.wahl(sid, pn) || {};
+    return (w.ueber ? " (über Wunsch)" : "") + (w.trennt ? " (trennt Fahrgem.)" : "");
+  };
 
   tage.forEach((datum) => {
     const tagSlots = erg.slots.filter((s) => s.datum === datum);
@@ -5287,10 +5317,10 @@ function autoErgebnisZeichnen(ziel) {
         const sel = document.createElement("select");
         const opt = (v, t) => { const o = document.createElement("option"); o.value = v; o.textContent = t; return o; };
         sel.appendChild(opt("", "— frei —"));
-        const grp = (titel, pns) => {
+        const grp = (titel, pns, mitKennzeichen) => {
           if (!pns.length) return;
           const g = document.createElement("optgroup"); g.label = titel;
-          pns.forEach((pn) => g.appendChild(opt(pn, nameVon(pn))));
+          pns.forEach((pn) => g.appendChild(opt(pn, nameVon(pn) + (mitKennzeichen ? kennzeichen(s.id, pn) : ""))));
           sel.appendChild(g);
         };
         const alt = (erg.alternativen[s.id] || []).filter((pn) => pn !== aktuell);
@@ -5298,8 +5328,8 @@ function autoErgebnisZeichnen(ziel) {
         const weitere = auto.eingabe.personen.map((p) => p.personalnummer)
           .filter((pn) => pn !== aktuell && !altSet.has(pn) && verfuegbarFuer(pn, s));
         if (aktuell) grp("Aktuell", [aktuell]);
-        grp("Alternativen (Regeln eingehalten)", alt);
-        grp("Weitere (verfügbar, Regeln prüfen)", weitere);
+        grp("Alternativen (Regeln eingehalten)", alt, true);
+        grp("Weitere (verfügbar, Regeln prüfen)", weitere, true);
         sel.value = aktuell || "";
         sel.onchange = () => { auto.zuw[s.id] = sel.value || null; autoNeuPruefen(); };
         cName.appendChild(sel);
@@ -5350,7 +5380,7 @@ function autoErgebnisZeichnen(ziel) {
   const mat = el("table", "auto-tab");
   const mk = el("tr");
   ["Name"].concat(tage.map((d) => TAGNAMEN[PlanungSolver.wochentagVon(d) - 1].slice(0, 2)))
-    .concat(["Schichten", "Std", "Kategorie", "Ø 9 Mon."]).forEach((t) => mk.appendChild(el("th", null, t)));
+    .concat(["Schichten", "Std", "Kategorie"]).forEach((t) => mk.appendChild(el("th", null, t)));
   mat.appendChild(mk);
   const nachPn = {};
   erg.slots.forEach((s) => {
@@ -5381,7 +5411,6 @@ function autoErgebnisZeichnen(ziel) {
       tr.appendChild(el("td", null, String(mine.length)));
       tr.appendChild(el("td", null, stdText(min)));
       tr.appendChild(el("td", null, pr.kategorie === "teilzeit" ? "Teilzeit" : "Minijob"));
-      tr.appendChild(el("td", null, pr.schnitt_h ? String(pr.schnitt_h).replace(".", ",") : "–"));
       mat.appendChild(tr);
     });
   wrapM.appendChild(mat);
@@ -5404,13 +5433,33 @@ function autoErgebnisZeichnen(ziel) {
   planungStandHinweis(ziel, admin.kw, auto.stand, auto.bisher || [], liste);
   const unbesetztAnzahl = auto.erg.unbesetzt ? auto.erg.unbesetzt.length : 0;
   const veraltet = auto.profilVersion !== stammProfileVersion;
+  // Wunsch ueberschritten / Fahrgemeinschaft getrennt: Veroeffentlichen erst nach "Betroffene informiert"
+  let cbInfo = null;
+  if (klaerNamen.length) {
+    const kurz = el("div", "meldung schlecht");
+    kurz.appendChild(el("b", null, "Vor dem Veröffentlichen klären"));
+    if (ueberWunsch.length) {
+      kurz.appendChild(el("div", null, "Mehr Schichten als gewünscht: " +
+        ueberWunsch.map((v) => nameVon(v.pn) + " (" + v.anzahl + " statt " + v.grenze + ")").join(", ")));
+    }
+    if (fgGetrennt.length) {
+      kurz.appendChild(el("div", null, "Fahrgemeinschaft getrennt: " +
+        fgGetrennt.map((v) => wochentagKurz(v.datum) + " " + nameVon(v.pn) + " und " + nameVon(v.partner)).join("; ")));
+    }
+    ziel.appendChild(kurz);
+    cbInfo = kontrollKaestchen("Ich habe die Betroffenen informiert (" + klaerNamen.join(", ") + ").", false);
+    ziel.appendChild(cbInfo.label);
+  }
   const cbV = kontrollKaestchen("Ich habe die Planung für " + kwText(admin.kw) + " (" + kwZeitraum(admin.kw) + ") geprüft." +
     (unbesetztAnzahl ? " " + unbesetztAnzahl + " Plätze bleiben unbesetzt." : "") +
     " Sie ersetzt die bisherige Planung dieser Woche und ist für die Mitarbeiter sofort sichtbar.", false);
   ziel.appendChild(cbV.label);
   const pub = mittlererKnopf("Planung " + kwText(admin.kw) + " (" + liste.length + " Schichten) für Mitarbeiter veröffentlichen");
-  const pubPruefen = () => { pub.disabled = !(cbV.cb.checked && gut && liste.length > 0 && !veraltet); };
+  const pubPruefen = () => {
+    pub.disabled = !(cbV.cb.checked && (!cbInfo || cbInfo.cb.checked) && gut && liste.length > 0 && !veraltet);
+  };
   cbV.cb.onchange = pubPruefen;
+  if (cbInfo) cbInfo.cb.onchange = pubPruefen;
   pubPruefen();
   if (!gut) ziel.appendChild(el("p", "hinweisbox", "Veröffentlichen ist gesperrt, solange Regelverstöße (✗) bestehen."));
   else if (!liste.length) ziel.appendChild(el("p", "hinweisbox", "Keine Schichten zum Veröffentlichen (Bedarf oder Zuweisungen fehlen)."));

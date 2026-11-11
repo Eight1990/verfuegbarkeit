@@ -23,8 +23,7 @@
  *     salt: <base64, 16 Byte>, iv: <base64, 12 Byte>, ct: <base64>,
  *     updated_at: <ISO-Zeit>, by: <Admin-Kennung oder ""> }
  * Klartext (nur entschlüsselt im Browser):
- *   { v: 1, profile: [ {personalnummer, name, kategorie, nur_schicht,
- *     gesperrte_tage, max_schichten_woche, fahrgemeinschaft, schnitt_h, notiz} ],
+ *   { v: 1, profile: [ {personalnummer, name, kategorie, fahrgemeinschaft} ],
  *     zuordnung: { <Dispo-Schreibweise>: <personalnummer> },
  *     quelle: { dateiname, zeilen, eingelesen_am } }
  */
@@ -43,8 +42,9 @@
   var IV_BYTES = 12;
   var PASSWORT_MIN = 12;
   var HUELLE_FELDER = ["v", "kdf", "salt", "iv", "ct", "updated_at", "by"];
-  var PROFIL_FELDER = ["personalnummer", "name", "kategorie", "nur_schicht", "gesperrte_tage",
-    "max_schichten_woche", "fahrgemeinschaft", "schnitt_h", "notiz"];
+  // Seit 11.11.2026 nur noch diese Felder. Aeltere Inhalte (mit nur_schicht, gesperrte_tage,
+  // max_schichten_woche, schnitt_h, notiz) laden weiter; die alten Felder fallen dabei weg.
+  var PROFIL_FELDER = ["personalnummer", "name", "kategorie", "fahrgemeinschaft"];
   var FEHLER_PASSWORT = "Tresor-Passwort falsch oder Tresor beschädigt.";
 
   function subtle() {
@@ -192,13 +192,6 @@
   function huelleDekodieren(base64Text) { return huelleLesen(bytesZuText(vonB64(base64Text))); }
 
   // ---------- Klartext (Whitelist) ----------
-  function zahlOderNull(wert, feld, pn) {
-    if (wert === null || wert === undefined || wert === "") return null;
-    var n = Number(wert);
-    if (!isFinite(n) || n < 0) throw new Error("Tresor: Feld " + feld + " von " + pn + " ist keine Zahl.");
-    return n;
-  }
-
   // Enthaelt der Wert eines der verbotenen Woerter (Excel-Passwoerter, ab 6 Zeichen) als Teilstring?
   function verbotenHat(liste, wert) {
     if (!liste) return false;
@@ -223,28 +216,17 @@
     if (!name) throw new Error("Tresor: Profil " + pn + " hat keinen Namen.");
     // Zusaetzliche Sperre: kein Freitextfeld darf ein Passwort aus der Excel enthalten
     // (Personalnummer ausgenommen: ein Startpasswort gleich der Nummer ist kein Leck)
-    [p.name, p.fahrgemeinschaft, p.notiz].forEach(function (w) {
+    [p.name, p.fahrgemeinschaft].forEach(function (w) {
       if (w !== null && w !== undefined && String(w) !== "" && verbotenHat(verboten, String(w))) {
         throw new Error("Sicherheitsstopp: Im Profil " + pn + " steht ein Passwort.");
       }
     });
     var kategorie = p.kategorie === "teilzeit" ? "teilzeit" : "minijob";
-    var nur = p.nur_schicht === "FRUEH" || p.nur_schicht === "SPAET" ? p.nur_schicht : null;
-    var tage = Array.isArray(p.gesperrte_tage) ? p.gesperrte_tage.map(Number).filter(function (t) {
-      return Number.isInteger(t) && t >= 1 && t <= 7;
-    }) : [];
-    tage = tage.filter(function (t, i) { return tage.indexOf(t) === i; }).sort();
-    var max = zahlOderNull(p.max_schichten_woche, "max_schichten_woche", pn);
     return {
       personalnummer: pn,
       name: name,
       kategorie: kategorie,
-      nur_schicht: nur,
-      gesperrte_tage: tage,
-      max_schichten_woche: max === null ? null : Math.round(max),
-      fahrgemeinschaft: p.fahrgemeinschaft == null || String(p.fahrgemeinschaft).trim() === "" ? null : String(p.fahrgemeinschaft).trim(),
-      schnitt_h: zahlOderNull(p.schnitt_h, "schnitt_h", pn),
-      notiz: p.notiz == null || String(p.notiz).trim() === "" ? null : String(p.notiz).trim()
+      fahrgemeinschaft: p.fahrgemeinschaft == null || String(p.fahrgemeinschaft).trim() === "" ? null : String(p.fahrgemeinschaft).trim()
     };
   }
 
