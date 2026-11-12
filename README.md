@@ -532,7 +532,12 @@ Das ist der Standardweg: sechs bis sieben Klicks, **kein Upload**.
      Personen ohne Profil gelten dann als Minijob ohne Fahrgemeinschaft.
      Unter dem Ergebnis erscheint bei Bedarf die Box **Vor dem Veröffentlichen
      klären** (siehe unten).
-   - **3 · Dispo-Datei für den Kunden** — die fertige `.xlsm` herunterladen.
+   - **3 · Dateien für den Kunden** — zwei Knöpfe:
+     **Planung für FedEx (.xlsx)** ist die Datei, die per E-Mail an FedEx geht
+     (`ZiG_Planung_FedEx_KW<Nr>_<Jahr>.xlsx`, ein Blatt `KW<Nr>`, Montag bis Mittwoch links,
+     Donnerstag und Freitag rechts, Summenkasten, ohne Makro und ohne Ersatzleute).
+     **Dispo-Datei (.xlsm)** ist die gefüllte Vorlage für den internen Gebrauch.
+     Beide entstehen aus der gespeicherten Dispo-Vorlage.
      Fehlt die Dispo-Vorlage noch, kannst du sie hier einmalig auswählen.
    - **4 · Veröffentlichen** — Gibt es für die Woche schon eine veröffentlichte
      Planung, steht das hier mit „neu +x / entfernt −y". Haken **Ich habe die
@@ -1040,7 +1045,7 @@ index.html                                   die komplette App (Mitarbeiter + Ad
 tresor.js                                    Verschlüsselung des Stammlisten-Tresors (lädt nur im Admin-Bereich)
 planung-solver.js                            regelbasierte Wochenplanung (lädt nur im Admin-Bereich)
 minijob.js                                   Wochen-Obergrenzen der Minijobber berechnen (lädt nur im Admin-Bereich)
-dispo-export.js                              füllt die Dispo-Vorlage (.xlsm) für den Kunden (lädt nur im Admin-Bereich)
+dispo-export.js                              füllt die Dispo-Vorlage (.xlsm) und baut daraus die Datei für FedEx (.xlsx) (lädt nur im Admin-Bereich)
 beispiel_stammliste.xlsx                     Beispiel für die kurze Form (nur Personalnummer und Passwort)
 README.md                                    diese Anleitung
 vendor/                                      lokale Kopien von supabase-js, SheetJS und JSZip
@@ -1070,7 +1075,7 @@ tests/tresor.test.js                          Verschlüsselung prüfen (node tes
 tests/syntax.test.js                          alle Skripte auf Syntaxfehler prüfen (vor jedem Push)
 tests/solver.test.js                          Wochenplanung mit erfundenen Daten
 tests/minijob.test.js                         Minijob-Grenze mit erfundenen Daten
-tests/dispo-export.test.js                    Dispo-Export (wird übersprungen, wenn keine Vorlage lokal liegt)
+tests/dispo-export.test.js                    FedEx-Datei mit künstlicher Mini-Vorlage; Dispo-Export mit echter Vorlage (dieser Teil wird übersprungen, wenn keine lokal liegt)
 tests/synthetisch.js                          erfundene Daten für Tests und Vorschau (keine echten Personen)
 tests/stamm_synthetisch.xlsx                  erfundene Stammliste im vollständigen Format (Spalten A–M)
 tests/vorschau.js                             App lokal mit Fake-Backend starten

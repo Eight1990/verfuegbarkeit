@@ -6028,11 +6028,17 @@ function autoErgebnisZeichnen(ziel) {
   wrapM.appendChild(mat);
   ziel.appendChild(wrapM);
 
-  // 3 · Dispo-Datei fuer den Kunden
-  ziel.appendChild(schrittKopf(3, "Dispo-Datei für den Kunden"));
+  // 3 · Dateien fuer den Kunden: Planung im FedEx-Format (.xlsx) und interne Dispo-Datei (.xlsm)
+  ziel.appendChild(schrittKopf(3, "Dateien für den Kunden"));
+  const expFedex = mittlererKnopf("Planung für FedEx (.xlsx) herunterladen");
+  expFedex.disabled = !auto.vorlage;
+  expFedex.onclick = () => autoExportieren(expFedex, "fedex");
+  ziel.appendChild(expFedex);
+  ziel.appendChild(el("p", "hinweisbox", "Das ist die Datei, die per E-Mail an FedEx geht (Montag bis Mittwoch links, " +
+    "Donnerstag und Freitag rechts, Summen unten rechts). Ersatzleute stehen nicht darin."));
   const exp = mittlererKnopf("Dispo-Datei (.xlsm) herunterladen");
   exp.disabled = !auto.vorlage;
-  exp.onclick = () => autoExportieren(exp);
+  exp.onclick = () => autoExportieren(exp, "dispo");
   ziel.appendChild(exp);
   if (!auto.vorlage) {
     ziel.appendChild(el("p", "hinweisbox", "Für den Export fehlt die Dispo-Vorlage. Einmalig hier wählen (sie wird gespeichert):"));
@@ -6095,12 +6101,15 @@ function autoErgebnisZeichnen(ziel) {
   ziel.appendChild(nachher);
 }
 
-async function autoExportieren(knopf) {
+// art: "fedex" = Planung im FedEx-Format (.xlsx), sonst die Dispo-Datei (.xlsm)
+async function autoExportieren(knopf, art) {
+  const fedex = art === "fedex";
   // Die Kundendatei darf nie Personalnummern statt Namen enthalten.
   const benoetigt = new Set();
   auto.erg.slots.forEach((s) => {
     if (auto.zuw[s.id]) benoetigt.add(auto.zuw[s.id]);
-    (auto.erg.alternativen[s.id] || []).forEach((pn) => benoetigt.add(pn));
+    // Ersatzleute stehen nur in der Dispo-Datei
+    if (!fedex) (auto.erg.alternativen[s.id] || []).forEach((pn) => benoetigt.add(pn));
   });
   const ohneName = Array.from(benoetigt).filter((pn) => !autoHatName(pn));
   if (ohneName.length) {
@@ -6118,12 +6127,20 @@ async function autoExportieren(knopf) {
       datum: s.datum, art: s.art, nr: s.nr,
       name: auto.zuw[s.id] ? nameVon(auto.zuw[s.id]) : "",
       beginn: s.beginn, ende: s.ende,
-      alternativen: (erg.alternativen[s.id] || []).map(nameVon)
+      alternativen: fedex ? [] : (erg.alternativen[s.id] || []).map(nameVon)
     }));
-    const r = await DispoExport.fuelleVorlage(JSZip, auto.vorlage.bytes, { tage, eintraege });
-    datenSpeichern(r.bytes, "Dispo_" + kwEtikett(admin.kw) + ".xlsm",
-      "application/vnd.ms-excel.sheet.macroEnabled.12");
-    let text = "Dispo-Datei erstellt (" + r.belegt + " Plätze belegt).";
+    let r;
+    if (fedex) {
+      const k = isoKw(alsDatum(admin.kw));
+      r = await DispoExport.fedexDatei(JSZip, auto.vorlage.bytes, { tage, eintraege }, { kw: k.kw });
+      datenSpeichern(r.bytes, "ZiG_Planung_FedEx_KW" + k.kw + "_" + k.jahr + ".xlsx",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    } else {
+      r = await DispoExport.fuelleVorlage(JSZip, auto.vorlage.bytes, { tage, eintraege });
+      datenSpeichern(r.bytes, "Dispo_" + kwEtikett(admin.kw) + ".xlsm",
+        "application/vnd.ms-excel.sheet.macroEnabled.12");
+    }
+    let text = (fedex ? "Datei für FedEx" : "Dispo-Datei") + " erstellt (" + r.belegt + " Plätze belegt).";
     if (r.nichtUntergebracht.length) {
       text += " Achtung: In der Vorlage fehlen Zeilen für " + r.nichtUntergebracht.length +
         " Plätze (" + r.nichtUntergebracht.slice(0, 5).join(", ") + ") – bitte von Hand ergänzen.";
