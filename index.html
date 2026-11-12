@@ -614,6 +614,13 @@
 <script>
 "use strict";
 
+// Schutz gegen unsichtbares Einbetten in fremde Seiten (Klick-Umlenkung):
+// In einem Rahmen zeigt die App nichts an.
+if (window.top !== window.self) {
+  document.documentElement.style.display = "none";
+  throw new Error("Diese Seite darf nicht eingebettet werden.");
+}
+
 /* =====================================================================
    1. EINSTELLUNGEN
    Hier tragt ihr nach dem Anlegen des Supabase-Projekts die zwei
@@ -627,7 +634,8 @@ const CONFIG = {
   // Neuere Supabase-Projekte nutzen dieses Format anstelle des alten anon-Keys.
   SUPABASE_ANON_KEY: "sb_publishable_8POgbN5HX9axyHjJpUVRVQ_WzAGYu4d",
   EMAIL_DOMAIN:      "ma.zig.invalid",
-  PASSWORT_MIN:      6,
+  // Startpasswort (Reset durch den Admin): gleiche Regel in der Edge Function reset-passwort
+  PASSWORT_MIN:      10,
   // Eigenes Passwort: gleiche Regel in der Edge Function passwort-setzen
   PASSWORT_MIN_EIGEN: 8
 };
@@ -715,6 +723,7 @@ const TEXTE_DE = {
   // Meldungen
   keine_letzte_woche:    "Für die letzte Woche liegt keine Eingabe vor.",
   fehler_speichern:      "Konnte nicht gespeichert werden: ",
+  fehler_laden:          "Die Daten konnten nicht geladen werden. Bitte später noch einmal versuchen.",
   fehler_frist:          "Die Frist ist vorbei. Es kann nichts mehr geändert werden.",
   laedt:                 "Einen Moment …",
 
@@ -1503,8 +1512,9 @@ async function anmeldenMitarbeiter() {
 
   if (error) {
     knopf.disabled = false;
-    const txt = (error.message || "").toLowerCase();
-    loginFehler(txt.indexOf("banned") >= 0 ? TEXTE.fehler_gesperrt : TEXTE.fehler_login);
+    // Bewusst immer dieselbe Meldung: sonst liesse sich ohne Passwort ablesen,
+    // welche Personalnummern es gibt bzw. welche deaktiviert sind.
+    loginFehler(TEXTE.fehler_login);
     return;
   }
 
@@ -1518,6 +1528,7 @@ async function anmeldenMitarbeiter() {
 
   $("pw-eingabe").value = "";
   knopf.disabled = false;
+  aktivitaetMerken();
   await weiterNachAnmeldung();
 }
 
@@ -1547,19 +1558,73 @@ async function anmeldenAdmin() {
 
   $("apw-eingabe").value = "";
   knopf.disabled = false;
+  aktivitaetMerken();
   await weiterNachAnmeldung();
 }
 
-async function abmelden() {
+async function abmelden(alsAdmin) {
   // Admin: gemerkten Tresor-Schluessel auf diesem Geraet loeschen (nie blockierend).
   // Mitarbeiter: tresor bleibt "unbekannt", IndexedDB wird dort nie angefasst.
-  const istAdmin = !$("screen-admin").classList.contains("verborgen");
+  // alsAdmin === true: automatische Abmeldung, bevor der Admin-Bereich sichtbar ist.
+  const istAdmin = alsAdmin === true || !$("screen-admin").classList.contains("verborgen");
   if (istAdmin) {
-    try { await Promise.race([tresorSperren(true), new Promise((r) => setTimeout(r, 1500))]); }
+    try { await Promise.race([tresorSperren(true), new Promise((r) => setTimeout(r, 4000))]); }
     catch (e) { console.warn("Tresor-Schluessel nicht geloescht:", e); }
+    // Reste der frueheren unverschluesselten Namenszuordnung nie liegen lassen.
+    try { localStorage.removeItem(ZUORDNUNG_KEY); } catch (_) { /* egal */ }
   }
-  await sb.auth.signOut();
+  try { localStorage.removeItem(AKTIVITAET_SCHLUESSEL); } catch (_) { /* egal */ }
+  // Auch wenn das Abmelden beim Server scheitert (kein Netz): lokal wird immer abgemeldet.
+  try { await sb.auth.signOut(); }
+  catch (e) {
+    console.warn("Abmelden beim Server fehlgeschlagen:", e);
+    try { await sb.auth.signOut({ scope: "local" }); } catch (_) { /* egal */ }
+  }
   location.reload();
+}
+
+/* ---------- Automatische Abmeldung bei Untaetigkeit ----------
+   Admin: 30 Minuten, Mitarbeitende: 12 Stunden. Der Zeitpunkt der letzten
+   Bedienung liegt im Browser-Speicher, damit die Frist auch gilt, wenn die
+   Seite zwischendurch geschlossen war. */
+const AKTIVITAET_SCHLUESSEL = "fedex_letzte_aktivitaet";
+const UNTAETIG_ADMIN_MS = 30 * 60 * 1000;
+const UNTAETIG_MA_MS    = 12 * 60 * 60 * 1000;
+let aktivitaetIstAdmin = false;
+let aktivitaetGrenzeMs = 0, aktivitaetZuletzt = 0, aktivitaetGeschrieben = 0, aktivitaetTakt = null;
+
+function aktivitaetMerken() {
+  aktivitaetZuletzt = Date.now();
+  // Hoechstens alle 15 Sekunden in den Speicher schreiben.
+  if (aktivitaetZuletzt - aktivitaetGeschrieben < 15000) return;
+  aktivitaetGeschrieben = aktivitaetZuletzt;
+  try { localStorage.setItem(AKTIVITAET_SCHLUESSEL, String(aktivitaetZuletzt)); } catch (_) { /* egal */ }
+}
+
+function aktivitaetAbgelaufen(grenzeMs) {
+  let zuletzt = aktivitaetZuletzt;
+  try {
+    const gemerkt = Number(localStorage.getItem(AKTIVITAET_SCHLUESSEL) || 0);
+    if (gemerkt > zuletzt) zuletzt = gemerkt;   // Bedienung in einem anderen Tab zaehlt mit
+  } catch (_) { /* egal */ }
+  // Ohne gemerkten Zeitpunkt (Anmeldung vor diesem Stand der App) beginnt die Frist jetzt.
+  if (!zuletzt) { aktivitaetGeschrieben = 0; aktivitaetMerken(); return false; }
+  return Date.now() - zuletzt > grenzeMs;
+}
+
+// Nach der Anmeldung aufrufen. Rueckgabe false = Frist war schon abgelaufen, es wird abgemeldet.
+function aktivitaetUeberwachen(istAdmin) {
+  aktivitaetGrenzeMs = istAdmin ? UNTAETIG_ADMIN_MS : UNTAETIG_MA_MS;
+  aktivitaetIstAdmin = !!istAdmin;
+  if (aktivitaetAbgelaufen(aktivitaetGrenzeMs)) { abmelden(aktivitaetIstAdmin); return false; }
+  if (!aktivitaetTakt) {
+    ["pointerdown", "keydown", "touchstart", "wheel"].forEach((art) =>
+      window.addEventListener(art, aktivitaetMerken, { passive: true, capture: true }));
+    const pruefen = () => { if (aktivitaetGrenzeMs && aktivitaetAbgelaufen(aktivitaetGrenzeMs)) abmelden(aktivitaetIstAdmin); };
+    aktivitaetTakt = setInterval(pruefen, 30000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) pruefen(); });
+  }
+  return true;
 }
 
 /* =====================================================================
@@ -1567,6 +1632,8 @@ async function abmelden() {
 ===================================================================== */
 async function weiterNachAnmeldung() {
   const { data: istAdmin } = await sb.rpc("is_admin");
+  // Zu lange untaetig (auch bei zwischendurch geschlossener Seite): abmelden statt weitermachen.
+  if (!aktivitaetUeberwachen(!!istAdmin)) return;
   if (istAdmin) {
     // Der Admin-Bereich bleibt Deutsch, egal was auf diesem Geraet gemerkt ist.
     sprachSetzen("de", false);
@@ -1698,7 +1765,7 @@ async function pwAendernSpeichern() {
 async function wocheLaden() {
   // Woche anlegen (falls noch nicht da) und Schichtzeiten einfrieren
   const { data: kw, error: kwFehler } = await sb.rpc("get_or_create_week");
-  if (kwFehler) { maMeldung("schlecht", kwFehler.message); return; }
+  if (kwFehler) { console.warn("get_or_create_week:", kwFehler.message); maMeldung("schlecht", TEXTE.fehler_laden); return; }
   zustand.kw = kw;
 
   const ergebnisse = await Promise.all([
@@ -2300,9 +2367,11 @@ async function senden() {
   if (error) {
     knopf.disabled = false;
     const txt = error.message || "";
+    // Rohe Datenbanktexte nicht anzeigen (nur in die Konsole).
+    if (txt.indexOf("Abgabefrist") < 0) console.warn("abgabe_speichern:", txt);
     maMeldung("schlecht", txt.indexOf("Abgabefrist") >= 0
       ? TEXTE.fehler_frist
-      : TEXTE.fehler_speichern + txt);
+      : TEXTE.fehler_speichern.replace(/[:\s]+$/, "") + ".");
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
@@ -2965,7 +3034,7 @@ function vorlageEingabe() {
 async function vorlageUebernehmen(datei) {
   await autoBibliothekenLaden();
   const vorher = auto.vorlage;
-  auto.vorlage = { name: datei.name, bytes: await datei.arrayBuffer() };
+  auto.vorlage = { name: datei.name, bytes: await dateiBytes(datei) };
   try {
     if (auto.d) {
       await autoVorlageAuswerten();
@@ -3020,7 +3089,7 @@ function tresorFormularAnlegen(karte) {
     "auch der Datenbank-Anbieter nicht. Gib es deiner Vertretung persönlich weiter (nicht per Chat oder E-Mail) und bewahre es im Passwortmanager auf."));
   const pw1 = passwortFeld("Tresor-Passwort (mindestens 12 Zeichen, am besten ein Satz)", "new-password");
   const pw2 = passwortFeld("Tresor-Passwort wiederholen", "new-password");
-  const merken = kontrollKaestchen("Auf diesem Gerät merken (bis zum Abmelden)", true);
+  const merken = kontrollKaestchen("Auf diesem Gerät merken (bis zum Abmelden; nur auf dem eigenen Dienstgerät)", false);
   const fehler = el("div");
   const b = mittlererKnopf("Tresor anlegen");
   karte.appendChild(pw1); karte.appendChild(pw2); karte.appendChild(merken.label); karte.appendChild(b); karte.appendChild(fehler);
@@ -3051,7 +3120,7 @@ function tresorFormularOeffnen(karte, ohneVergessen) {
     ". Ohne Tresor-Passwort zeigt die App nur Personalnummern."));
   if (tresor.fehler) karte.appendChild(el("div", "meldung info", tresor.fehler));
   const pw = passwortFeld("Tresor-Passwort", "current-password");
-  const merken = kontrollKaestchen("Auf diesem Gerät merken (bis zum Abmelden)", true);
+  const merken = kontrollKaestchen("Auf diesem Gerät merken (bis zum Abmelden; nur auf dem eigenen Dienstgerät)", false);
   const fehler = el("div");
   const b = mittlererKnopf("Tresor öffnen");
   karte.appendChild(pw); karte.appendChild(merken.label); karte.appendChild(b); karte.appendChild(fehler);
@@ -3175,7 +3244,7 @@ function adminTresor(ziel) {
         const m = pw1.value !== pw2.value ? "Die beiden Eingaben sind verschieden." : T.passwortPruefen(pw1.value);
         if (m) throw new Error(m);
         bU.disabled = true; bU.textContent = TEXTE.laedt;
-        await tresorSchreiben({ v: 1, profile: [], zuordnung: {}, quelle: {} }, { neuesPasswort: pw1.value, merken: true });
+        await tresorSchreiben({ v: 1, profile: [], zuordnung: {}, quelle: {} }, { neuesPasswort: pw1.value, merken: false });
         admin.status = null;
         adminZeichnen();
         adminMeldung("gut", "Tresor neu angelegt (leer). Jetzt unter Mitarbeiter die Stammliste einspielen.");
@@ -3198,9 +3267,28 @@ async function adminStarten() {
   } catch (_) { admin.userId = null; }
   await wochenLaden();
   wochenZeileAufbauen();
+  loeschlaufPruefen();      // warnt, wenn der automatische Loeschlauf Fehler meldet oder ausbleibt
   adminZeichnen();          // Startseite sofort zeigen ("Tresor wird geladen …")
   await tresorStarten();    // Tresor lesen und, wenn das Geraet den Schluessel kennt, still oeffnen
   adminZeichnen();
+}
+
+// Letzten automatischen Loeschlauf ansehen (Protokoll ohne Personendaten, Migration 0012).
+// Nie blockierend; ein Fehler beim Lesen ist kein Fehler der App.
+function loeschlaufPruefen() {
+  sb.from("loeschlauf").select("gelaufen_am, ergebnis").order("gelaufen_am", { ascending: false }).limit(1)
+    .then((r) => {
+      if (r.error || !r.data || !r.data.length) return;
+      const lauf = r.data[0];
+      const alterTage = (Date.now() - new Date(lauf.gelaufen_am).getTime()) / 86400000;
+      if (lauf.ergebnis && lauf.ergebnis.fehler) {
+        adminMeldung("schlecht", "Der automatische Löschlauf vom " + new Date(lauf.gelaufen_am).toLocaleDateString("de-DE") +
+          " meldet einen Fehler: " + String(lauf.ergebnis.fehler).slice(0, 200) + " – bitte im Supabase-Dashboard prüfen.");
+      } else if (alterTage > 45) {
+        adminMeldung("schlecht", "Der automatische Löschlauf ist seit " + Math.floor(alterTage) +
+          " Tagen nicht gelaufen (erwartet: monatlich). Bitte den Cron-Job „loeschfrist“ im Supabase-Dashboard prüfen.");
+      }
+    }, () => { /* egal */ });
 }
 
 async function wochenLaden() {
@@ -3316,6 +3404,7 @@ function adminMitarbeiter(ziel) {
   ziel.appendChild(dPw);
 
   let cbPflicht = null;
+  let deaktBestaetigt = 0;   // Zahl der Deaktivierungen, die in der Vorschau angehakt wurde (Server prueft sie)
   let cbEntfernt = null;
   let cbMinijob = null;      // Pflicht-Kaestchen: Minijobber verlieren ihre bisherige Wochen-Obergrenze
 
@@ -3408,7 +3497,7 @@ function adminMitarbeiter(ziel) {
   // Schritt 2: Vorschau (expliziter Klick)
   btnVorschau.onclick = async () => {
     btnVorschau.disabled = true;
-    cbPflicht = null; cbEntfernt = null; cbMinijob = null;
+    cbPflicht = null; cbEntfernt = null; cbMinijob = null; deaktBestaetigt = 0;
     ergebnis.textContent = "";
     ergebnis.appendChild(el("div", null, TEXTE.laedt));
     try {
@@ -3495,6 +3584,7 @@ function adminMitarbeiter(ziel) {
     if (geae.length) {
       ergebnis.appendChild(el("div", "meldung schlecht", "⚠ Bekommt ein neues Startpasswort und muss sich neu anmelden: " + geae.map(nameMitNummer).join(", ")));
     }
+    deaktBestaetigt = deakt.length;
     if (deakt.length + geae.length > 0) {
       cbPflicht = kontrollKaestchen("Ich habe gesehen: " + deakt.length + (deakt.length === 1 ? " Zugang wird" : " Zugänge werden") + " deaktiviert, " +
         geae.length + (geae.length === 1 ? " bekommt" : " bekommen") + " ein neues Startpasswort.", false);
@@ -3594,7 +3684,7 @@ function adminMitarbeiter(ziel) {
     }
     let teilweise = false;
     if (modus !== "nur_namen") {
-      const res = await funktionRufen("import-stammliste", { modus: "anwenden", eintraege: gelesenListe });
+      const res = await funktionRufen("import-stammliste", { modus: "anwenden", eintraege: gelesenListe, deaktivieren_bestaetigt: deaktBestaetigt });
       if (!res.ok && !res.zusammenfassung) {
         // Validierungsfehler: auf dem Server wurde nichts angewendet
         nach.appendChild(fehlerListe(res));
@@ -3835,7 +3925,7 @@ function sheetJsLaden() {
 
 async function dateiLesen(datei) {
   await sheetJsLaden();
-  const puffer = await datei.arrayBuffer();
+  const puffer = await dateiBytes(datei);
   const mappe = XLSX.read(puffer, { type: "array" });
   const blatt = mappe.Sheets[mappe.SheetNames[0]];
   const zeilen = XLSX.utils.sheet_to_json(blatt, { defval: "", raw: false });
@@ -3859,6 +3949,16 @@ async function dateiLesen(datei) {
       passwort:       String(z[spaltePw] === undefined ? "" : z[spaltePw]).trim()
     }))
     .filter((z) => z.personalnummer !== "" || z.passwort !== "");
+}
+
+// Dateien vor dem Einlesen auf eine vernuenftige Groesse pruefen: eine praeparierte
+// Riesendatei wuerde sonst das Fenster einfrieren.
+// Obergrenze: 20 MB
+async function dateiBytes(datei) {
+  if (datei && datei.size > 20 * 1024 * 1024) {
+    throw new Error("Die Datei ist zu groß (über 20 MB). Bitte die richtige Datei wählen.");
+  }
+  return datei.arrayBuffer();
 }
 
 async function funktionRufen(name, koerper) {
@@ -4152,7 +4252,7 @@ function stammProfilZeile(z, sp, zeilenNr, roh, ist1904) {
 async function stammProfileLesen(datei) {
   await sheetJsLaden();
   // raw:true beim Einlesen: CSV-Zellen bleiben Text (sonst wuerde aus "2950,00" die Zahl 295000); Excel-Dateien unveraendert
-  const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array", raw: true });
+  const mappe = XLSX.read(await dateiBytes(datei), { type: "array", raw: true });
   const blatt = mappe.Sheets[mappe.SheetNames[0]];
   const zeilen = XLSX.utils.sheet_to_json(blatt, { defval: "", raw: false });
   if (zeilen.length === 0) throw new Error("Die Datei enthält keine Zeilen.");
@@ -4212,7 +4312,7 @@ async function stammProfileLesen(datei) {
 // Nur Personalnummer + Name (z. B. fuer den Planungs-Import), ohne die Profilspalten zu pruefen.
 async function stammNamenLesen(datei) {
   await sheetJsLaden();
-  const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
+  const mappe = XLSX.read(await dateiBytes(datei), { type: "array" });
   const zeilen = XLSX.utils.sheet_to_json(mappe.Sheets[mappe.SheetNames[0]], { defval: "", raw: false });
   if (zeilen.length === 0) throw new Error("Die Datei enthält keine Zeilen.");
   const spalten = Object.keys(zeilen[0]);
@@ -4326,7 +4426,7 @@ function adminPlanung(ziel) {
   const infoDispo = dateiFeld(TEXTE.plan_label_dispo, ".xlsm,.xlsx", async (datei) => {
     dispo = null;
     await sheetJsLaden();
-    const mappe = XLSX.read(await datei.arrayBuffer(), { type: "array" });
+    const mappe = XLSX.read(await dateiBytes(datei), { type: "array" });
     const erg = dispoParsen(mappe);
     infoDispo.textContent = 'Blatt "' + erg.blatt + '": ' + erg.eintraege.length + " Schichten an " +
       erg.tage.length + " Tagen gelesen" +
@@ -6084,7 +6184,10 @@ async function exportieren(art, knopf) {
 }
 
 function csvFeld(wert) {
-  const s = (wert === null || wert === undefined) ? "" : String(wert);
+  let s = (wert === null || wert === undefined) ? "" : String(wert);
+  // Formelschutz: Excel wertet Felder, die mit = + - @ (oder Tab/Zeilenumbruch) beginnen,
+  // als Formel aus. Ein vorangestelltes Hochkomma macht daraus reinen Text.
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
   return /[";\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
@@ -6124,7 +6227,7 @@ function csvBauen(etikett, d) {
       s ? uhr(s.ende) : "",
       s ? dauerText(s.dauer_h) : "",
       (a && a.max_schichten !== null && a.max_schichten !== undefined) ? a.max_schichten : "",
-      a ? (a.hinweis || "") : "",
+      "",   // Spalte "hinweis" bleibt nur fuer das Dateiformat; das Feld ist stillgelegt (Migration 0014)
       a ? zeitpunktIso(a.abgegeben_am) : ""
     ].map(csvFeld).join(";"));
   }
@@ -6191,7 +6294,7 @@ function jsonBauen(kw, etikett, d) {
         abgegeben: !!a,
         abgegeben_am: a ? a.abgegeben_am : null,
         max_schichten_woche: a ? a.max_schichten : null,
-        hinweis: a ? (a.hinweis || null) : null,
+        hinweis: null,   // Feld ist stillgelegt (Migration 0014), bleibt nur fuer das Dateiformat
         verfuegbar: (verfuegbarNach[pn] || []).sort((x, y) =>
           x.datum.localeCompare(y.datum) || x.schicht_id.localeCompare(y.schicht_id))
       };

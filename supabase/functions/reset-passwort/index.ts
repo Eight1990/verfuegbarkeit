@@ -8,11 +8,14 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.4";
 
-const PASSWORT_MIN_LAENGE = 6;
+// Startpasswort: mindestens 10 Zeichen (Fund B4-3)
+const PASSWORT_MIN_LAENGE = 10;
 const PASSWORT_MAX_LAENGE = 72;
 
 const cors = {
-  "Access-Control-Allow-Origin": Deno.env.get("ERLAUBTE_ORIGIN") ?? "*",
+  // Ohne gesetztes Secret gilt die feste App-Adresse, nie "alle".
+  "Access-Control-Allow-Origin": Deno.env.get("ERLAUBTE_ORIGIN") ?? "https://eight1990.github.io",
+  "Vary": "Origin",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
@@ -30,6 +33,33 @@ async function fingerabdruck(personalnummer: string, passwort: string, pepper: s
   return Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+// Fingerabdruck-Geheimnis: eigenes Secret FP_GEHEIMNIS, falls gesetzt, sonst wie
+// bisher der Service-Role-Key. So haengen die Fingerabdruecke nicht mehr am
+// Generalschluessel (ein Schluesselwechsel setzt dann keine Passwoerter zurueck).
+function fpGeheimnisse(serviceKey: string): string[] {
+  const eigen = (Deno.env.get("FP_GEHEIMNIS") ?? "").trim();
+  return eigen && eigen !== serviceKey ? [eigen, serviceKey] : [serviceKey];
+}
+
+// Alle Sitzungen einer Person beenden (Funktion aus Migration 0014).
+// Scheitert das, laeuft der Vorgang trotzdem weiter; der Fehler steht im Log.
+async function sitzungenBeenden(admin: any, userId: string, ausser: string | null = null) {
+  try {
+    const { error } = await admin.rpc("sitzungen_beenden", { p_user_id: userId, p_ausser: ausser });
+    if (error) { console.error("sitzungen_beenden:", error.message); return false; }
+    return true;
+  } catch (e) {
+    console.error("sitzungen_beenden:", e);
+    return false;
+  }
+}
+
+// Interne Fehlertexte nicht nach aussen geben: Einzelheiten nur ins Log.
+function intern(wo: string, e: any) {
+  console.error(wo + ":", e?.message ?? e);
+  return "Interner Fehler (" + wo + "). Bitte spaeter erneut versuchen.";
 }
 
 Deno.serve(async (req: Request) => {
@@ -81,7 +111,7 @@ Deno.serve(async (req: Request) => {
     .eq("personalnummer", pn)
     .maybeSingle();
 
-  if (ladeFehler) return antwort({ fehler: ladeFehler.message }, 500);
+  if (ladeFehler) return antwort({ fehler: intern("Laden", ladeFehler) }, 500);
   if (!mitarbeiter) return antwort({ fehler: `Personalnummer ${pn} ist nicht angelegt.` }, 404);
   if (!mitarbeiter.user_id) {
     return antwort(
@@ -100,14 +130,18 @@ Deno.serve(async (req: Request) => {
   const { error: setzFehler } = await admin.auth.admin.updateUserById(mitarbeiter.user_id, {
     password: pw,
   });
-  if (setzFehler) return antwort({ fehler: setzFehler.message }, 500);
+  if (setzFehler) return antwort({ fehler: intern("Passwort setzen", setzFehler) }, 500);
 
-  const fp = await fingerabdruck(pn, pw, serviceKey);
+  const fp = await fingerabdruck(pn, pw, fpGeheimnisse(serviceKey)[0]);
   const { error: updFehler } = await admin
     .from("employees")
     .update({ passwort_fp: fp, muss_pw_aendern: true })
     .eq("personalnummer", pn);
-  if (updFehler) return antwort({ fehler: updFehler.message }, 500);
+  if (updFehler) return antwort({ fehler: intern("Speichern", updFehler) }, 500);
 
-  return antwort({ ok: true, personalnummer: pn });
+  // Laufende Sitzungen der Person beenden: wer noch angemeldet war (auch ein
+  // Fremder mit dem alten Passwort), muss sich neu anmelden.
+  const beendet = await sitzungenBeenden(admin, mitarbeiter.user_id);
+
+  return antwort({ ok: true, personalnummer: pn, sitzungen_beendet: beendet });
 });

@@ -105,7 +105,7 @@ drücken:
 1. `supabase/migrations/0001_init.sql` — legt die Tabellen an
 2. `supabase/migrations/0002_rls.sql` — legt die Schutzregeln an
 3. `supabase/migrations/0003_standard_schichten.sql` — legt die Schichten an
-4. danach in Nummernreihenfolge alle weiteren Dateien `0004` bis `0013`
+4. danach in Nummernreihenfolge alle weiteren Dateien `0004` bis `0014`
    (Löschfrist, eigenes Passwort, geplante Schichten, Einstellungen, Dateiablage,
    Keep-alive, automatische Wochen, Löschfrist-Cron, Versionszähler für den Tresor)
 
@@ -346,7 +346,7 @@ erfundenen Daten. `.xlsx` und `.csv` funktionieren beide; es zählt das erste
 Tabellenblatt.
 
 **Regeln:**
-- Passwörter mindestens **6 Zeichen**.
+- Neue oder geänderte Startpasswörter mindestens **10 Zeichen**, zufällig gewählt (bestehende, unveränderte bleiben gültig).
 - Personalnummern dürfen Ziffern, Buchstaben, Punkt, Bindestrich und
   Unterstrich enthalten, höchstens 20 Zeichen. **Führende Nullen bleiben
   erhalten** — formatiere die Spalte in Excel als *Text*.
@@ -1065,6 +1065,7 @@ supabase/migrations/0010_keepalive_schreiben.sql  Keep-alive schreibt in die Dat
 supabase/migrations/0011_wochen_automatisch.sql   Wochen 4 Wochen im Voraus anlegen (Cron)
 supabase/migrations/0012_loeschfrist_cron.sql     Löschfrist: monatlicher Cron-Job + Protokoll
 supabase/migrations/0013_app_dateien_version.sql  Versionszähler und Größenschranke für app_dateien (Tresor)
+supabase/migrations/0014_sicherheit_haertung.sql  Härtung: Freitextfeld stillgelegt, Hilfsfunktionen nur mit Anmeldung, Sitzungen beenden, Löschlauf holt nach
 
 supabase/functions/import-stammliste/index.ts     Stammliste einlesen (Server)
 supabase/functions/reset-passwort/index.ts        Einzelpasswort setzen (Server)

@@ -565,6 +565,135 @@ begin
     'loeschfrist_anwenden von aussen aufrufbar'::text,
     'gesperrt'::text, v_text, (v_text = 'gesperrt');
 
+  -- ------------------------------------------------------------------
+  -- Haertung (Migration 0014)
+  -- ------------------------------------------------------------------
+  -- Hilfsfunktionen ohne Anmeldung gesperrt
+  select count(*) into v_zahl
+  from unnest(array[
+    'public.is_admin()', 'public.current_personalnummer()', 'public.woche_bearbeitbar(date)',
+    'public.aktive_woche()', 'public.montag_von(date)', 'public.heute_berlin()',
+    'public.standard_frist(date)', 'public.dauer_stunden(time, time)',
+    'public.sitzungen_beenden(uuid, uuid)'
+  ]) as f(name)
+  where has_function_privilege('anon', f.name, 'execute');
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Hilfsfunktionen ohne Login aufrufbar (0014)'::text,
+    '0'::text, v_zahl::text, (v_zahl = 0);
+
+  v_text := case
+    when has_function_privilege('authenticated', 'public.sitzungen_beenden(uuid, uuid)', 'execute')
+    then 'aufrufbar' else 'gesperrt' end;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'sitzungen_beenden fuer Angemeldete aufrufbar (0014)'::text,
+    'gesperrt'::text, v_text, (v_text = 'gesperrt');
+
+  -- Kein Recht von anon auf irgendeine Tabelle, RLS ueberall an
+  select count(*) into v_zahl
+  from information_schema.role_table_grants g
+  where g.table_schema = 'public' and g.grantee in ('anon', 'PUBLIC');
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Tabellenrechte ohne Login'::text,
+    '0'::text, v_zahl::text, (v_zahl = 0);
+
+  select count(*) into v_zahl
+  from pg_class c join pg_namespace n on n.oid = c.relnamespace
+  where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Tabellen ohne Zugriffsregeln (RLS aus)'::text,
+    '0'::text, v_zahl::text, (v_zahl = 0);
+
+  -- Stillgelegtes Freitextfeld: kein Inhalt, direktes Schreiben abgelehnt
+  select count(*) into v_zahl from public.submissions where hinweis is not null;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Abgaben mit Freitext im stillgelegten Feld (0014)'::text,
+    '0'::text, v_zahl::text, (v_zahl = 0);
+
+  -- Als Datenbank-Admin geprueft: die Sperre sitzt an der Tabelle selbst
+  -- (23514) und gilt damit fuer jeden Weg, auch an der App vorbei.
+  begin
+    insert into public.submissions (personalnummer, kw_start_datum, max_schichten, hinweis)
+    values (v_a_pn, v_kw, null, '=1+1')
+    on conflict (personalnummer, kw_start_datum) do update set hinweis = excluded.hinweis;
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Freitext direkt in die Abgabe schreiben (0014)'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Freitext direkt in die Abgabe schreiben (0014)'::text,
+      'abgelehnt (23514)'::text, ('abgelehnt (' || sqlstate || ')')::text, (sqlstate = '23514');
+  end;
+
+  update public.employees set aktiv = true, muss_pw_aendern = false where personalnummer = v_a_pn;
+  execute 'set local role authenticated';
+
+  -- Mitarbeiter kann sich nicht zum Admin machen und die Frist nicht aendern
+  begin
+    insert into public.admins (user_id) values (v_a_user);
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter traegt sich als Admin ein'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter traegt sich als Admin ein'::text,
+      'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  begin
+    update public.weeks set abgabefrist = abgabefrist + interval '7 days' where kw_start_datum = v_kw;
+    get diagnostics v_zahl = row_count;
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter verlaengert die Abgabefrist'::text,
+      '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter verlaengert die Abgabefrist'::text,
+      '0 Zeilen'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  -- Offener Passwortwechsel: eigene geplante Schichten nicht lesbar
+  execute 'reset role';
+  insert into public.planung (personalnummer, datum, schicht_id, beginn, ende, kw_start_datum)
+  values (v_a_pn, v_kw, 'FRUEH', '04:00', '07:00', v_kw);
+  execute 'set local role authenticated';
+
+  select count(*) into v_zahl from public.planung
+   where personalnummer = v_a_pn and datum = v_kw and schicht_id = 'FRUEH';
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Eigene Planung nach dem Passwortwechsel lesbar'::text,
+    '1 Zeile'::text, v_zahl::text, (v_zahl = 1);
+
+  execute 'reset role';
+  update public.employees set muss_pw_aendern = true where personalnummer = v_a_pn;
+  execute 'set local role authenticated';
+
+  select count(*) into v_zahl from public.planung;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Planung lesbar bei offenem Passwortwechsel (0014)'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+
+  select (select count(*) from public.submissions) + (select count(*) from public.availability)
+    into v_zahl;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Abgaben lesbar bei offenem Passwortwechsel (0014)'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+
+  execute 'reset role';
+
   update public.employees
      set aktiv = true, muss_pw_aendern = v_a_flag
    where personalnummer = v_a_pn;

@@ -50,7 +50,9 @@
   var ITER_MAX = 5000000;
   var SALZ_BYTES = 16;
   var IV_BYTES = 12;
-  var PASSWORT_MIN = 12;
+  // Gilt nur beim Festlegen eines NEUEN Tresor-Passworts; ein bestehender Tresor oeffnet weiter.
+  var PASSWORT_MIN = 16;
+  var PASSWORT_LEICHT = ["passwort", "password", "kennwort", "tresor", "fedex", "qwertz", "qwerty", "123456", "abcdef"];
   var HUELLE_FELDER = ["v", "kdf", "salt", "iv", "ct", "updated_at", "by"];
   // Seit 11.11.2026 nur noch diese Felder. Aeltere Inhalte (mit nur_schicht, gesperrte_tage,
   // max_schichten_woche, schnitt_h, notiz) laden weiter; die alten Felder fallen dabei weg.
@@ -99,8 +101,19 @@
     }
     var zeichen = {};
     for (var i = 0; i < p.length; i++) zeichen[p[i]] = true;
-    if (Object.keys(zeichen).length < 5) {
+    // Zu wenige verschiedene Zeichen oder ein kurzer Block, der sich nur wiederholt ("abcabcabc…")
+    if (Object.keys(zeichen).length < 8 || /^(.{1,8})\1+$/.test(p)) {
       return "Das Tresor-Passwort ist zu einförmig – bitte einen Satz aus mehreren Wörtern wählen.";
+    }
+    if (/^[0-9\s.,\-\/]+$/.test(p)) {
+      return "Das Tresor-Passwort darf nicht nur aus Ziffern bestehen – bitte einen Satz aus mehreren Wörtern wählen.";
+    }
+    // Naheliegende Bausteine machen ein kurzes Passwort leicht erratbar.
+    var klein = p.toLowerCase();
+    for (var k = 0; k < PASSWORT_LEICHT.length; k++) {
+      if (p.length < 24 && klein.indexOf(PASSWORT_LEICHT[k]) >= 0) {
+        return "Das Tresor-Passwort ist zu leicht zu erraten (enthält „" + PASSWORT_LEICHT[k] + "“) – bitte einen eigenen Satz aus mehreren Wörtern wählen.";
+      }
     }
     return null;
   }

@@ -32,8 +32,14 @@ test("salzNeu liefert 16 zufällige Bytes", () => {
 });
 
 test("passwortPruefen: kurz und einförmig abgelehnt, Satz erlaubt", () => {
-  assert.ok(/mindestens 12/.test(T.passwortPruefen("kurz")));
+  assert.ok(/mindestens 16/.test(T.passwortPruefen("kurz")));
+  assert.ok(/mindestens 16/.test(T.passwortPruefen("Zwölf Zeichen")));
   assert.ok(/einförmig/.test(T.passwortPruefen("aaaaaaaaaaaaaaaa")));
+  assert.ok(/einförmig/.test(T.passwortPruefen("abcdabcdabcdabcdabcd")));
+  assert.ok(/einförmig/.test(T.passwortPruefen("aabbccddaabbccdd")));
+  assert.ok(/nur aus Ziffern/.test(T.passwortPruefen("1234 5678 9012 3456 7890")));
+  assert.ok(/leicht zu erraten/.test(T.passwortPruefen("MeinTresorPasswort1")));
+  assert.strictEqual(T.passwortPruefen("Der Tresor steht heute hinten links im Lager"), null);
   assert.strictEqual(T.passwortPruefen(PW), null);
   assert.strictEqual(T.passwortPruefen("  " + PW + "  "), null);
 });
