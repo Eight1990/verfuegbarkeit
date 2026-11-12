@@ -521,31 +521,71 @@
       </div>
 
       <div id="recht-datenschutz" class="verborgen">
+        <p><em>Stand: November 2026</em></p>
+
         <h3>Verantwortlicher</h3>
         <p>Zeit ist Geld GmbH, Eichenstrasse 10 B, 85445 Schwaig / Oberding,
            E-Mail: info@zeit-ist-geld.com, Telefon: +49 81 22 / 55 33 00.</p>
 
+        <h3>Datenschutzbeauftragter</h3>
+        <p>Markus Altenburg, DataGAP GmbH, Bessemerstr. 51, 12103 Berlin,
+           E-Mail: info@datagap.de, Telefon: 030 / 577 10 513.</p>
+
         <h3>Zweck</h3>
-        <p>Diese Anwendung dient der Einsatzplanung: Sie geben an, an welchen Tagen und in welchen
-           Schichten Sie verfügbar sind. Die Angaben sind unverbindlich und ersetzen keine Einteilung.</p>
+        <p>Diese Anwendung dient der Einsatzplanung für Ihren Einsatz bei unserem Kunden FedEx: Sie geben an,
+           an welchen Tagen und in welchen Schichten Sie arbeiten können. Aus diesen Angaben erstellt die
+           Einsatzplanung den Wochenplan. Ihre geplanten Schichten sehen Sie anschließend in der App.
+           Bei geringfügig Beschäftigten (Minijob) achtet die Planung außerdem darauf, dass die
+           Minijob-Verdienstgrenze eingehalten wird.</p>
+
+        <h3>Die Nutzung ist freiwillig</h3>
+        <p>Sie müssen diese App nicht benutzen. Sie ist ein Angebot, das Ihnen die Abgabe erleichtern soll.
+           Sie können Ihre Verfügbarkeit stattdessen persönlich im Büro mitteilen, jeweils bis
+           Freitag 12:00 Uhr für die folgende Woche. Wenn Sie die App nicht nutzen, entsteht Ihnen daraus
+           kein Nachteil.</p>
 
         <h3>Welche Daten verarbeitet werden</h3>
-        <p>Personalnummer und Passwort zur Anmeldung (das Passwort wird nur als nicht umkehrbarer
-           Hashwert gespeichert), Ihre Verfügbarkeiten pro Woche, die gewünschte Höchstzahl an
-           Schichten sowie der Zeitpunkt Ihrer Abgabe. Ihr Name und planungsrelevante Angaben aus der Stammliste
-           (Beschäftigungskategorie, Fahrgemeinschaft, Einsatzzeitraum bei FedEx von/bis) werden ausschließlich
-           verschlüsselt (AES-256) gespeichert; der Schlüssel liegt nur bei den für die Einsatzplanung zuständigen
-           Personen, nicht beim Datenbank-Anbieter. Der Einsatzzeitraum dient dazu, dass Sie nur innerhalb Ihres
-           Einsatzes eingeplant werden.
-           Bei geringfügig Beschäftigten (Minijob) werden zusätzlich die zur Prüfung der Verdienstgrenze nötigen Angaben
+        <p>Personalnummer und Passwort zur Anmeldung (in der Datenbank der App wird das Passwort nur als nicht
+           umkehrbarer Hashwert gespeichert), Ihre Verfügbarkeiten pro Woche, die gewünschte Höchstzahl an
+           Schichten, der Zeitpunkt Ihrer Abgabe sowie Ihre geplanten Schichten (Datum, Schichtart, Uhrzeiten).</p>
+        <p>Ihr Name und planungsrelevante Angaben aus der Stammliste (Beschäftigungskategorie, Fahrgemeinschaft,
+           Einsatzzeitraum bei FedEx von/bis) werden in der Datenbank der App ausschließlich verschlüsselt (AES-256)
+           gespeichert; der Schlüssel liegt nur bei den für die Einsatzplanung zuständigen Personen, nicht beim
+           Datenbank-Anbieter. Der Einsatzzeitraum dient dazu, dass Sie nur innerhalb Ihres Einsatzes eingeplant werden.</p>
+        <p>Bei geringfügig Beschäftigten (Minijob) werden zusätzlich die zur Prüfung der Verdienstgrenze nötigen Angaben
            aus der Lohnabrechnung gespeichert: Ein- und Austrittsdatum, das bereits abgerechnete Entgelt, die abgerechneten
            Stunden und das Minijob-Kennzeichen. Sie dienen nur dazu, dass die Einsatzplanung die Minijob-Verdienstgrenze
-           nicht überschreitet, und liegen ebenfalls ausschließlich verschlüsselt vor – lesbar nur mit diesem Schlüssel.</p>
+           nicht überschreitet, und liegen in der Datenbank der App ebenfalls ausschließlich verschlüsselt vor.</p>
+        <p>Die Stammliste selbst ist eine interne Arbeitsliste der Einsatzplanung. Sie liegt zusätzlich auf Rechnern
+           der Einsatzplanung in unserem Büro und enthält dort auch das Startpasswort, das Sie von uns bekommen.
+           Nach der ersten Anmeldung legen Sie ein eigenes Passwort fest, das nur Sie kennen.</p>
+
+        <h3>Woher die Daten stammen</h3>
+        <p>Verfügbarkeiten, gewünschte Höchstzahl und eine Fahrgemeinschaft stammen von Ihnen selbst.
+           Name, Personalnummer, Beschäftigungskategorie und Einsatzzeitraum stammen aus unserer Personalverwaltung,
+           die Angaben zur Minijob-Verdienstgrenze aus Ihren Lohnabrechnungen bei uns.</p>
+
+        <h3>Fahrgemeinschaft</h3>
+        <p>Eine Fahrgemeinschaft wird nur eingetragen, wenn Sie sich das selbst wünschen. Die Planung versucht dann,
+           Sie gemeinsam mit den anderen Mitgliedern einzuteilen. Sie können den Eintrag jederzeit im Büro ändern
+           oder streichen lassen.</p>
+
+        <h3>Wie die Planung entsteht</h3>
+        <p>Die App erstellt aus den Verfügbarkeiten einen Vorschlag für den Wochenplan. Sie berücksichtigt dabei nach
+           festen Regeln den Bedarf an Plätzen, Ihre gewünschte Höchstzahl an Schichten, Fahrgemeinschaften, die
+           Beschäftigungskategorie und bei Minijobs die Verdienstgrenze. Der Vorschlag wird von der Einsatzplanung
+           geprüft, bei Bedarf von Hand geändert und erst danach freigegeben. Es wird keine Entscheidung allein durch
+           die Software getroffen.</p>
 
         <h3>Rechtsgrundlage</h3>
         <p>Art. 6 Abs. 1 lit. b DSGVO in Verbindung mit § 26 BDSG (Durchführung des Beschäftigungsverhältnisses).</p>
 
         <h3>Empfänger und Hosting</h3>
+        <p>Innerhalb unseres Unternehmens haben nur die für die Einsatzplanung zuständigen Personen und ihre
+           Vertretung Zugriff. In der App sehen andere Mitarbeitende Ihre Angaben nicht.</p>
+        <p>Unser Kunde FedEx, bei dem Sie im Rahmen der Arbeitnehmerüberlassung eingesetzt werden, erhält von uns den
+           Einsatzplan mit Ihrem Namen, also die Angabe, an welchen Tagen und in welchen Schichten Sie dort arbeiten.
+           Verfügbarkeiten, Lohnangaben und Passwörter erhält FedEx nicht.</p>
         <p>Die Daten liegen bei Supabase (Datenbank, Region Frankfurt, EU) auf Grundlage eines
            Auftragsverarbeitungsvertrags nach Art. 28 DSGVO. Vertragspartner ist die Supabase Pte. Ltd.;
            Supabase setzt Unterauftragnehmer ein (aktuelle Liste: supabase.com/legal/customer-resources/subprocessor-list).
@@ -554,36 +594,40 @@
            gelten die EU-Standardvertragsklauseln (Art. 46 DSGVO), die Teil des Vertrags mit Supabase sind.
            Beim Betrieb der Datenbank fallen technisch bedingt Zugriffsprotokolle an (u. a. IP-Adresse, Zeitpunkt).</p>
         <p>Die Webseite wird über GitHub Pages (GitHub Inc., einem Unternehmen der Microsoft-Gruppe, USA)
-           ausgeliefert; beim Aufruf wird technisch bedingt Ihre IP-Adresse an GitHub übermittelt.
+           ausgeliefert; beim Aufruf wird technisch bedingt Ihre IP-Adresse an GitHub in die USA übermittelt.
            Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren und funktionsfähigen
-           Betrieb der Anwendung (Art. 6 Abs. 1 lit. f DSGVO). Alle Programmbausteine der Anwendung werden
-           von derselben Adresse geladen; es werden keine weiteren Drittanbieter (z. B. Content-Delivery-Netzwerke
-           oder Schriftarten-Dienste) eingebunden. Ihre Verfügbarkeiten sind nur für die Einsatzplanung
-           zuständige Personen einsehbar.</p>
+           Betrieb der Anwendung (Art. 6 Abs. 1 lit. f DSGVO). GitHub ist nach dem Datenschutzrahmen EU-USA
+           (EU-U.S. Data Privacy Framework) zertifiziert; für die USA besteht insoweit ein Angemessenheitsbeschluss
+           der EU-Kommission (Art. 45 DSGVO). Ihre Angaben aus der App (Verfügbarkeiten, Planung, Name) gehen nicht
+           an GitHub. Alle Programmbausteine der Anwendung werden von derselben Adresse geladen; es werden keine
+           weiteren Drittanbieter (z. B. Content-Delivery-Netzwerke oder Schriftarten-Dienste) eingebunden.</p>
 
         <h3>Cookies und Tracking</h3>
         <p>Es gibt kein Tracking, keine Analyse- und keine Werbe-Cookies. Gespeichert wird nur die für die
            Anmeldung technisch notwendige Sitzung im Speicher Ihres Geräts; sie wird beim Abmelden entfernt.
+           Wenn Sie die App 12 Stunden lang nicht bedienen, werden Sie automatisch abgemeldet. Dafür merkt sich
+           Ihr Gerät den Zeitpunkt der letzten Bedienung.
            Auf Geräten der Einsatzplaner kann zusätzlich der Entschlüsselungsschlüssel für die Namen gespeichert werden;
            Geräte der Mitarbeitenden sind davon nicht betroffen.
-           Außerdem merkt sich Ihr Gerät die von Ihnen gewählte Anzeigesprache; diese Einstellung wird nicht
+           Außerdem merkt sich Ihr Gerät die von Ihnen gewählte Anzeigesprache; diese Einstellungen werden nicht
            an uns übermittelt.</p>
 
         <h3>Speicherdauer</h3>
-        <p>Zusätzlich speichern wir Ihre geplanten Schichten (Datum, Schichtart, Uhrzeiten), damit Sie
-           Ihren Einsatz in der App sehen können. Sie sind nur für Sie und die für die Einsatzplanung
-           zuständigen Personen einsehbar; Ihr Name ist dafür nur verschlüsselt hinterlegt (siehe oben).</p>
         <p>Ihre Verfügbarkeitsangaben und geplanten Schichten werden 12 Monate nach Ende der jeweiligen Kalenderwoche gelöscht,
-           soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Ihr Zugang (Personalnummer)
+           soweit keine gesetzlichen Aufbewahrungspflichten entgegenstehen. Die Löschung läuft automatisch einmal im Monat,
+           spätestens also im Monat nach Ablauf der Frist. Ihr Zugang (Personalnummer)
            wird deaktiviert, sobald Sie nicht mehr in der Einsatzplanung geführt werden, und mit den
            zugehörigen Angaben spätestens nach Ablauf dieser Frist gelöscht. Ihr Name und Ihre planungsrelevanten Angaben
            (Beschäftigungskategorie, Fahrgemeinschaft, Einsatzzeitraum) werden aus dem verschlüsselten Bestand entfernt, sobald
            Sie nicht mehr in der Stammliste geführt werden, spätestens beim nächsten Einspielen der Liste.
-           Die Angaben zur Minijob-Verdienstgrenze werden mit jedem monatlichen Stand vollständig ersetzt.</p>
+           Die Angaben zur Minijob-Verdienstgrenze werden mit jedem monatlichen Stand vollständig ersetzt.
+           Aus der internen Arbeitsliste werden Sie entfernt, sobald Ihr Einsatz bei FedEx beendet ist; ältere Fassungen
+           der Liste werden regelmäßig gelöscht.</p>
 
         <h3>Ihre Rechte</h3>
         <p>Sie haben das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
-           Datenübertragbarkeit sowie Widerspruch. Wenden Sie sich dazu an die oben genannte Stelle.
+           Datenübertragbarkeit sowie Widerspruch. Wenden Sie sich dazu an uns (Kontakt oben, oder persönlich im Büro)
+           oder an unseren Datenschutzbeauftragten.
            Sie können sich außerdem bei einer Datenschutz-Aufsichtsbehörde beschweren, in Bayern beim
            Bayerischen Landesamt für Datenschutzaufsicht (BayLDA).</p>
 
@@ -828,10 +872,8 @@ const TEXTE_DE = {
 
   admin_export_titel:    "Export für die Planung",
   admin_csv:             "CSV herunterladen",
-  admin_json:            "JSON herunterladen",
-  admin_export_hinweis:  "CSV für Excel, JSON für die Planungs-KI.",
+  admin_export_hinweis:  "CSV für Excel. Die Datei enthält Verfügbarkeiten je Personalnummer – nach Gebrauch bitte wieder löschen.",
 
-  export_hinweis_text:   "Angaben sind maximale Verfügbarkeit, ungeprüft gegen Arbeitszeitrecht. Eine Verfügbarkeit für LANG schließt SPAET ein."
 };
 // Lebendes Objekt: wird beim Sprachwechsel in-place ueberschrieben (siehe sprachSetzen)
 const TEXTE = Object.assign({}, TEXTE_DE);
@@ -2973,7 +3015,7 @@ function adminMehr(ziel) {
   else kv.info.textContent = "Vorlage für den Dispo-Export";
   ziel.appendChild(kv.knopf);
   ziel.appendChild(startKnopf("Fertige Dispo einlesen (Ausnahme)", "Nur wenn die Dispo außerhalb der App geändert wurde", () => adminAnsicht("dispo")).knopf);
-  ziel.appendChild(startKnopf("Verfügbarkeiten exportieren (CSV/JSON)", "Für Excel oder eine externe Planung", () => adminAnsicht("export")).knopf);
+  ziel.appendChild(startKnopf("Verfügbarkeiten exportieren (CSV)", "Für Excel oder eine eigene Auswertung", () => adminAnsicht("export")).knopf);
   ziel.appendChild(startKnopf("Tresor", tresorKurz() + (tresor.zustand === "offen" ? " · Passwort ändern, Gerät vergessen" : ""), () => adminAnsicht("tresor")).knopf);
   if (!st) adminStatusLaden().then(() => { if (admin.ansicht === "mehr") adminZeichnen(); }).catch(() => { /* Infos bleiben allgemein */ });
 }
@@ -6102,11 +6144,6 @@ function adminExport(ziel) {
   btnCsv.onclick = () => exportieren("csv", btnCsv);
   karte.appendChild(btnCsv);
 
-  const btnJson = el("button", "knopf-mittel grau", TEXTE.admin_json);
-  btnJson.type = "button"; btnJson.style.width = "100%"; btnJson.style.marginTop = "10px";
-  btnJson.onclick = () => exportieren("json", btnJson);
-  karte.appendChild(btnJson);
-
   karte.appendChild(el("p", "hinweisbox", TEXTE.admin_export_hinweis));
   ziel.appendChild(karte);
 }
@@ -6170,13 +6207,9 @@ async function exportieren(art, knopf) {
   try {
     const d = await exportDatenHolen(admin.kw);
     const etikett = kwEtikett(admin.kw);
-    if (art === "csv") {
-      datenSpeichern(csvBauen(etikett, d),
-        "verfuegbarkeit_" + etikett + ".csv", "text/csv;charset=utf-8");
-    } else {
-      datenSpeichern(JSON.stringify(jsonBauen(admin.kw, etikett, d), null, 2),
-        "verfuegbarkeit_" + etikett + ".json", "application/json;charset=utf-8");
-    }
+    // Seit 12.11.2026 nur noch CSV; der fruehere JSON-Export wurde nicht mehr genutzt und ist entfernt.
+    datenSpeichern(csvBauen(etikett, d),
+      "verfuegbarkeit_" + etikett + ".csv", "text/csv;charset=utf-8");
   } catch (e) {
     adminMeldung("schlecht", String(e.message || e));
   }
@@ -6240,66 +6273,6 @@ function csvBauen(etikett, d) {
   }
 
   return "﻿" + zeilen.join("\r\n") + "\r\n";
-}
-
-function jsonBauen(kw, etikett, d) {
-  const k = isoKw(alsDatum(kw));
-  const ende = alsDatum(kw);
-  ende.setDate(ende.getDate() + 4);
-
-  const abgabeNach = {};
-  for (const a of d.abgaben) abgabeNach[a.personalnummer] = a;
-
-  const verfuegbarNach = {};
-  for (const v of d.verfuegbar) {
-    (verfuegbarNach[v.personalnummer] = verfuegbarNach[v.personalnummer] || [])
-      .push({ datum: v.datum, schicht_id: v.schicht_id });
-  }
-
-  // Auch Personalnummern beruecksichtigen, die inzwischen deaktiviert sind,
-  // fuer diese Woche aber schon abgegeben hatten.
-  const allePn = new Set(d.mitarbeiter);
-  for (const a of d.abgaben) allePn.add(a.personalnummer);
-
-  return {
-    meta: {
-      kw: etikett,
-      kw_nummer: k.kw,
-      jahr: k.jahr,
-      start: kw,
-      ende: alsIso(ende),
-      exportiert_am: new Date().toISOString(),
-      hinweis: TEXTE.export_hinweis_text
-    },
-    tage: d.tage.map((t) => ({
-      datum: t.datum,
-      wochentag: TEXTE.wochentage[t.wochentag - 1],
-      gesperrt: t.gesperrt,
-      grund: t.grund || null
-    })),
-    schichten: d.schichten.map((s) => ({
-      datum: s.datum,
-      wochentag: TEXTE.wochentage[s.wochentag - 1],
-      schicht_id: s.schicht_id,
-      name: s.name,
-      beginn: uhr(s.beginn),
-      ende: uhr(s.ende),
-      dauer_h: Number(s.dauer_h),
-      aktiv: s.aktiv
-    })),
-    mitarbeiter: Array.from(allePn).sort((a, b) => a.localeCompare(b, "de")).map((pn) => {
-      const a = abgabeNach[pn];
-      return {
-        personalnummer: pn,
-        abgegeben: !!a,
-        abgegeben_am: a ? a.abgegeben_am : null,
-        max_schichten_woche: a ? a.max_schichten : null,
-        hinweis: null,   // Feld ist stillgelegt (Migration 0014), bleibt nur fuer das Dateiformat
-        verfuegbar: (verfuegbarNach[pn] || []).sort((x, y) =>
-          x.datum.localeCompare(y.datum) || x.schicht_id.localeCompare(y.schicht_id))
-      };
-    })
-  };
 }
 
 function datenSpeichern(inhalt, dateiname, typ) {

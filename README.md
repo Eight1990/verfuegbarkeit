@@ -6,7 +6,7 @@ Eine kleine Web-App, in der Mitarbeitende der **Zeit ist Geld GmbH** für die
 Aus diesen Angaben berechnet die App im Admin-Bereich einen Wochenplan
 (regelbasiert, ohne KI-Dienst). Du prüfst ihn, lädst die Dispo-Datei für den
 Kunden herunter und veröffentlichst die Schichten für die Mitarbeitenden. Wer
-lieber selbst plant, kann die Angaben weiterhin als CSV oder JSON herunterladen.
+lieber selbst plant, kann die Angaben weiterhin als CSV herunterladen.
 
 ---
 
@@ -18,7 +18,7 @@ lieber selbst plant, kann die Angaben weiterhin als CSV oder JSON herunterladen.
 - [Erste Nutzung: Stammliste hochladen](#erste-nutzung-stammliste-hochladen)
 - [Tresor (Namen verschlüsselt)](#tresor-namen-verschlüsselt)
 - [Der Wochenablauf](#der-wochenablauf)
-- [Der Export für die Planungs-KI](#der-export-für-die-planungs-ki)
+- [Der Export (CSV)](#der-export-csv)
 - [Sicherheit selbst nachprüfen](#sicherheit-selbst-nachprüfen)
 - [Wenn etwas nicht klappt](#wenn-etwas-nicht-klappt)
 - [Datenschutz](#datenschutz)
@@ -699,14 +699,16 @@ oder „✗ fehlt".
 
 ---
 
-## Der Export für die Planungs-KI
+## Der Export (CSV)
 
-**Mehr > Verfügbarkeiten exportieren (CSV/JSON)** → Woche oben in der Zeile
-**Woche** wählen → **CSV herunterladen** oder **JSON herunterladen**. Der
+**Mehr > Verfügbarkeiten exportieren (CSV)** → Woche oben in der Zeile
+**Woche** wählen → **CSV herunterladen**. Den früheren JSON-Export gibt es seit
+dem 12.11.2026 nicht mehr (er wurde nicht genutzt). Der
 Export ist optional: Die Wochenplanung rechnet direkt in der App. Er ist für
 eigene Auswertungen oder eine Planung außerhalb der App gedacht.
 
-Dateiname: `verfuegbarkeit_2026-W40.csv` bzw. `.json`
+Dateiname: `verfuegbarkeit_2026-W40.csv`. Die Datei enthält Verfügbarkeiten je
+Personalnummer – nach Gebrauch wieder löschen.
 
 ### CSV
 
@@ -724,24 +726,11 @@ richtig. **Eine Zeile je möglicher Schicht:**
 | `beginn` / `ende` | Uhrzeit dieser Woche | `16:00` / `22:30` |
 | `dauer_h` | Stunden mit Komma | `6,5` |
 | `max_schichten_woche` | eigener Wunsch aus der Abgabe (Regler), leer = keine Angabe | `4` |
-| `hinweis` | Freitext, max. 200 Zeichen | |
+| `hinweis` | immer leer (Feld stillgelegt; die Spalte bleibt nur für das Dateiformat) | |
 | `abgegeben_am` | deutsche Zeit, sortierbar | `2026-09-25 18:12` |
 
 Personalnummern **ohne** Abgabe stehen mit **einer** Zeile und
 `schicht_id = KEINE_ABGABE` drin; die übrigen Felder sind leer.
-
-### JSON
-
-Enthält dasselbe, nur strukturiert:
-
-- **`meta`** — Kalenderwoche, Zeitraum, Exportzeitpunkt und der Hinweistext:
-  *„Angaben sind maximale Verfügbarkeit, ungeprüft gegen Arbeitszeitrecht.
-  Eine Verfügbarkeit für LANG schließt SPAET ein."*
-- **`tage`** — die fünf Tage, inklusive `gesperrt` und `grund`
-- **`schichten`** — alle Schichten der Woche mit Datum, Beginn, Ende, Dauer
-- **`mitarbeiter`** — je Personalnummer: `abgegeben`, `abgegeben_am`,
-  `max_schichten_woche` (eigener Wunsch aus der Abgabe, Regler), `hinweis` und
-  `verfuegbar` als Liste von `{datum, schicht_id}`
 
 ### Wichtig für die Planung
 
@@ -953,7 +942,11 @@ Was du selbst beachten musst:
   Mitarbeitenden** dazu, ebenfalls nur verschlüsselt; er sorgt dafür, dass niemand
   außerhalb seines Einsatzes eingeplant wird. Die Lohndaten kommen jetzt mit der
   Stammliste statt aus einer eigenen Datei (gleiche Felder).
-  Die Freigabe durch den Datenschutzbeauftragten bzw. Anwalt steht noch aus.
+  **Stand 12.11.2026:** Der Text nennt jetzt zusätzlich den Datenschutzbeauftragten, die
+  Freiwilligkeit der App (Abgabe weiter persönlich im Büro möglich), den Kunden als
+  Empfänger des Einsatzplans, die Herkunft der Daten, die Entstehung der Planung, die
+  Übermittlung der IP-Adresse an GitHub in die USA samt Grundlage und die automatische
+  Abmeldung. Die Freigabe durch den Datenschutzbeauftragten steht noch aus.
 
 ---
 
