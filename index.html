@@ -270,7 +270,15 @@
   table.auto-tab{width:100%;border-collapse:collapse;font-size:14px;}
   table.auto-tab td,table.auto-tab th{padding:5px 8px;border-bottom:1px solid var(--rand);text-align:left;vertical-align:top;}
   table.auto-tab th{font-size:12px;color:var(--grau-hell);text-transform:uppercase;}
-  table.auto-tab select{max-width:15em;font-size:14px;}
+  /* Auswahlfeld: nie schmaler als ein Name (sonst sind die Namen abgeschnitten) */
+  table.auto-tab select{width:100%;min-width:13em;font-size:14px;padding:6px 8px;border-width:1px;border-radius:8px;}
+  table.auto-tab td:first-child,table.auto-tab td.auto-zeit{white-space:nowrap;}
+  table.auto-tab td.auto-zeit{font-variant-numeric:tabular-nums;}
+  table.auto-tab td.auto-alt{min-width:9em;}
+  table.auto-tab td{vertical-align:middle;}
+  .sprungziel{scroll-margin-top:120px;}
+  .auto-sprung{display:none;}
+  .hinweisliste{list-style:none;padding-left:4px;margin:6px 0;font-size:15px;}
   table.auto-tab tr.auto-frei td{background:#fff4e0;}
   table.auto-tab tr.auto-fehler td{background:#fde7e7;}
   .auto-hinweis{font-size:12px;color:var(--rot);}
@@ -329,6 +337,56 @@
 
   @media (min-width:700px){
     .schicht{font-size:20px;}
+  }
+
+  /* ---------- Admin am PC/Laptop (das Handy-Layout darunter bleibt unveraendert) ---------- */
+  .admin-leiste{display:flex;align-items:center;gap:12px;margin:10px 0;}
+  .admin-leiste.nur-nav{display:none;}
+  .admin-nav{display:none;}
+  .admin-zurueck{display:flex;align-items:center;gap:12px;}
+  @media (min-width:900px){
+    #screen-admin .huelle{max-width:1020px;padding-left:20px;padding-right:20px;}
+    #screen-admin .huelle.breit{max-width:1360px;}
+    .admin-kopf{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:14px 0 12px;}
+    .admin-kopf .admin-leiste,.admin-kopf .admin-leiste.nur-nav{display:flex;flex:1 1 auto;margin:0;gap:18px;}
+    .admin-kopf #admin-woche{flex:0 0 250px;margin-left:auto;}
+    .admin-kopf #admin-woche .zeile-paar{margin:0;}
+    .admin-kopf #admin-woche .etikett{display:none;}
+    .admin-zurueck .zurueck{display:none;}
+    .admin-zurueck b::before{content:"› ";color:var(--grau-hell);}
+    .admin-kopf #admin-woche select{padding:9px 10px;font-size:16px;}
+    .admin-nav{display:flex;gap:6px;}
+    .admin-nav button{
+      padding:9px 16px;border:2px solid var(--rand);border-radius:11px;background:#fff;
+      font-family:inherit;font-size:16px;color:var(--grau);cursor:pointer;white-space:nowrap;
+    }
+    .admin-nav button:hover{border-color:var(--grau-hell);}
+    .admin-nav button.an{background:var(--gruen);border-color:var(--gruen-dunkel);font-weight:bold;}
+    .admin-zurueck:not(.unter){display:none;}
+    .start-raster{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px;}
+    .start-raster .start-knopf{margin:0 !important;height:100%;}
+    .start-knopf:hover{background:#f6f8e2;}
+    /* Wochenplanung: Sprungleiste bleibt beim Scrollen oben stehen */
+    .auto-sprung{
+      display:flex;flex-wrap:wrap;align-items:center;gap:6px;position:sticky;top:60px;z-index:10;
+      background:#fff;padding:8px 0;margin-bottom:4px;border-bottom:1px solid var(--rand);
+    }
+    .auto-sprung button{
+      border:1px solid var(--rand);background:#f6f6f2;border-radius:999px;padding:5px 12px;
+      font-family:inherit;font-size:14px;color:var(--grau);cursor:pointer;white-space:nowrap;
+    }
+    .auto-sprung button:hover{border-color:var(--grau);}
+    .auto-sprung button.offen{background:#fff4e0;border-color:#e0a030;}
+    .auto-sprung button.fehler{background:#fde7e7;border-color:var(--rot);color:var(--rot);}
+    .auto-sprung .trenner{font-size:13px;color:var(--grau-hell);margin:0 2px 0 8px;}
+    table.auto-tab select{min-width:15em;}
+  }
+  /* Frueh und Spaet eines Tages nebeneinander */
+  @media (min-width:1150px){
+    .auto-schichten{display:grid;grid-template-columns:repeat(auto-fit,minmax(520px,1fr));}
+    .auto-schicht{min-width:0;display:flex;flex-direction:column;}
+    .auto-schicht + .auto-schicht{border-left:1px solid var(--rand);}
+    .auto-schicht .auto-wrap{flex:1;}
   }
 </style>
 </head>
@@ -474,9 +532,11 @@
     <button class="knopf-klein" id="btn-abmelden-admin"></button>
   </header>
 
-  <div class="huelle">
-    <div class="reiter" id="admin-reiter"></div>
-    <div id="admin-woche" class="verborgen"></div>
+  <div class="huelle" id="admin-huelle">
+    <div class="admin-kopf">
+      <div id="admin-reiter"></div>
+      <div id="admin-woche" class="verborgen"></div>
+    </div>
     <div id="admin-meldung" class="meldung verborgen"></div>
     <div id="admin-inhalt"></div>
   </div>
@@ -2943,7 +3003,9 @@ function adminStart(ziel) {
   const k1 = startKnopf("Wochenplanung", null, () => adminAnsicht("woche"));
   const k2 = startKnopf("Mitarbeiter", null, () => adminAnsicht("mitarbeiter"));
   const k3 = startKnopf("Mehr", null, () => adminAnsicht("mehr"));
-  ziel.appendChild(k1.knopf); ziel.appendChild(k2.knopf); ziel.appendChild(k3.knopf);
+  const raster = el("div", "start-raster");
+  raster.appendChild(k1.knopf); raster.appendChild(k2.knopf); raster.appendChild(k3.knopf);
+  ziel.appendChild(raster);
   ziel.appendChild(el("p", "hinweisbox",
     "Namen und Profile liegen verschlüsselt im Tresor. Lesen kann sie nur, wer das Tresor-Passwort kennt – nicht der Datenbank-Anbieter."));
   const meinKw = admin.kw;
@@ -3007,6 +3069,9 @@ function startFuellen(st, schritt, i1, i2, i3) {
 function adminMehr(ziel) {
   const st = admin.status && admin.status.kw === admin.kw ? admin.status : null;
   const fristInfo = st && st.frist ? "Frist " + kwText(admin.kw) + ": " + zeitpunktText(st.frist) : "Frist und Zeiten der gewählten Woche";
+  const raster = el("div", "start-raster");
+  ziel.appendChild(raster);
+  ziel = raster;
   ziel.appendChild(startKnopf("Zeiten und Frist", fristInfo + " · Standardzeiten", () => adminAnsicht("zeiten")).knopf);
   const kv = startKnopf("Dispo-Vorlage", null, () => adminAnsicht("vorlage"));
   kv.info.textContent = "";
@@ -3382,18 +3447,29 @@ function wochenAuswahl(beiWechsel) {
 function adminZeichnen() {
   const leiste = $("admin-reiter");
   leiste.textContent = "";
-  if (admin.ansicht === "start") {
-    leiste.className = "verborgen";
-  } else {
-    leiste.className = "";
-    leiste.style.cssText = "display:flex;align-items:center;gap:12px;margin:10px 0";
-    const zuMehr = MEHR_ANSICHTEN.has(admin.ansicht);
+  const zuMehr = MEHR_ANSICHTEN.has(admin.ansicht);
+  leiste.className = "admin-leiste" + (admin.ansicht === "start" ? " nur-nav" : "");
+  // Feste Navigation (nur am PC/Laptop sichtbar, per CSS): jede Hauptansicht mit einem Klick
+  const nav = el("nav", "admin-nav");
+  const aktiv = zuMehr ? "mehr" : admin.ansicht;
+  [["start", "Start"], ["woche", "Wochenplanung"], ["mitarbeiter", "Mitarbeiter"], ["mehr", "Mehr"]].forEach((n) => {
+    const b = el("button", n[0] === aktiv ? "an" : null, n[1]);
+    b.type = "button";
+    b.onclick = () => adminAnsicht(n[0]);
+    nav.appendChild(b);
+  });
+  leiste.appendChild(nav);
+  if (admin.ansicht !== "start") {
+    // Am Handy der einzige Weg zurueck; am PC nur in den Unterseiten von "Mehr" sichtbar
+    const zeile = el("div", "admin-zurueck" + (zuMehr ? " unter" : ""));
     const zurueck = el("button", "zurueck", zuMehr ? "← Mehr" : "← Start");
     zurueck.type = "button";
     zurueck.onclick = () => adminAnsicht(zuMehr ? "mehr" : "start");
-    leiste.appendChild(zurueck);
-    leiste.appendChild(el("b", null, ANSICHT_TITEL[admin.ansicht] || ""));
+    zeile.appendChild(zurueck);
+    zeile.appendChild(el("b", null, ANSICHT_TITEL[admin.ansicht] || ""));
+    leiste.appendChild(zeile);
   }
+  $("admin-huelle").classList.toggle("breit", admin.ansicht === "woche");
   const wz = $("admin-woche");
   wz.classList.toggle("verborgen", !WOCHEN_ANSICHTEN.has(admin.ansicht));
   const sel = wz.querySelector("select");
@@ -5146,7 +5222,8 @@ const auto = {
 
 /* ---------- Wochenplanung: Schritte 1-4 (Abgaben, Planung, Dispo, Veroeffentlichen) ---------- */
 function schrittKopf(nr, titel) {
-  const h = el("h3", null, nr + " · " + titel);
+  const h = el("h3", "sprungziel", nr + " · " + titel);
+  h.id = "auto-schritt-" + nr;
   h.style.cssText = "margin:18px 0 8px;font-size:17px";
   return h;
 }
@@ -5417,6 +5494,10 @@ function autoZeichnen() {
   box.textContent = "";
   const d = auto.d;
 
+  const sprung = el("div", "auto-sprung");
+  sprung.id = "auto-sprung";
+  box.appendChild(sprung);
+
   box.appendChild(schrittKopf(1, "Abgaben"));
   abgabenAbschnitt(box, d);
 
@@ -5456,6 +5537,36 @@ function autoZeichnen() {
   ergebnis.id = "auto-ergebnis";
   box.appendChild(ergebnis);
   if (auto.erg) autoErgebnisZeichnen(ergebnis);
+  autoSprungZeichnen();
+}
+
+// Sprungleiste der Wochenplanung (per CSS nur am PC/Laptop sichtbar): Schritte und Tage direkt ansteuern.
+// Je Tag steht "besetzt/Plaetze"; gelb = Plaetze frei, rot = Regelverstoss an diesem Tag.
+function autoSprungZeichnen() {
+  const leiste = $("auto-sprung");
+  if (!leiste) return;
+  leiste.textContent = "";
+  const knopf = (text, zielId, klasse) => {
+    const b = el("button", klasse || null, text);
+    b.type = "button";
+    b.onclick = () => { const z = $(zielId); if (z) z.scrollIntoView({ behavior: "smooth", block: "start" }); };
+    leiste.appendChild(b);
+  };
+  knopf("1 Abgaben", "auto-schritt-1");
+  knopf("2 Berechnen", "auto-schritt-2");
+  if (!auto.erg) return;
+  leiste.appendChild(el("span", "trenner", "Plan:"));
+  const fehlerSlots = new Set(auto.erg.verstoesse.filter((v) => v.art === "fehler" && v.slot).map((v) => v.slot));
+  Array.from(new Set(auto.erg.slots.map((s) => s.datum))).sort().forEach((datum) => {
+    const slots = auto.erg.slots.filter((s) => s.datum === datum);
+    const besetzt = slots.filter((s) => auto.zuw[s.id]).length;
+    const klasse = slots.some((s) => fehlerSlots.has(s.id)) ? "fehler" : besetzt < slots.length ? "offen" : null;
+    knopf(AUTO_TAGE[PlanungSolver.wochentagVon(datum) - 1] + " " + besetzt + "/" + slots.length, "auto-tag-" + datum, klasse);
+  });
+  knopf("Wochenübersicht", "auto-uebersicht");
+  leiste.appendChild(el("span", "trenner", "Dann:"));
+  knopf("3 Dateien", "auto-schritt-3");
+  knopf("4 Veröffentlichen", "auto-schritt-4");
 }
 
 function autoListe() {
@@ -5735,6 +5846,7 @@ function autoNeuPruefen() {
   const ziel = $("auto-ergebnis");
   ziel.textContent = "";
   autoErgebnisZeichnen(ziel);
+  autoSprungZeichnen();
 }
 
 function autoSlotText(s) {
@@ -5791,7 +5903,7 @@ function autoErgebnisZeichnen(ziel) {
   // "limit", "fahrgemeinschaft" und "minijob" stehen nur in der Box "Vor dem Veroeffentlichen klaeren"
   const verstoesse = erg.verstoesse.filter((v) => v.typ !== "unbesetzt" && v.typ !== "limit" && v.typ !== "fahrgemeinschaft" && v.typ !== "minijob");
   if (verstoesse.length) {
-    const ul = el("ul");
+    const ul = el("ul", "hinweisliste");
     verstoesse.forEach((v) => {
       const s = v.slot ? erg.slots.filter((x) => x.id === v.slot)[0] : null;
       const li = el("li", null,
@@ -5800,7 +5912,15 @@ function autoErgebnisZeichnen(ziel) {
       if (v.art === "fehler") li.style.color = "var(--rot)";
       ul.appendChild(li);
     });
-    ziel.appendChild(ul);
+    // Regelverstoesse (✗) stehen immer offen da; reine Hinweise (•) sind eingeklappt, damit der Plan sofort sichtbar ist
+    if (verstoesse.some((v) => v.art === "fehler")) {
+      ziel.appendChild(ul);
+    } else {
+      const det = el("details", "block");
+      det.appendChild(el("summary", null, "Hinweise zur Planung (" + verstoesse.length + ") – kein Regelverstoß"));
+      det.appendChild(ul);
+      ziel.appendChild(det);
+    }
   }
 
   if (ueberWunsch.length || fgGetrennt.length || mjUeber.length) {
@@ -5895,7 +6015,8 @@ function autoErgebnisZeichnen(ziel) {
       const l = tagSlots.filter((s) => s.schicht_id === sid);
       return l.filter((s) => auto.zuw[s.id]).length + "/" + l.length;
     };
-    const block = el("div", "auto-tag");
+    const block = el("div", "auto-tag sprungziel");
+    block.id = "auto-tag-" + datum;
     const kopfZeile = el("div", "auto-tag-kopf");
     kopfZeile.appendChild(el("strong", null,
       TAGNAMEN[PlanungSolver.wochentagVon(datum) - 1].toUpperCase() + " " + tagKurz(datum)));
@@ -5903,11 +6024,16 @@ function autoErgebnisZeichnen(ziel) {
     if (tagSlots.some((s) => s.schicht_id === "LANG")) zusammen += " · Office " + zaehle("LANG");
     kopfZeile.appendChild(el("span", null, zusammen));
     block.appendChild(kopfZeile);
+    // Am breiten Bildschirm stehen Frueh und Spaet nebeneinander (CSS .auto-schichten)
+    const schichten = el("div", "auto-schichten");
+    block.appendChild(schichten);
 
     ARTEN.forEach((a) => {
       const liste = tagSlots.filter((s) => s.schicht_id === a[0]);
       if (!liste.length) return;
-      block.appendChild(el("div", "auto-abschnitt", a[2] + " · " + liste[0].beginn + "–" + liste[0].ende));
+      const teil = el("div", "auto-schicht");
+      schichten.appendChild(teil);
+      teil.appendChild(el("div", "auto-abschnitt", a[2] + " · " + liste[0].beginn + "–" + liste[0].ende));
       const wrap = el("div", "auto-wrap");
       const tab = el("table", "auto-tab");
       const th = el("tr");
@@ -5949,21 +6075,35 @@ function autoErgebnisZeichnen(ziel) {
         hinweise.forEach((v) => cName.appendChild(el("div", "auto-hinweis", (v.art === "fehler" ? "✗ " : "• ") + v.text)));
         tr.appendChild(cName);
 
-        tr.appendChild(el("td", null, s.beginn));
-        tr.appendChild(el("td", null, s.ende));
-        tr.appendChild(el("td", null, aktuell ? stdText(s.dauer) : "–"));
+        tr.appendChild(el("td", "auto-zeit", s.beginn));
+        tr.appendChild(el("td", "auto-zeit", s.ende));
+        tr.appendChild(el("td", "auto-zeit", aktuell ? stdText(s.dauer) : "–"));
 
         // Alternativen als Namensliste (frei: alle, sonst die ersten 3 + aufklappbar)
         const cAlt = el("td", "auto-alt");
         const namen = alt.map(nameVon);
         const zeigeAlle = !aktuell || namen.length <= 3;
+        // Freier Platz ohne regelkonforme Alternative: kurzer Satz, die lange Namensliste erst auf Klick
+        const mitKonflikt = !namen.length && !aktuell && weitere.length > 0;
         const text = el("span", null, namen.length
           ? (zeigeAlle ? namen.join(", ") : namen.slice(0, 3).join(", "))
-          : (aktuell ? "–" : (weitere.length
-            ? "Niemand ohne Regelkonflikt. Verfügbar, aber schon eingeplant bzw. Konflikt: " +
-              weitere.map(nameVon).join(", ")
-            : "niemand verfügbar")));
+          : (aktuell ? "–" : (mitKonflikt ? "Niemand ohne Regelkonflikt." : "niemand verfügbar")));
         cAlt.appendChild(text);
+        if (mitKonflikt) {
+          const zu = weitere.length + " verfügbar, aber schon eingeplant bzw. Konflikt";
+          const mehr = document.createElement("button");
+          mehr.type = "button";
+          mehr.textContent = zu;
+          let offen = false;
+          mehr.onclick = () => {
+            offen = !offen;
+            text.textContent = offen
+              ? "Niemand ohne Regelkonflikt. Verfügbar, aber schon eingeplant bzw. Konflikt: " + weitere.map(nameVon).join(", ")
+              : "Niemand ohne Regelkonflikt.";
+            mehr.textContent = offen ? "weniger" : zu;
+          };
+          cAlt.appendChild(mehr);
+        }
         if (!zeigeAlle) {
           const mehr = document.createElement("button");
           mehr.type = "button";
@@ -5980,14 +6120,16 @@ function autoErgebnisZeichnen(ziel) {
         tab.appendChild(tr);
       });
       wrap.appendChild(tab);
-      block.appendChild(wrap);
-      block.appendChild(el("div", "auto-summe", "Summe " + a[2].replace("ZiG ", "") + ": " + stdText(summeMin) + " h"));
+      teil.appendChild(wrap);
+      teil.appendChild(el("div", "auto-summe", "Summe " + a[2].replace("ZiG ", "") + ": " + stdText(summeMin) + " h"));
     });
     ziel.appendChild(block);
   });
 
   // Wochenübersicht: Person × Tag (F = Früh, S = Spät, O = Office)
-  ziel.appendChild(el("h3", null, "Wochenübersicht"));
+  const uebersichtKopf = el("h3", "sprungziel", "Wochenübersicht");
+  uebersichtKopf.id = "auto-uebersicht";
+  ziel.appendChild(uebersichtKopf);
   const wrapM = el("div", "auto-wrap");
   const mat = el("table", "auto-tab");
   const mk = el("tr");
