@@ -258,6 +258,33 @@ window.__LOG=[];
      if(String(body.passwort||"").length<6)return{data:{ok:false,fehler:["Passwort zu kurz."]},error:null};
      v.__pw=body.passwort;__save();return{data:{ok:true,personalnummer:v.personalnummer},error:null};
    }
+   if(name==="mitarbeiter-verwalten"){
+     // gleiche Regeln wie supabase/functions/mitarbeiter-verwalten
+     const a=body.aktion;
+     if(a==="anlegen"||a==="reaktivieren"){
+       const pn=String(body.personalnummer||"").trim(),pw=String(body.passwort||"").trim();
+       if(!PN_MUSTER.test(pn))return{data:{ok:false,fehler:["Personalnummer \\""+pn+"\\" enthaelt unerlaubte Zeichen."]},error:null};
+       if(pw.length<10||pw.length>72)return{data:{ok:false,fehler:["Startpasswort muss mindestens 10 Zeichen haben."]},error:null};
+       const v=__store.employees.find(e=>e.personalnummer===pn);
+       if(v&&v.aktiv)return{data:{ok:false,fehler:["Personalnummer "+pn+" hat bereits einen aktiven Zugang."]},error:null};
+       if(a==="reaktivieren"&&!v)return{data:{ok:false,fehler:["Personalnummer "+pn+" ist nicht angelegt."]},error:null};
+       if(__store.employees.some(e=>e.personalnummer!==pn&&e.personalnummer.toLowerCase()===pn.toLowerCase()))return{data:{ok:false,fehler:["Nur Gross/Klein verschieden."]},error:null};
+       if(v){v.aktiv=true;v.__pw=pw;}else __store.employees.push({personalnummer:pn,aktiv:true,__pw:pw});
+       __save();__LOG.push("mv "+a+" "+pn);return{data:{ok:true,aktion:a,personalnummer:pn,reaktiviert:!!v},error:null};
+     }
+     if(a==="deaktivieren"){
+       const pns=Array.from(new Set((body.personalnummern||[]).map(x=>String(x||"").trim()).filter(x=>x)));
+       if(!pns.length)return{data:{ok:false,fehler:["Keine Personalnummer angegeben."]},error:null};
+       const unbekannt=pns.filter(pn=>!__store.employees.some(e=>e.personalnummer===pn));
+       if(unbekannt.length)return{data:{ok:false,fehler:["Nicht angelegt: "+unbekannt.join(", ")]},error:null};
+       const ziel=pns.filter(pn=>__store.employees.find(e=>e.personalnummer===pn).aktiv);
+       const aktivVorher=__store.employees.filter(e=>e.aktiv).length;
+       if(ziel.length>=3&&ziel.length>aktivVorher/2&&Number(body.bestaetigt)!==ziel.length)return{data:{ok:false,fehler:["Das wuerde "+ziel.length+" von "+aktivVorher+" aktiven Zugaengen deaktivieren. Bitte ausdruecklich bestaetigen."]},error:null};
+       ziel.forEach(pn=>{__store.employees.find(e=>e.personalnummer===pn).aktiv=false;});
+       __save();__LOG.push("mv deaktivieren "+ziel.join(","));return{data:{ok:true,aktion:a,deaktiviert:ziel.length,schon_inaktiv:pns.length-ziel.length,probleme:[]},error:null};
+     }
+     return{data:{ok:false,fehler:["Unbekannte Aktion."]},error:null};
+   }
    if(name==="passwort-setzen")return{data:{ok:true},error:null};
    return{data:{ok:false,fehler:["Funktion "+name+" ist in der Vorschau nicht vorhanden."]},error:null};
  }

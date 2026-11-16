@@ -16,6 +16,7 @@ lieber selbst plant, kann die Angaben weiterhin als CSV herunterladen.
 - [Was du brauchst](#was-du-brauchst)
 - [Einrichtung in 10 Schritten](#einrichtung-in-10-schritten)
 - [Erste Nutzung: Stammliste hochladen](#erste-nutzung-stammliste-hochladen)
+- [Mitarbeiter in der App pflegen](#mitarbeiter-in-der-app-pflegen)
 - [Tresor (Namen verschlüsselt)](#tresor-namen-verschlüsselt)
 - [Der Wochenablauf](#der-wochenablauf)
 - [Der Export (CSV)](#der-export-csv)
@@ -150,6 +151,11 @@ Links auf **Edge Functions** → **Deploy a new function** → **Via Editor**.
 - Inhalt: kompletter Text aus `supabase/functions/passwort-setzen/index.ts`
 - **Deploy**
 - Zusätzlich einmal `0005_passwort_aendern.sql` im SQL Editor ausführen.
+
+**Funktion 4** (Mitarbeiter in der App anlegen, entfernen, wieder aktivieren):
+- Name exakt: `mitarbeiter-verwalten`
+- Inhalt: kompletter Text aus `supabase/functions/mitarbeiter-verwalten/index.ts`
+- **Deploy**
 
 Die Namen müssen genau so geschrieben sein, sonst findet die App sie nicht.
 
@@ -420,6 +426,26 @@ die Person legt beim nächsten Login wieder ein eigenes fest. Ein **vergessenes*
 Passwort können Mitarbeitende nicht selbst zurücksetzen; sie melden sich bei dir.
 
 ---
+
+## Mitarbeiter in der App pflegen
+
+Seit 2026-11-16 werden Mitarbeitende im Alltag in der App gepflegt. Admin → **Mitarbeiter** zeigt alle Zugänge mit
+Suche (Aktive, Entfernte, Alle).
+
+- **+ Mitarbeiter hinzufügen:** Personalnummer, Name, Kategorie, Fahrgemeinschaft, Einsatz von/bis, bei Minijob
+  die Lohndaten. Die App erzeugt das Startpasswort und zeigt es **einmal** an, mit Knopf **WhatsApp-Text kopieren**.
+- **Bearbeiten:** dieselben Felder. Namen, Profile und Lohndaten liegen verschlüsselt im Tresor.
+- **Entfernen** (zweimal tippen): Zugang gesperrt, laufende Anmeldungen beendet; der Name bleibt im Tresor.
+  **Wieder aktivieren** erzeugt ein neues Startpasswort.
+- **Stammliste herunterladen (Excel):** alle aktiven Mitarbeiter mit den Spalten A–M, Passwort leer. Diese Datei ist
+  die Grundlage für den monatlichen Abgleich (Einsatz aus zvoove, Lohndaten aus DocuWare). Sie enthält Lohndaten:
+  nur lokal aufbewahren.
+- **Einspielen einer Excel mit leerer Passwort-Spalte** (z. B. aus der App): Namen, Profile und Lohndaten werden
+  übernommen, wer fehlt, wird deaktiviert, neue Personen bekommen einen Zugang mit Startpasswort. Eine Excel mit
+  Passwörtern funktioniert wie bisher; eine nur teilweise gefüllte Passwort-Spalte wird abgelehnt.
+
+Wichtig: Beim Einspielen gewinnt immer die Excel. Wer in der App etwas geändert hat, lädt vorher die Stammliste aus der
+App herunter und arbeitet mit dieser Datei weiter.
 
 ## Tresor (Namen verschlüsselt)
 
@@ -830,7 +856,7 @@ E-Mail zeigen.
 
 **Beim Import eine CORS-Meldung**
 Der Name der Edge Function stimmt nicht genau (`import-stammliste`,
-`reset-passwort`), oder sie ist nicht veröffentlicht. Unter **Edge Functions**
+`reset-passwort`, `mitarbeiter-verwalten`), oder sie ist nicht veröffentlicht. Unter **Edge Functions**
 nachsehen.
 
 **„Die Datei hat weder eine Spalte "Passwort" noch eine Spalte "Name"."**
@@ -1073,6 +1099,7 @@ supabase/migrations/0016_schichtboerse.sql        Schichtbörse: Schicht freigeb
 supabase/functions/import-stammliste/index.ts     Stammliste einlesen (Server)
 supabase/functions/reset-passwort/index.ts        Einzelpasswort setzen (Server)
 supabase/functions/passwort-setzen/index.ts       eigenes Passwort festlegen (Server)
+supabase/functions/mitarbeiter-verwalten/index.ts Mitarbeiter anlegen, entfernen, wieder aktivieren (Server)
 
 supabase/tests/rls_selbsttest.sql             Sicherheitsregeln nachprüfen (inkl. Tresor, Block 13d)
 

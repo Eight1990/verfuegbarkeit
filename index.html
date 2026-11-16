@@ -532,6 +532,35 @@
   .adm-sys > .adm-knopf{align-self:center;}
   .adm-system .adm-fuss{margin:10px 0 0;padding-top:12px;border-top:1px solid #F0F0EA;font-size:12px;line-height:1.5;color:#6B6B6B;}
 
+  /* ---------- Mitarbeiter von Hand pflegen ---------- */
+  .ma-leiste{display:flex;gap:8px;align-items:center;}
+  #screen-admin .ma-leiste .nf-suche{flex:1;min-width:0;min-height:44px;padding:0 12px;border:1px solid #CFCFC7;border-radius:8px;font-family:inherit;font-size:15px;}
+  #screen-admin #admin-inhalt > .meldung:first-child,#screen-admin #admin-inhalt > .karte:first-child{margin-top:16px;}
+  #screen-admin .ma-leiste select{width:auto;min-height:44px;margin:10px 0;}
+  .ma-knoepfe{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px;}
+  #screen-admin .ma-knoepfe .knopf-klein,#screen-admin .ma-aktionen .knopf-klein{min-height:44px;}
+  .knopf-klein.warn{border-color:var(--rot);color:var(--rot);}
+  .ma-zeile{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #F0F0EA;}
+  .ma-zeile.aus .ma-info b{color:#6B6B6B;}
+  .ma-info{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 220px;}
+  .ma-info span{font-size:13px;color:#6B6B6B;overflow-wrap:anywhere;}
+  .ma-aktionen{display:flex;gap:6px;flex-wrap:wrap;}
+  .ma-form h3{margin:0 0 10px;}
+  .ma-feld{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;}
+  .ma-feld > span{font-size:14px;font-weight:700;}
+  .ma-feld small{font-size:12px;color:#6B6B6B;}
+  #screen-admin .ma-feld input,#screen-admin .ma-feld select{
+    width:100%;min-height:44px;margin:0;padding:0 12px;border:2px solid var(--rand);border-radius:12px;
+    font-family:inherit;font-size:17px;color:var(--grau);background:#fff;
+  }
+  #screen-admin .ma-feld input:disabled{background:#F2F2F2;}
+  .ma-lohn{border:1px solid #E3E3DD;border-radius:12px;padding:10px 14px 0;margin:4px 0 12px;}
+  .ma-lohn legend{font-size:14px;font-weight:700;padding:0 6px;}
+  .ma-pw{border:2px solid #C5D32A;}
+  .ma-pw-zeile{padding:10px 0;border-bottom:1px solid #F0F0EA;display:flex;flex-direction:column;gap:6px;align-items:flex-start;}
+  .ma-pw-wert{font-family:Consolas,"Courier New",monospace;font-size:22px;font-weight:700;letter-spacing:1px;user-select:all;}
+  .ma-pw-text{white-space:pre-wrap;font-family:inherit;font-size:13px;background:#F2F2F2;padding:8px;border-radius:8px;user-select:all;}
+
   /* ---------- Handy ---------- */
   @media (max-width:699px){
     .adm-innen{padding:0 16px;}
@@ -3359,10 +3388,10 @@ async function adminStatusLaden() {
 function startHinweis(st) {
   const zuMitarbeiter = () => adminAnsicht("mitarbeiter");
   if (tresor.zustand !== "offen") return null;
-  if (!st.aktive.length) return { text: "Nächster Schritt: Stammliste einspielen (Mitarbeiter).", knopf: "→ Mitarbeiter", aktion: zuMitarbeiter };
+  if (!st.aktive.length) return { text: "Nächster Schritt: Mitarbeiter anlegen oder Stammliste einspielen (Mitarbeiter).", knopf: "→ Mitarbeiter", aktion: zuMitarbeiter };
   const ohneNamen = st.aktive.filter((pn) => !(stammProfile[pn] && stammProfile[pn].name)).length;
   if (ohneNamen) {
-    return { text: "Nächster Schritt: Stammliste einspielen – " + ohneNamen + " Mitarbeiter " + (ohneNamen === 1 ? "hat" : "haben") + " noch keinen Namen.",
+    return { text: "Nächster Schritt: " + ohneNamen + " Mitarbeiter " + (ohneNamen === 1 ? "hat" : "haben") + " noch keinen Namen – unter Mitarbeiter bei der Person auf „Bearbeiten“ tippen oder die Stammliste einspielen.",
       knopf: "→ Mitarbeiter", aktion: zuMitarbeiter };
   }
   const laufendeBekannt = admin.wochen.some((w) => w.kw_start_datum === st.heute);
@@ -3658,11 +3687,11 @@ function startSystemFuellen(box, st) {
   // Mitarbeiter
   const n = st.aktive.length;
   if (!n) {
-    zeile("warn", "Keine aktiven Mitarbeiter", warnSpan("Stammliste einspielen"), link("Öffnen", () => adminAnsicht("mitarbeiter")));
+    zeile("warn", "Keine aktiven Mitarbeiter", warnSpan("Mitarbeiter anlegen oder Stammliste einspielen"), link("Öffnen", () => adminAnsicht("mitarbeiter")));
   } else if (tresor.zustand === "offen") {
     const ohne = st.aktive.filter((pn) => !(stammProfile[pn] && stammProfile[pn].name)).length;
     const ohneZugang = Object.keys(stammProfile).filter((pn) => st.aktive.indexOf(pn) < 0).length;
-    const teile = [ohne ? warnSpan("⚠ " + ohne + " ohne Namen – Stammliste einspielen") : "Namen " + n + " von " + n + " im Tresor"];
+    const teile = [ohne ? warnSpan("⚠ " + ohne + " ohne Namen – unter Mitarbeiter ergänzen") : "Namen " + n + " von " + n + " im Tresor"];
     if (ohneZugang) teile.push(" · " + ohneZugang + (ohneZugang === 1 ? " Name" : " Namen") + " ohne Zugang");
     zeile(ohne ? "warn" : "ok", n + " aktive Mitarbeiter", teile, null);
   } else {
@@ -4682,6 +4711,7 @@ let stammProfileVersion = 0; // steigt bei jeder Aenderung von stammProfile (Sol
 
 function adminMitarbeiter(ziel) {
   tresorKarte(ziel, "inline");
+  mitarbeiterVerwaltung(ziel);   // Liste, Hinzufuegen, Bearbeiten, Entfernen (Entscheidung Max 2026-11-16)
   const karte = el("div", "karte");
   karte.appendChild(el("h2", null, TEXTE.admin_stamm_titel));
   karte.appendChild(el("p", "hinweisbox", TEXTE.admin_stamm_hinweis));
@@ -4715,6 +4745,8 @@ function adminMitarbeiter(ziel) {
   let deaktBestaetigt = 0;   // Zahl der Deaktivierungen, die in der Vorschau angehakt wurde (Server prueft sie)
   let cbEntfernt = null;
   let cbMinijob = null;      // Pflicht-Kaestchen: Minijobber verlieren ihre bisherige Wochen-Obergrenze
+  let ohnePwPlan = null;     // Excel ohne Passwörter: { deakt: [pn], anlegen: [pn] } aus der Vorschau
+  let cbAnlegen = null;      // Excel ohne Passwörter: Zugänge für neue Personen anlegen (vorbelegt: ja)
 
   const zuruecksetzen = () => {
     gelesenListe = null; gelesenProfile = null; gelesenInfo = null; gelesenLohn = null;
@@ -4729,6 +4761,7 @@ function adminMitarbeiter(ziel) {
     let t = i.dateiname + ": " + i.zeilen + " Zeilen";
     if (i.modus === "voll") t += " · " + gelesenProfile.length + " Namen/Profile · Passwörter: ja";
     else if (i.modus === "nur_zugaenge") t += i.profilFehler ? " · Namen/Profile nicht lesbar – nur Zugänge möglich" : " · Datei ohne Spalte Name: nur Zugänge";
+    else if (i.ohnePw) t += " · " + gelesenProfile.length + " Namen/Profile · ohne Passwörter (z. B. aus der App): Fehlende werden deaktiviert, Neue bekommen einen Zugang";
     else t += " · " + gelesenProfile.length + " Namen/Profile · Datei ohne Passwortspalte: nur Namen";
     if (gelesenLohn) {
       t += " · Lohndaten: " + Object.keys(gelesenLohn.personen).length + " Minijobber (Stand " + datumLang(gelesenLohn.stand) + ")";
@@ -4764,6 +4797,20 @@ function adminMitarbeiter(ziel) {
       if (e && e.code === "KEINE_PW_SPALTE") liste = null;
       else { lese.textContent = ""; eingabe.value = ""; adminMeldung("schlecht", String(e.message || e)); return; }
     }
+    // Excel aus der App (Spalte Passwort vorhanden, aber ganz leer): Namen/Profile übernehmen, Fehlende deaktivieren,
+    // Neue bekommen einen Zugang mit erzeugtem Startpasswort (Entscheidung Max 2026-11-16)
+    let ohnePw = false, dateiPns = null;
+    if (liste && liste.length && liste.every((z) => !z.passwort)) {
+      ohnePw = true;
+      dateiPns = liste.map((z) => z.personalnummer).filter((pn) => pn);
+      liste = null;
+    } else if (liste && liste.some((z) => !z.passwort)) {
+      const leer = liste.filter((z) => !z.passwort).map((z) => z.personalnummer || "?");
+      lese.textContent = ""; eingabe.value = "";
+      adminMeldung("schlecht", "Die Spalte „Passwort“ ist nur teilweise gefüllt (leer bei " + leer.slice(0, 8).join(", ") + (leer.length > 8 ? " …" : "") +
+        "). Entweder alle Passwörter eintragen oder alle leer lassen – leer heißt: neue Personen bekommen in der App ein Startpasswort.");
+      return;
+    }
     if (!liste && !profile) {
       lese.textContent = ""; eingabe.value = "";
       adminMeldung("schlecht", profilFehler || "Die Datei hat weder eine Spalte \"Passwort\" noch eine Spalte \"Name\".");
@@ -4779,7 +4826,8 @@ function adminMitarbeiter(ziel) {
       ? liste.filter((z) => z.personalnummer && !profile.some((p) => p.personalnummer === z.personalnummer)).map((z) => z.personalnummer)
       : [];
     gelesenListe = liste; gelesenProfile = profile; gelesenLohn = profile ? lohn : null;
-    gelesenInfo = { dateiname: datei.name, zeilen: (liste || profile).length, modus: modus, profilFehler: profilFehler, ohneProfil: ohneProfil };
+    gelesenInfo = { dateiname: datei.name, zeilen: (liste || profile).length, modus: modus, profilFehler: profilFehler, ohneProfil: ohneProfil,
+      ohnePw: ohnePw && modus === "nur_namen", dateiPns: dateiPns };
     leseZeileZeigen();
     btnVorschau.disabled = false;
     adminMeldung(null);
@@ -4805,7 +4853,7 @@ function adminMitarbeiter(ziel) {
   // Schritt 2: Vorschau (expliziter Klick)
   btnVorschau.onclick = async () => {
     btnVorschau.disabled = true;
-    cbPflicht = null; cbEntfernt = null; cbMinijob = null; deaktBestaetigt = 0;
+    cbPflicht = null; cbEntfernt = null; cbMinijob = null; deaktBestaetigt = 0; ohnePwPlan = null; cbAnlegen = null;
     ergebnis.textContent = "";
     ergebnis.appendChild(el("div", null, TEXTE.laedt));
     try {
@@ -4825,6 +4873,32 @@ function adminMitarbeiter(ziel) {
         antwort = await funktionRufen("import-stammliste", { modus: "vorschau", eintraege: gelesenListe });
         if (!antwort.ok) { ergebnis.appendChild(fehlerListe(antwort)); btnVorschau.disabled = false; return; }
         await vorschauZeichnen(antwort);
+      } else if (gelesenInfo.ohnePw) {
+        // Excel aus der App: Fehlende deaktivieren (wie beim Einspielen mit Passwörtern), Neue/Entfernte freischalten
+        const r = await sb.from("employees").select("personalnummer, aktiv");
+        if (r.error) throw new Error(r.error.message);
+        const inDatei = new Set(gelesenInfo.dateiPns);
+        const aktiv = new Set((r.data || []).filter((e) => e.aktiv).map((e) => e.personalnummer));
+        const deakt = Array.from(aktiv).filter((pn) => !inDatei.has(pn));
+        const anlegen = gelesenProfile.filter((p) => !aktiv.has(p.personalnummer)).map((p) => p.personalnummer);
+        ohnePwPlan = { deakt: deakt, anlegen: anlegen };
+        ergebnis.appendChild(el("div", "meldung info", gelesenProfile.length + " Namen/Profile · " + (gelesenProfile.length - anlegen.length) +
+          " mit aktivem Zugang · " + anlegen.length + " bekommen einen Zugang · " + deakt.length + " werden deaktiviert"));
+        if (deakt.length) {
+          ergebnis.appendChild(el("div", "meldung schlecht", "⚠ Wird deaktiviert (kann sich danach nicht mehr anmelden): " + deakt.map(nameMitNummer).join(", ")));
+          if (deakt.length >= 3 && deakt.length > 0.2 * Math.max(1, aktiv.size)) {
+            ergebnis.appendChild(el("div", "meldung schlecht", "Richtige Datei und richtiges Blatt gewählt? Es wird nur das erste Tabellenblatt gelesen; " +
+              "ausgeblendete Zeilen zählen nicht."));
+          }
+          cbPflicht = kontrollKaestchen("Ich habe gesehen: " + deakt.length + (deakt.length === 1 ? " Zugang wird" : " Zugänge werden") + " deaktiviert.", false);
+          ergebnis.appendChild(cbPflicht.label);
+        }
+        if (anlegen.length) {
+          const namen = anlegen.map((pn) => { const p = gelesenProfile.find((x) => x.personalnummer === pn); return pn + " – " + p.name; });
+          ergebnis.appendChild(el("div", "meldung info", "Bekommen einen Zugang mit Startpasswort (wird nach dem Übernehmen einmal angezeigt): " + namen.join(", ")));
+          cbAnlegen = kontrollKaestchen(anlegen.length === 1 ? "Für diese Person einen Zugang anlegen" : "Für diese " + anlegen.length + " Personen Zugänge anlegen", true);
+          ergebnis.appendChild(cbAnlegen.label);
+        }
       } else {
         const r = await sb.from("employees").select("personalnummer").eq("aktiv", true);
         if (r.error) throw new Error(r.error.message);
@@ -4832,7 +4906,7 @@ function adminMitarbeiter(ziel) {
         const ohneZugang = gelesenProfile.filter((p) => !aktive.has(p.personalnummer));
         ergebnis.appendChild(el("div", "meldung info", gelesenProfile.length + " Namen/Profile · " + (gelesenProfile.length - ohneZugang.length) +
           " mit aktivem Zugang" + (ohneZugang.length ? " · " + ohneZugang.length + " ohne Zugang (" + ohneZugang.slice(0, 5).map((p) => p.name).join(", ") +
-          (ohneZugang.length > 5 ? " …" : "") + " – Zugang später mit einer Datei mit Passwortspalte anlegen)" : "")));
+          (ohneZugang.length > 5 ? " …" : "") + " – Zugang unter Mitarbeiter mit „Zugang anlegen“)" : "")));
       }
       if (gelesenProfile && tresor.zustand === "offen") {
         const nd = namenDiff();
@@ -4952,6 +5026,12 @@ function adminMitarbeiter(ziel) {
     let text, grund = null;
     if (modus === "voll") text = offen ? "Jetzt übernehmen: Zugänge" + (gelesenLohn ? ", Namen und Lohndaten" : " und Namen") : "Nur Zugänge übernehmen (" + namen + " werden NICHT gespeichert – Tresor oben " + (tresor.zustand === "leer" ? "anlegen" : "öffnen") + ")";
     else if (modus === "nur_zugaenge") text = gelesenInfo.profilFehler ? "Nur Zugänge übernehmen (Namen wegen Fehler nicht gespeichert)" : "Nur Zugänge übernehmen (Datei ohne Namen)";
+    else if (gelesenInfo.ohnePw && ohnePwPlan) {
+      text = "Jetzt übernehmen: " + (gelesenLohn ? "Namen, Profile und Lohndaten" : "Namen und Profile") +
+        (ohnePwPlan.deakt.length ? ", " + ohnePwPlan.deakt.length + " deaktivieren" : "") +
+        (ohnePwPlan.anlegen.length ? ", Zugänge anlegen" : "");
+      if (!offen) grund = "Zuerst oben den Tresor öffnen oder anlegen.";
+    }
     else { text = (gelesenLohn ? "Namen, Profile und Lohndaten" : "Namen und Profile") + " übernehmen (Zugänge bleiben unverändert)"; if (!offen) grund = "Zuerst oben den Tresor öffnen oder anlegen."; }
     const b = mittlererKnopf(text);
     const pruefen = () => {
@@ -5009,7 +5089,8 @@ function adminMitarbeiter(ziel) {
       admin.status = null;
     }
     if (inhalt) await namenSpeichern(inhalt, nach, !!lohn);
-    else if (gelesenProfile && tresor.zustand !== "offen") {
+    if (gelesenInfo.ohnePw && ohnePwPlan) await ohnePwZugaenge(ohnePwPlan, cbAnlegen ? cbAnlegen.cb.checked : false, nach);
+    if (!inhalt && gelesenProfile && tresor.zustand !== "offen") {
       nach.appendChild(el("div", "meldung info", "Namen" + (lohn ? " und Lohndaten" : "") + " wurden NICHT gespeichert, weil der Tresor nicht offen ist. " +
         "Später: Tresor öffnen und die Datei (am besten ohne Passwortspalte) erneut einspielen."));
     }
@@ -5056,10 +5137,421 @@ function adminMitarbeiter(ziel) {
     }
   }
 
+  // Excel ohne Passwörter: nach den Namen die Zugänge angleichen (Edge Function mitarbeiter-verwalten)
+  async function ohnePwZugaenge(plan, anlegenJa, nach) {
+    if (plan.deakt.length) {
+      const res = await funktionRufen("mitarbeiter-verwalten", { aktion: "deaktivieren", personalnummern: plan.deakt, bestaetigt: plan.deakt.length });
+      nach.appendChild(el("div", "meldung " + (res.ok ? "gut" : "schlecht"), res.ok
+        ? "✓ " + (res.deaktiviert || 0) + (res.deaktiviert === 1 ? " Zugang" : " Zugänge") + " deaktiviert."
+        : "✗ Deaktivieren fehlgeschlagen: " + [].concat(res.fehler || res.probleme || "Fehler").join(" ")));
+    }
+    if (anlegenJa && plan.anlegen.length) {
+      const fertig = [], fehler = [];
+      for (const pn of plan.anlegen) {
+        const pw = startpasswortErzeugen();
+        const res = await funktionRufen("mitarbeiter-verwalten", { aktion: "anlegen", personalnummer: pn, passwort: pw });
+        const p = (gelesenProfile || []).find((x) => x.personalnummer === pn) || stammProfile[pn];
+        if (res.ok) fertig.push({ pn: pn, name: p ? p.name : "", pw: pw });
+        else fehler.push(pn + ": " + [].concat(res.fehler || "Fehler").join(" "));
+      }
+      if (fehler.length) nach.appendChild(el("div", "meldung schlecht", "✗ Nicht angelegt: " + fehler.join(" · ")));
+      if (fertig.length) {
+        const box = el("div");
+        nach.appendChild(box);
+        startpasswortAnzeige(box, fertig, "✓ " + fertig.length + (fertig.length === 1 ? " Zugang" : " Zugänge") + " angelegt – Startpasswörter jetzt weitergeben");
+      }
+    }
+    admin.status = null;
+  }
+
   // Frische-Pruefung im Hintergrund (anderes Geraet koennte geschrieben haben)
   tresorAktualisieren().then((geaendert) => {
     if (geaendert && admin.ansicht === "mitarbeiter") { adminZeichnen(); adminMeldung("info", "Der Tresor wurde auf einem anderen Gerät geändert und neu geladen."); }
   }).catch((e) => { if (admin.ansicht === "mitarbeiter") adminMeldung("schlecht", "Tresor konnte nicht geprüft werden: " + String(e.message || e)); });
+}
+
+/* =====================================================================
+   MITARBEITER VON HAND PFLEGEN (Entscheidung Max 2026-11-16)
+   Liste aller Zugaenge, Hinzufuegen, Bearbeiten, Entfernen (= deaktivieren),
+   Wieder aktivieren, Stammliste aus der App herunterladen.
+   Zugaenge: Edge Function mitarbeiter-verwalten. Namen, Profile, Lohndaten:
+   verschluesselt im Tresor (nie im Klartext in der Datenbank).
+   Startpasswoerter erzeugt der Browser; sie werden nur einmal angezeigt.
+===================================================================== */
+const STARTPW_ZEICHEN = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";   // ohne 0/O, 1/l/I
+function startpasswortErzeugen() {
+  const n = STARTPW_ZEICHEN.length, grenze = 256 - (256 % n);
+  let s = "";
+  while (s.length < 12) {
+    const b = crypto.getRandomValues(new Uint8Array(16));
+    for (let i = 0; i < b.length && s.length < 12; i++) if (b[i] < grenze) s += STARTPW_ZEICHEN[b[i] % n];
+  }
+  return s.slice(0, 4) + "-" + s.slice(4, 8) + "-" + s.slice(8, 12);   // 14 Zeichen, gut abzulesen
+}
+// Kurzfassung, von Max am 2026-11-16 gewählt; {pn} und {pw} werden ersetzt
+const WHATSAPP_VORLAGE =
+  "Hallo,\n\nhier sind deine Zugangsdaten für die App, in der du deine Verfügbarkeit für FedEx einträgst und deinen Plan siehst:\n" +
+  "https://eight1990.github.io/verfuegbarkeit/\n\nPersonalnummer: {pn}\nStartpasswort: {pw}\n\n" +
+  "Beim ersten Anmelden legst du dein eigenes Passwort fest. Sag mir gern, wenn etwas nicht funktioniert.";
+function whatsappText(pn, pw) { return WHATSAPP_VORLAGE.replace("{pn}", pn).replace("{pw}", pw); }
+
+// "2026-11-23" -> "23.11.2026"; "2026-10" -> "10/2026"; 2950.5 -> "2950,50"
+function deDatum(iso) { return iso ? iso.slice(8, 10) + "." + iso.slice(5, 7) + "." + iso.slice(0, 4) : ""; }
+function deMonat(jm) { return jm ? jm.slice(5, 7) + "/" + jm.slice(0, 4) : ""; }
+function deZahl(z) { return typeof z === "number" && isFinite(z) ? z.toFixed(2).replace(".", ",") : ""; }
+
+// Ein Profil (und optional den Minijob-Eintrag) in den Tresor schreiben.
+// lohn: Objekt = setzen, null = Eintrag entfernen, undefined = unveraendert lassen.
+async function profilInTresorSpeichern(profil, lohn) {
+  if (tresor.zustand !== "offen" || !tresor.inhalt) throw new Error("Der Tresor ist nicht offen.");
+  const T = await tresorModul();
+  const pn = profil.personalnummer;
+  const bauen = () => {
+    const profile = tresor.inhalt.profile.filter((p) => p.personalnummer !== pn).concat([profil]);
+    let mj = tresor.inhalt.minijob ? JSON.parse(JSON.stringify(tresor.inhalt.minijob)) : null;
+    if (profil.kategorie !== "minijob" || lohn === null) {
+      if (mj && mj.personen[pn]) delete mj.personen[pn];   // Datenminimierung: nur Minijobber mit Daten
+    } else if (lohn) {
+      if (!mj) mj = { stand: alsIso(new Date()), dateiname: "von Hand in der App", personen: {} };
+      mj.personen[pn] = lohn;
+    }
+    return T.inhaltBauen(profile, tresor.inhalt.zuordnung, tresor.inhalt.quelle, null, mj);
+  };
+  try {
+    await tresorSchreiben(bauen());
+  } catch (e) {
+    if (String(e.message) !== TRESOR_KONFLIKT) throw e;
+    await tresorAktualisieren();
+    if (tresor.zustand !== "offen") throw new Error("Der Tresor wurde auf einem anderen Gerät mit neuem Passwort gespeichert. Bitte neu öffnen.");
+    await tresorSchreiben(bauen());
+  }
+  admin.status = null;
+}
+
+// Startpasswoerter einmalig anzeigen (eine oder mehrere Personen), mit WhatsApp-Text zum Kopieren
+function startpasswortAnzeige(box, eintraege, titel) {
+  box.textContent = "";
+  const k = el("div", "karte ma-pw");
+  k.appendChild(el("div", "meldung gut", titel));
+  k.appendChild(el("p", "hinweisbox", "Das Startpasswort wird nur jetzt angezeigt. Schick es der Person per WhatsApp. " +
+    "Beim ersten Anmelden legt sie ihr eigenes Passwort fest."));
+  eintraege.forEach((e) => {
+    const z = el("div", "ma-pw-zeile");
+    z.appendChild(el("div", null, (e.name ? e.name + " · " : "") + "Nr. " + e.pn));
+    z.appendChild(el("div", "ma-pw-wert", e.pw));
+    const kopieren = el("button", "knopf-klein", "WhatsApp-Text kopieren");
+    kopieren.type = "button";
+    kopieren.onclick = async () => {
+      try { await navigator.clipboard.writeText(whatsappText(e.pn, e.pw)); kopieren.textContent = "✓ kopiert"; }
+      catch (_) { kopieren.textContent = "Kopieren nicht möglich – Text unten markieren"; text.open = true; }
+    };
+    z.appendChild(kopieren);
+    const text = el("details");
+    text.appendChild(el("summary", null, "Text anzeigen"));
+    const pre = el("pre", "ma-pw-text", whatsappText(e.pn, e.pw));
+    text.appendChild(pre);
+    z.appendChild(text);
+    k.appendChild(z);
+  });
+  const fertig = mittlererKnopf("Fertig – Passwort ausblenden", true);
+  fertig.onclick = () => { box.textContent = ""; };
+  k.appendChild(fertig);
+  box.appendChild(k);
+  box.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+
+// Stammliste aus der App: Spalten A–M wie in lokal-werkzeuge/stammliste-api.md, Passwort leer, alle Zellen Text
+async function stammlisteHerunterladen() {
+  if (tresor.zustand !== "offen" || !tresor.inhalt) throw new Error("Zuerst den Tresor öffnen: Ohne ihn fehlen Namen und Lohndaten.");
+  await sheetJsLaden();
+  const r = await sb.from("employees").select("personalnummer").eq("aktiv", true);
+  if (r.error) throw new Error(r.error.message);
+  const mj = tresorMinijob();
+  const name = (pn) => (stammProfile[pn] && stammProfile[pn].name) || "";
+  const pns = (r.data || []).map((e) => e.personalnummer).sort((a, b) => name(a).localeCompare(name(b), "de") || a.localeCompare(b));
+  const kopf = ["Personalnummer", "Passwort", "Name", "Kategorie", "Fahrgemeinschaft", "Einsatz von", "Einsatz bis", "Eintritt",
+    "Abgerechnet bis", "SV-Brutto seit Eintritt", "Stunden seit Eintritt", "Minijob-Merkmal", "Stand Lohndaten"];
+  const zeilen = pns.map((pn) => {
+    const p = stammProfile[pn] || {};
+    const l = mj && p.kategorie !== "teilzeit" ? mj.personen[pn] : null;
+    return [pn, "", p.name || "", p.kategorie === "teilzeit" ? "Teilzeit" : "Minijob", p.fahrgemeinschaft || "",
+      deDatum(p.einsatz_von), deDatum(p.einsatz_bis),
+      l ? deDatum(l.eintritt) : "", l ? deMonat(l.abgerechnetBis) : "",
+      l && l.abgerechnetBis ? deZahl(l.svBrutto) : "", l && l.abgerechnetBis ? deZahl(l.stunden) : "",
+      l ? l.minijobMerkmal || "" : "", mj ? deDatum(mj.stand) : ""];
+  });
+  const ws = XLSX.utils.aoa_to_sheet([kopf].concat(zeilen));
+  Object.keys(ws).forEach((adr) => { if (adr[0] !== "!") { ws[adr].t = "s"; ws[adr].z = "@"; } });   // alles als Text
+  ws["!cols"] = kopf.map((k, i) => ({ wch: i === 2 ? 28 : Math.max(12, k.length + 2) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Stammliste");
+  XLSX.writeFile(wb, "stammliste_aus_app_" + alsIso(new Date()) + ".xlsx");
+  return { anzahl: zeilen.length, ohneName: pns.filter((pn) => !name(pn)).length };
+}
+
+// Karte "Mitarbeiter": Liste, Suche, Hinzufuegen, Bearbeiten, Entfernen, Wieder aktivieren, Download
+function mitarbeiterVerwaltung(ziel) {
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, "Mitarbeiter"));
+  const offen = tresor.zustand === "offen";
+  if (!offen) karte.appendChild(el("p", "hinweisbox", "Tresor ist nicht offen: Es stehen nur Personalnummern da. " +
+    "Hinzufügen, Bearbeiten und der Download gehen erst mit offenem Tresor."));
+  const leiste = el("div", "ma-leiste");
+  const suche = document.createElement("input");
+  suche.type = "search";
+  suche.placeholder = "Name oder Personalnummer suchen";
+  suche.className = "nf-suche";
+  const filter = document.createElement("select");
+  [["aktiv", "Aktive"], ["entfernt", "Entfernte"], ["alle", "Alle"]].forEach((f) => {
+    const o = document.createElement("option"); o.value = f[0]; o.textContent = f[1]; filter.appendChild(o);
+  });
+  leiste.appendChild(suche); leiste.appendChild(filter);
+  karte.appendChild(leiste);
+  const knoepfe = el("div", "ma-knoepfe");
+  const bNeu = el("button", "knopf-klein", "+ Mitarbeiter hinzufügen");
+  bNeu.type = "button"; bNeu.disabled = !offen;
+  const bDown = el("button", "knopf-klein", "Stammliste herunterladen (Excel)");
+  bDown.type = "button"; bDown.disabled = !offen;
+  knoepfe.appendChild(bNeu); knoepfe.appendChild(bDown);
+  karte.appendChild(knoepfe);
+  const meldung = el("div");
+  karte.appendChild(meldung);
+  const pwBox = el("div");
+  karte.appendChild(pwBox);
+  const formBox = el("div");
+  karte.appendChild(formBox);
+  const liste = el("div", "ma-liste");
+  karte.appendChild(liste);
+  ziel.appendChild(karte);
+
+  let zugaenge = null;   // Map pn -> aktiv
+  const zeigeMeldung = (art, text) => { meldung.textContent = ""; if (text) meldung.appendChild(el("div", "meldung " + art, text)); };
+  const nameOder = (pn) => (stammProfile[pn] && stammProfile[pn].name) ? stammProfile[pn].name : "Nr. " + pn;
+
+  const laden = async () => {
+    const r = await sb.from("employees").select("personalnummer, aktiv");
+    if (r.error) { zeigeMeldung("schlecht", "Mitarbeiter konnten nicht geladen werden: " + r.error.message); return; }
+    zugaenge = new Map((r.data || []).map((e) => [e.personalnummer, !!e.aktiv]));
+    zeichnen();
+  };
+
+  const zeichnen = () => {
+    liste.textContent = "";
+    if (!zugaenge) { liste.appendChild(el("p", null, TEXTE.laedt)); return; }
+    const alle = new Set(Array.from(zugaenge.keys()).concat(offen ? Object.keys(stammProfile) : []));
+    const s = suche.value.trim().toLowerCase();
+    const f = filter.value;
+    const status = (pn) => (zugaenge.has(pn) ? (zugaenge.get(pn) ? "aktiv" : "entfernt") : "ohne");
+    const zeilen = Array.from(alle)
+      .filter((pn) => f === "alle" || (f === "aktiv" ? status(pn) === "aktiv" : status(pn) !== "aktiv"))
+      .filter((pn) => !s || pn.toLowerCase().indexOf(s) >= 0 || nameOder(pn).toLowerCase().indexOf(s) >= 0)
+      .sort((a, b) => nameOder(a).localeCompare(nameOder(b), "de"));
+    const zahl = Array.from(zugaenge.values()).filter((a) => a).length;
+    liste.appendChild(el("p", "hinweisbox", zahl + " aktive Zugänge · " + (zugaenge.size - zahl) + " entfernt" + (zeilen.length ? "" : " · niemand gefunden")));
+    zeilen.forEach((pn) => {
+      const p = stammProfile[pn];
+      const st = status(pn);
+      const z = el("div", "ma-zeile" + (st !== "aktiv" ? " aus" : ""));
+      const info = el("div", "ma-info");
+      info.appendChild(el("b", null, nameOder(pn)));
+      const teile = [];
+      if (p && p.name) teile.push("Nr. " + pn);
+      if (p) teile.push(p.kategorie === "teilzeit" ? "Teilzeit" : "Minijob");
+      if (p && p.fahrgemeinschaft) teile.push("Fahrgemeinschaft " + p.fahrgemeinschaft);
+      if (p && (p.einsatz_von || p.einsatz_bis)) teile.push("Einsatz " + (p.einsatz_von ? deDatum(p.einsatz_von) : "…") + " – " + (p.einsatz_bis ? deDatum(p.einsatz_bis) : "…"));
+      if (st === "entfernt") teile.push("entfernt");
+      if (st === "ohne") teile.push("ohne Zugang");
+      info.appendChild(el("span", null, teile.join(" · ")));
+      z.appendChild(info);
+      const aktionen = el("div", "ma-aktionen");
+      if (offen) {
+        const bB = el("button", "knopf-klein", "Bearbeiten");
+        bB.type = "button";
+        bB.onclick = () => formular(pn);
+        aktionen.appendChild(bB);
+      }
+      if (st === "aktiv") {
+        const bE = el("button", "knopf-klein", "Entfernen");
+        bE.type = "button";
+        let scharf = null;
+        bE.onclick = async () => {
+          if (!scharf) {
+            bE.textContent = "Wirklich entfernen?";
+            bE.classList.add("warn");
+            scharf = setTimeout(() => { bE.textContent = "Entfernen"; bE.classList.remove("warn"); scharf = null; }, 5000);
+            return;
+          }
+          clearTimeout(scharf); scharf = null;
+          bE.disabled = true; bE.textContent = TEXTE.laedt;
+          const res = await funktionRufen("mitarbeiter-verwalten", { aktion: "deaktivieren", personalnummern: [pn] });
+          if (!res.ok) { zeigeMeldung("schlecht", "Nicht entfernt: " + [].concat(res.fehler || res.probleme || "Fehler").join(" ")); bE.disabled = false; bE.textContent = "Entfernen"; return; }
+          admin.status = null;
+          let warn = "";
+          try {
+            const r = await sb.from("planung").select("datum").eq("personalnummer", pn).gte("kw_start_datum", montagIso(new Date()));
+            if (r.data && r.data.length) warn = " Achtung: ab dieser Woche noch " + r.data.length + " Schicht(en) eingeplant – Planung prüfen.";
+          } catch (_) { /* Hinweis ist optional */ }
+          zeigeMeldung(warn ? "schlecht" : "gut", "✓ " + nameOder(pn) + " entfernt: Der Zugang ist gesperrt, laufende Anmeldungen sind beendet. " +
+            "Der Name bleibt im Tresor." + warn);
+          await laden();
+        };
+        aktionen.appendChild(bE);
+      } else if (offen) {
+        const bA = el("button", "knopf-klein", st === "ohne" ? "Zugang anlegen" : "Wieder aktivieren");
+        bA.type = "button";
+        bA.onclick = async () => {
+          bA.disabled = true; bA.textContent = TEXTE.laedt;
+          const pw = startpasswortErzeugen();
+          const res = await funktionRufen("mitarbeiter-verwalten", { aktion: st === "ohne" ? "anlegen" : "reaktivieren", personalnummer: pn, passwort: pw });
+          if (!res.ok) { zeigeMeldung("schlecht", "Nicht freigeschaltet: " + [].concat(res.fehler || "Fehler").join(" ")); bA.disabled = false; return; }
+          admin.status = null;
+          zeigeMeldung(null);
+          startpasswortAnzeige(pwBox, [{ pn: pn, name: p && p.name, pw: pw }], "✓ Zugang für " + nameOder(pn) + " freigeschaltet");
+          await laden();
+        };
+        aktionen.appendChild(bA);
+      }
+      z.appendChild(aktionen);
+      liste.appendChild(z);
+    });
+  };
+
+  // Formular: pn = null -> neu, sonst bearbeiten
+  const formular = (pn) => {
+    formBox.textContent = "";
+    zeigeMeldung(null);
+    const neu = !pn;
+    const p = pn ? stammProfile[pn] || { personalnummer: pn, name: "", kategorie: "minijob" } : { name: "", kategorie: "minijob" };
+    const l = pn && tresorMinijob() ? tresorMinijob().personen[pn] || null : null;
+    const k = el("div", "karte ma-form");
+    k.appendChild(el("h3", null, neu ? "Mitarbeiter hinzufügen" : "Bearbeiten: " + nameOder(pn)));
+    const feld = (text, eingabe, hilfe) => {
+      const lab = el("label", "ma-feld");
+      lab.appendChild(el("span", null, text));
+      lab.appendChild(eingabe);
+      if (hilfe) lab.appendChild(el("small", null, hilfe));
+      k.appendChild(lab);
+      return eingabe;
+    };
+    const input = (typ, wert) => { const i = document.createElement("input"); i.type = typ; i.value = wert == null ? "" : wert; return i; };
+    const fPn = feld("Personalnummer", input("text", pn || ""), neu ? "wie in zvoove; Buchstaben, Ziffern, . _ -" : null);
+    if (!neu) fPn.disabled = true;
+    const fName = feld("Name", input("text", p.name), "Nachname, Vorname");
+    const fKat = document.createElement("select");
+    [["minijob", "Minijob"], ["teilzeit", "Teilzeit"]].forEach((o) => { const x = document.createElement("option"); x.value = o[0]; x.textContent = o[1]; fKat.appendChild(x); });
+    fKat.value = p.kategorie === "teilzeit" ? "teilzeit" : "minijob";
+    feld("Kategorie", fKat);
+    const fFg = feld("Fahrgemeinschaft", input("text", p.fahrgemeinschaft || ""), "z. B. FG1; leer = keine");
+    const fVon = feld("Einsatz von", input("date", p.einsatz_von || ""));
+    const fBis = feld("Einsatz bis", input("date", p.einsatz_bis || ""), "leer = unbefristet");
+    // Minijob-Lohndaten (aus der Lohnabrechnung abtippen)
+    const lohnBox = el("fieldset", "ma-lohn");
+    lohnBox.appendChild(el("legend", null, "Minijob-Lohndaten (für die Minijob-Grenze)"));
+    const lFeld = (text, eingabe, hilfe) => {
+      const lab = el("label", "ma-feld");
+      lab.appendChild(el("span", null, text)); lab.appendChild(eingabe);
+      if (hilfe) lab.appendChild(el("small", null, hilfe));
+      lohnBox.appendChild(lab); return eingabe;
+    };
+    const fEin = lFeld("Eintritt", input("date", l ? l.eintritt : ""));
+    const fAbg = lFeld("Abgerechnet bis", input("month", l ? l.abgerechnetBis : ""), "letzter abgerechneter Monat; leer = noch keine Abrechnung");
+    const fSv = lFeld("SV-Brutto seit Eintritt (€)", input("number", l && l.abgerechnetBis ? l.svBrutto : ""), "KV-pflichtiges Entgelt seit Eintritt");
+    fSv.step = "0.01"; fSv.min = "0"; fSv.inputMode = "decimal";
+    const fStd = lFeld("Stunden seit Eintritt", input("number", l && l.abgerechnetBis ? l.stunden : ""));
+    fStd.step = "0.01"; fStd.min = "0"; fStd.inputMode = "decimal";
+    const fMm = document.createElement("select");
+    [["?", "unbekannt"], ["ja", "ja"], ["nein", "nein"]].forEach((o) => { const x = document.createElement("option"); x.value = o[0]; x.textContent = o[1]; fMm.appendChild(x); });
+    fMm.value = l && l.minijobMerkmal ? l.minijobMerkmal : "?";
+    lFeld("Minijob-Merkmal", fMm);
+    k.appendChild(lohnBox);
+    const lohnSichtbar = () => { lohnBox.style.display = fKat.value === "minijob" ? "" : "none"; };
+    fKat.onchange = lohnSichtbar; lohnSichtbar();
+    const fehler = el("div");
+    k.appendChild(fehler);
+    const reihe = el("div", "ma-knoepfe");
+    const bSpeichern = el("button", "knopf-mittel", neu ? "Anlegen und Startpasswort erzeugen" : "Speichern");
+    bSpeichern.type = "button";
+    const bAbbr = el("button", "knopf-klein", "Abbrechen");
+    bAbbr.type = "button";
+    bAbbr.onclick = () => { formBox.textContent = ""; };
+    reihe.appendChild(bSpeichern); reihe.appendChild(bAbbr);
+    k.appendChild(reihe);
+    formBox.appendChild(k);
+    formBox.scrollIntoView({ block: "start", behavior: "smooth" });
+    (neu ? fPn : fName).focus();
+
+    bSpeichern.onclick = async () => {
+      fehler.textContent = "";
+      const melde = (t) => { fehler.appendChild(el("div", "meldung schlecht", t)); };
+      const nr = fPn.value.trim();
+      if (neu) {
+        if (!/^[A-Za-z0-9._-]{1,20}$/.test(nr)) return melde("Personalnummer fehlt oder enthält unerlaubte Zeichen.");
+        if (zugaenge && zugaenge.get(nr)) return melde("Personalnummer " + nr + " hat schon einen aktiven Zugang.");
+        if (zugaenge && zugaenge.has(nr)) return melde("Personalnummer " + nr + " ist entfernt: in der Liste bei „Entfernte“ auf „Wieder aktivieren“ tippen.");
+        if (stammProfile[nr]) return melde("Personalnummer " + nr + " steht schon im Tresor: in der Liste „Zugang anlegen“ nehmen.");
+      }
+      const profil = {
+        personalnummer: nr, name: fName.value.trim(), kategorie: fKat.value,
+        fahrgemeinschaft: fFg.value.trim() || null, einsatz_von: fVon.value || null, einsatz_bis: fBis.value || null
+      };
+      if (!profil.name) return melde("Bitte den Namen eintragen (Nachname, Vorname).");
+      if (profil.einsatz_von && profil.einsatz_bis && profil.einsatz_von > profil.einsatz_bis) return melde("„Einsatz von“ liegt nach „Einsatz bis“.");
+      let lohn = undefined;
+      if (profil.kategorie === "minijob") {
+        const leer = !fEin.value && !fAbg.value && fSv.value === "" && fStd.value === "" && fMm.value === "?";
+        if (leer) lohn = l ? null : undefined;
+        else {
+          const zahl = (f) => (f.value === "" ? null : Number(f.value));
+          if (fAbg.value && !fEin.value) return melde("„Eintritt“ fehlt, obwohl „Abgerechnet bis“ gefüllt ist.");
+          if (fAbg.value && zahl(fSv) === null) return melde("„SV-Brutto seit Eintritt“ fehlt, obwohl „Abgerechnet bis“ gefüllt ist.");
+          if ((zahl(fSv) !== null && !(zahl(fSv) >= 0)) || (zahl(fStd) !== null && !(zahl(fStd) >= 0))) return melde("Beträge und Stunden müssen Zahlen ab 0 sein.");
+          lohn = {
+            eintritt: fEin.value || null, austritt: null, abgerechnetBis: fAbg.value || null,
+            svBrutto: fAbg.value ? zahl(fSv) : 0, stunden: fAbg.value ? zahl(fStd) || 0 : 0, minijobMerkmal: fMm.value
+          };
+        }
+      }
+      bSpeichern.disabled = true; bSpeichern.textContent = TEXTE.laedt;
+      try {
+        let pw = null;
+        if (neu) {
+          pw = startpasswortErzeugen();
+          const res = await funktionRufen("mitarbeiter-verwalten", { aktion: "anlegen", personalnummer: nr, passwort: pw });
+          if (!res.ok) throw new Error([].concat(res.fehler || "Zugang konnte nicht angelegt werden.").join(" "));
+          // Zugang steht: Passwort sofort zeigen, auch falls danach das Speichern im Tresor scheitert
+          startpasswortAnzeige(pwBox, [{ pn: nr, name: profil.name, pw: pw }], "✓ Zugang für " + profil.name + " angelegt");
+        }
+        try {
+          await profilInTresorSpeichern(profil, lohn);
+        } catch (e) {
+          if (neu) { zeigeMeldung("schlecht", "Zugang ist angelegt, aber Name und Profil wurden NICHT gespeichert: " + String(e.message || e) +
+            " – bitte in der Liste bei Nr. " + nr + " auf „Bearbeiten“ tippen und erneut speichern."); formBox.textContent = ""; await laden(); return; }
+          throw e;
+        }
+        formBox.textContent = "";
+        if (!neu) zeigeMeldung("gut", "✓ " + profil.name + " gespeichert.");
+        await laden();
+      } catch (e) {
+        bSpeichern.disabled = false; bSpeichern.textContent = neu ? "Anlegen und Startpasswort erzeugen" : "Speichern";
+        melde(String(e.message || e));
+      }
+    };
+  };
+
+  bNeu.onclick = () => formular(null);
+  bDown.onclick = async () => {
+    bDown.disabled = true;
+    try {
+      const r = await stammlisteHerunterladen();
+      zeigeMeldung("gut", "✓ Stammliste mit " + r.anzahl + " aktiven Mitarbeitern heruntergeladen (Ordner Downloads). Sie enthält Lohndaten: " +
+        "nur lokal aufbewahren, nicht per E-Mail oder Chat weitergeben." + (r.ohneName ? " ⚠ " + r.ohneName + " ohne Namen." : ""));
+    } catch (e) { zeigeMeldung("schlecht", String(e.message || e)); }
+    bDown.disabled = false;
+  };
+  suche.oninput = zeichnen;
+  filter.onchange = zeichnen;
+  zeichnen();
+  laden();
 }
 
 function fehlerListe(antwort) {
@@ -5198,7 +5690,7 @@ function einsatzFiltern(verfuegbar, profile) {
 // (alle) oder beendeter Minijob-Vertrag (Grenze 0) –, aber nur, wer dafuer Verfuegbarkeit abgegeben hat.
 function einsatzHinweise(verfuegbar, profile, lage) {
   const f = einsatzFiltern(verfuegbar, profile);
-  const korrektur = " (stimmt das nicht: Stammliste aktualisieren)";
+  const korrektur = " (stimmt das nicht: unter Mitarbeiter bei der Person auf „Bearbeiten“ tippen)";
   const zeilen = [];
   Object.keys(f.betroffen).forEach((pn) => {
     const b = f.betroffen[pn];
@@ -6589,7 +7081,7 @@ function minijobLeiste(ziel, lage) {
     const n = auto.d.mitarbeiter.filter((pn) => minijobGrenzeVon(lage, pn) !== null).length;
     box = el("div", "meldung " + (veraltet ? "schlecht" : "gut"), (veraltet ? "⚠ " : "✓ ") +
       "Minijob-Stand vom " + tagKurz(lage.stand.stand) + " (abgerechnet bis " + monatText(bis) + ") · " + n + " Minijobber mit Wochen-Obergrenze" +
-      (veraltet ? " · Minijob-Stand veraltet – bitte die Stammliste aktualisieren und neu einspielen. " : ""));
+      (veraltet ? " · Minijob-Stand veraltet – bitte die Lohndaten aktualisieren (monatlicher Stammlisten-Abgleich oder unter Mitarbeiter → Bearbeiten). " : ""));
     if (veraltet) box.appendChild(zuMitarbeiter());
   }
   ziel.appendChild(box);
@@ -7455,7 +7947,7 @@ async function autoExportieren(knopf, art) {
   if (ohneName.length) {
     adminMeldung("schlecht", "Export gesperrt: Für " + ohneName.length + " Personen fehlt der Name (Nr. " +
       ohneName.slice(0, 8).join(", ") + (ohneName.length > 8 ? " …" : "") +
-      "). Bitte unter Mitarbeiter die Stammliste einspielen.");
+      "). Bitte unter Mitarbeiter bei diesen Personen auf „Bearbeiten“ tippen und den Namen eintragen (oder die Stammliste einspielen).");
     return;
   }
   knopf.disabled = true;
