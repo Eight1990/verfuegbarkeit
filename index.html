@@ -374,29 +374,11 @@
   }
 
   /* ---------- Admin am PC/Laptop (das Handy-Layout darunter bleibt unveraendert) ---------- */
-  .admin-leiste{display:flex;align-items:center;gap:12px;margin:10px 0;}
-  .admin-leiste.nur-nav{display:none;}
-  .admin-nav{display:none;}
-  .admin-zurueck{display:flex;align-items:center;gap:12px;}
+  /* Kopf, Menue und KW-Umschalter des Admins: siehe Block "admin-design" weiter unten */
   @media (min-width:900px){
     #screen-admin .huelle{max-width:1020px;padding-left:20px;padding-right:20px;}
     #screen-admin .huelle.breit{max-width:1360px;}
-    .admin-kopf{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:14px 0 12px;}
-    .admin-kopf .admin-leiste,.admin-kopf .admin-leiste.nur-nav{display:flex;flex:1 1 auto;margin:0;gap:18px;}
-    .admin-kopf #admin-woche{flex:0 0 250px;margin-left:auto;}
-    .admin-kopf #admin-woche .zeile-paar{margin:0;}
-    .admin-kopf #admin-woche .etikett{display:none;}
-    .admin-zurueck .zurueck{display:none;}
-    .admin-zurueck b::before{content:"› ";color:var(--grau-hell);}
-    .admin-kopf #admin-woche select{padding:9px 10px;font-size:16px;}
-    .admin-nav{display:flex;gap:6px;}
-    .admin-nav button{
-      padding:9px 16px;border:2px solid var(--rand);border-radius:11px;background:#fff;
-      font-family:inherit;font-size:16px;color:var(--grau);cursor:pointer;white-space:nowrap;
-    }
-    .admin-nav button:hover{border-color:var(--grau-hell);}
-    .admin-nav button.an{background:var(--gruen);border-color:var(--gruen-dunkel);font-weight:bold;}
-    .admin-zurueck:not(.unter){display:none;}
+    #screen-admin .huelle.start{max-width:1200px;padding-left:24px;padding-right:24px;}
     .start-raster{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:12px;}
     .start-raster .start-knopf{margin:0 !important;height:100%;}
     .start-knopf:hover{background:#f6f8e2;}
@@ -421,6 +403,194 @@
     .auto-schicht{min-width:0;display:flex;flex-direction:column;}
     .auto-schicht + .auto-schicht{border-left:1px solid var(--rand);}
     .auto-schicht .auto-wrap{flex:1;}
+  }
+</style>
+<style id="admin-design">
+  /* =====================================================================
+     Admin im neuen Design (Vorlage admin-start-design.html, 2026-11-16).
+     Alles gilt nur innerhalb von #screen-admin; die Mitarbeiter-Seite bleibt unveraendert.
+     Effekt-Klassen aus der Vorlage: fx, btn-p, btn-s, btn-d, btn-i, card, nav-a, rise, bar, pulse.
+  ===================================================================== */
+  #screen-admin{background:#F4F4F1;min-height:100vh;color:#2B2B2B;}
+  #screen-admin button{font-family:inherit;}
+
+  /* ---------- Kopfzeile ---------- */
+  #screen-admin header.balken{display:block;padding:0;border-bottom:3px solid #C5D32A;}
+  .adm-innen{max-width:1200px;margin:0 auto;padding:0 24px;}
+  .adm-kopf-innen{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding-top:10px;padding-bottom:10px;}
+  #screen-admin header.balken .marke{gap:16px;}
+  #screen-admin header.balken .marke img{height:38px;}
+  .adm-trenn{width:1px;height:28px;background:#E3E3DD;}
+  .adm-titel{font-size:15px;font-weight:700;color:#2B2B2B;white-space:nowrap;}
+  .adm-titel span{font-weight:400;color:#6B6B6B;}
+  .adm-kopf-rechts{display:flex;align-items:center;gap:10px;}
+  .adm-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:#EEF3C9;color:#4A5410;font-size:13px;font-weight:700;white-space:nowrap;}
+  .adm-pill.aus{background:#ECECE6;color:#4D4D4D;}
+  .adm-pill.fehler{background:#fbe9e7;color:var(--rot);}
+
+  /* ---------- Knoepfe ---------- */
+  #screen-admin .adm-knopf{
+    min-height:44px;padding:0 14px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;
+  }
+  #screen-admin .adm-knopf.btn-s{border:1px solid #CFCFC7;background:#FFFFFF;color:#2B2B2B;}
+  #screen-admin .adm-knopf.btn-d{border:none;background:#4D4D4D;color:#FFFFFF;}
+  #screen-admin .adm-knopf.btn-p{border:none;background:#C5D32A;color:#2B2B2B;}
+  #screen-admin .adm-knopf.gross{min-height:48px;padding:0 20px;border-radius:10px;font-size:15px;font-weight:400;}
+  #screen-admin .adm-knopf.btn-p.gross{padding:0 22px;font-size:16px;font-weight:700;}
+  #screen-admin .adm-knopf:disabled{opacity:.6;cursor:default;}
+  #screen-admin .adm-link{
+    background:none;border:0;padding:0 4px;min-height:44px;font-size:13px;color:#4D4D4D;
+    text-decoration:underline;cursor:pointer;align-self:center;
+  }
+  #screen-admin .adm-link:hover{color:#2B2B2B;}
+
+  /* ---------- Menue und KW-Umschalter ---------- */
+  .adm-navband{background:#FFFFFF;border-bottom:1px solid #E3E3DD;}
+  .adm-navband .admin-kopf{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;}
+  #screen-admin .admin-leiste{flex:1 1 auto;min-width:0;}
+  #screen-admin .admin-nav{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;}
+  #screen-admin .admin-nav::-webkit-scrollbar{display:none;}
+  #screen-admin .admin-nav button{
+    display:inline-flex;align-items:center;min-height:48px;padding:0 14px;border:0;border-bottom:3px solid transparent;
+    border-radius:0;background:none;font-size:15px;color:#4D4D4D;white-space:nowrap;cursor:pointer;
+  }
+  #screen-admin .admin-nav button.an{font-weight:700;color:#2B2B2B;border-bottom-color:#C5D32A;}
+  #admin-woche{display:flex;align-items:center;gap:4px;padding:6px 0;}
+  .adm-kw{min-width:150px;text-align:center;padding:0 8px;}
+  .adm-kw b{display:block;font-size:15px;}
+  .adm-kw span{font-size:12px;color:#6B6B6B;}
+  #screen-admin .btn-i{
+    width:44px;height:44px;border:1px solid #CFCFC7;background:#FFFFFF;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;color:#4D4D4D;cursor:pointer;padding:0;
+  }
+  #screen-admin .btn-i:disabled{opacity:.35;cursor:default;}
+  #admin-pfad .admin-zurueck{display:flex;align-items:center;gap:12px;margin:14px 0 0;}
+  #admin-pfad .admin-zurueck .zurueck{margin:0;}
+  /* Tresor-Karte ueber dem Statusbereich: Abstand zum Menue */
+  #screen-admin .huelle.start #admin-inhalt > .karte:first-child{margin-top:24px;}
+  /* Kopfzeile ist hoeher als frueher: Sprungleiste der Wochenplanung darunter anhaengen */
+  @media (min-width:900px){ #screen-admin .auto-sprung{top:67px;} }
+
+  /* ---------- Startseite ---------- */
+  .adm-main{display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start;padding-top:28px;}
+  .adm-links{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:24px;}
+  .adm-links > .meldung{margin:0;}
+  .adm-status{background:#FFFFFF;border:1px solid #E3E3DD;border-radius:14px;padding:28px;display:flex;flex-wrap:wrap;gap:32px;}
+  .adm-status-haupt{flex:3 1 340px;min-width:0;display:flex;flex-direction:column;gap:14px;}
+  .adm-phase{font-size:13px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:#5E6A0E;}
+  .adm-zahl{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+  .adm-zahl b{font-size:44px;line-height:1;color:#2B2B2B;}
+  .adm-zahl span{font-size:17px;color:#4D4D4D;}
+  .adm-balken{height:12px;background:#ECECE6;border-radius:999px;overflow:hidden;}
+  .adm-balken > div{height:100%;background:#C5D32A;border-radius:999px;}
+  .adm-frist{display:flex;align-items:center;gap:8px;font-size:15px;color:#2B2B2B;}
+  .adm-frist svg{flex-shrink:0;}
+  .adm-notiz{font-size:14px;color:#4D4D4D;}
+  .adm-knoepfe{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;}
+  .adm-schritte{flex:2 1 220px;min-width:0;list-style:none;margin:0;padding:0 0 0 24px;border-left:1px solid #ECECE6;display:flex;flex-direction:column;gap:18px;justify-content:center;}
+  .adm-schritte li{display:flex;align-items:center;gap:12px;}
+  .adm-punkt{width:30px;height:30px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0;background:#FFFFFF;color:#6B6B6B;border:1.5px solid #CFCFC7;}
+  .adm-schritte li.jetzt .adm-punkt{background:#C5D32A;color:#2B2B2B;border:0;box-shadow:0 0 0 4px #EEF3C9;}
+  .adm-schritte li.fertig .adm-punkt{background:#EEF3C9;color:#4A5410;border:0;}
+  .adm-schritte .adm-st{display:flex;flex-direction:column;gap:2px;}
+  .adm-schritte .t{font-size:15px;color:#6B6B6B;}
+  .adm-schritte li.jetzt .t{font-weight:700;color:#2B2B2B;}
+  .adm-schritte li.fertig .t{color:#2B2B2B;}
+  .adm-schritte .u{font-size:12px;color:#6B6B6B;}
+  .adm-h2{margin:0;font-size:16px;font-weight:700;color:#4D4D4D;}
+  .adm-schnell{display:flex;flex-direction:column;gap:12px;}
+  .adm-karten{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;}
+  .adm-karte{background:#FFFFFF;border:1px solid #E3E3DD;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px;}
+  .adm-karte-kopf{display:flex;align-items:center;gap:10px;}
+  .adm-karte .ico{width:36px;height:36px;border-radius:10px;background:#EEF3C9;display:flex;align-items:center;justify-content:center;color:#4A5410;flex-shrink:0;}
+  .adm-karte h3{margin:0;font-size:16px;}
+  .adm-karte p{margin:0;font-size:13px;line-height:1.45;color:#6B6B6B;}
+  .adm-karte label{font-size:12px;font-weight:700;color:#4D4D4D;}
+  .adm-karte .adm-fueller{flex:1;}
+  .adm-karte .adm-reihe{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+  .adm-feld{display:flex;gap:8px;}
+  #screen-admin .adm-feld input{
+    flex:1;min-width:0;width:auto;min-height:44px;margin:0;padding:0 12px;border:1px solid #CFCFC7;border-radius:8px;
+    font-family:inherit;font-size:15px;color:#2B2B2B;background:#FFFFFF;
+  }
+  .adm-rueck{font-size:13px;line-height:1.4;}
+  .adm-rueck.gut{color:#4A5410;}
+  .adm-rueck.schlecht{color:var(--rot);}
+  .adm-system{flex:1 1 280px;min-width:0;background:#FFFFFF;border:1px solid #E3E3DD;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:4px;}
+  .adm-system .adm-h2{margin-bottom:10px;}
+  .adm-sys{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #F0F0EA;}
+  .adm-sys-ico{width:22px;height:22px;border-radius:999px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .adm-sys-ico.ok{background:#C5D32A;color:#2B2B2B;}
+  .adm-sys-ico.warn{background:#fbe9e7;color:var(--rot);}
+  .adm-sys-ico.neutral{background:#ECECE6;color:#4D4D4D;}
+  .adm-sys-ico.schloss{background:#EEF3C9;color:#4A5410;}
+  .adm-sys-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1;}
+  .adm-sys-text b{font-size:14px;}
+  .adm-sys-text span{font-size:12px;color:#6B6B6B;overflow-wrap:anywhere;}
+  .adm-sys-text .status-nein{color:var(--rot);}
+  .adm-sys > .adm-knopf{align-self:center;}
+  .adm-system .adm-fuss{margin:10px 0 0;padding-top:12px;border-top:1px solid #F0F0EA;font-size:12px;line-height:1.5;color:#6B6B6B;}
+
+  /* ---------- Handy ---------- */
+  @media (max-width:699px){
+    .adm-innen{padding:0 16px;}
+    #screen-admin .huelle.start{padding-left:16px;padding-right:16px;}
+    .adm-trenn{display:none;}
+    #screen-admin header.balken .marke{flex-wrap:wrap;gap:4px 12px;}
+    #screen-admin header.balken .marke img{height:32px;}
+    .adm-navband .admin-kopf{flex-direction:column;align-items:stretch;gap:0;}
+    #admin-woche{justify-content:center;border-top:1px solid #F0F0EA;}
+    .adm-main{padding-top:16px;gap:16px;}
+    .adm-links{gap:16px;}
+    .adm-status{padding:20px;gap:20px;}
+    .adm-zahl b{font-size:36px;}
+    .adm-schritte{padding:18px 0 0;border-left:0;border-top:1px solid #ECECE6;}
+    .adm-knoepfe .adm-knopf{flex:1 1 auto;}
+  }
+
+  /* ---------- Effekte aus der Vorlage ---------- */
+  #screen-admin .fx{position:relative;overflow:hidden;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s ease,background-color .18s ease,border-color .18s ease,color .18s ease;}
+  #screen-admin .fx::after{content:"";position:absolute;left:50%;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:currentColor;opacity:0;transform:scale(12);transition:transform .6s ease,opacity .6s ease;pointer-events:none;}
+  #screen-admin .fx:active::after{opacity:.22;transform:scale(0);transition:0s;}
+  #screen-admin .fx:hover:not(:disabled){transform:translateY(-2px);}
+  #screen-admin .fx:active:not(:disabled){transform:translateY(0) scale(.96);transition-duration:.06s;}
+  #screen-admin .fx:focus-visible,#screen-admin .nav-a:focus-visible,#screen-admin .adm-link:focus-visible{outline:3px solid #8E9A1E;outline-offset:2px;}
+  #screen-admin .btn-p{box-shadow:0 2px 0 #A9B51F;}
+  #screen-admin .btn-p:hover{background-color:#D2DE45;box-shadow:0 8px 20px -6px rgba(140,152,20,.65);}
+  #screen-admin .btn-p:active{box-shadow:0 1px 0 #A9B51F;}
+  #screen-admin .btn-p .arr{transition:transform .2s cubic-bezier(.2,.8,.2,1);}
+  #screen-admin .btn-p:hover .arr{transform:translateX(5px);}
+  #screen-admin .btn-s:hover:not(:disabled){border-color:#4D4D4D;box-shadow:0 6px 14px -8px rgba(0,0,0,.35);}
+  #screen-admin .btn-d:hover:not(:disabled){background-color:#2B2B2B;box-shadow:0 6px 14px -6px rgba(0,0,0,.45);}
+  #screen-admin .btn-ok{background-color:#C5D32A !important;color:#2B2B2B !important;animation:adm-pop .35s cubic-bezier(.2,1.6,.4,1);}
+  #screen-admin .btn-i:hover:not(:disabled){border-color:#4D4D4D;color:#2B2B2B;}
+  #screen-admin .btn-i.prev:hover:not(:disabled) svg{transform:translateX(-3px);}
+  #screen-admin .btn-i.next:hover:not(:disabled) svg{transform:translateX(3px);}
+  #screen-admin .btn-i svg{transition:transform .18s ease;}
+  #screen-admin .nav-a{transition:color .15s ease,border-color .2s ease,background-color .15s ease;}
+  #screen-admin .nav-a:hover{color:#2B2B2B;border-bottom-color:#E1E89A;background-color:#FAFBF0;}
+  #screen-admin .nav-a.an:hover{border-bottom-color:#C5D32A;}
+  #screen-admin .nav-a:active{background-color:#F1F4D6;}
+  #screen-admin .card{transition:transform .22s cubic-bezier(.2,.8,.2,1),box-shadow .22s ease,border-color .22s ease;}
+  #screen-admin .card:hover{transform:translateY(-3px);box-shadow:0 14px 30px -14px rgba(77,77,77,.35);border-color:#D6DC9A;}
+  #screen-admin .card .ico{transition:transform .3s cubic-bezier(.2,1.6,.4,1),background-color .2s ease;}
+  #screen-admin .card:hover .ico{transform:rotate(-8deg) scale(1.12);background-color:#E1E89A;}
+  #screen-admin .rise{animation:adm-rise .5s cubic-bezier(.2,.8,.2,1) both;}
+  #screen-admin .d1{animation-delay:.06s;} #screen-admin .d2{animation-delay:.12s;} #screen-admin .d3{animation-delay:.18s;}
+  #screen-admin .d4{animation-delay:.24s;} #screen-admin .d5{animation-delay:.3s;}
+  #screen-admin .bar{transform-origin:left center;animation:adm-grow 1.1s cubic-bezier(.2,.8,.2,1) .3s both;}
+  #screen-admin .pulse{animation:adm-pulse 2s ease-out infinite;}
+  #screen-admin .lock{transition:transform .25s ease;}
+  #screen-admin .adm-pill:hover .lock{transform:rotate(-12deg);}
+  #screen-admin .adm-feld input:focus{outline:none;border-color:#8E9A1E;box-shadow:0 0 0 3px #EEF3C9;}
+  #screen-admin .adm-feld input{transition:border-color .15s ease,box-shadow .15s ease;}
+  @keyframes adm-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes adm-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes adm-pulse{0%{box-shadow:0 0 0 0 rgba(197,211,42,.7)}70%{box-shadow:0 0 0 12px rgba(197,211,42,0)}100%{box-shadow:0 0 0 0 rgba(197,211,42,0)}}
+  @keyframes adm-pop{0%{transform:scale(.9)}100%{transform:scale(1)}}
+  @media (prefers-reduced-motion:reduce){
+    #screen-admin *,#screen-admin *::before,#screen-admin *::after{animation:none !important;transition:none !important;}
   }
 </style>
 </head>
@@ -568,15 +738,23 @@
 <!-- =================== ADMIN =================== -->
 <section id="screen-admin" class="verborgen">
   <header class="balken">
-    <div class="marke" data-marke data-admin></div>
-    <button class="knopf-klein" id="btn-abmelden-admin"></button>
+    <div class="adm-innen adm-kopf-innen">
+      <div class="marke" data-marke data-admin></div>
+      <div class="adm-kopf-rechts">
+        <span id="admin-tresor-pill" class="adm-pill aus"></span>
+        <button type="button" class="adm-knopf btn-s fx" id="btn-abmelden-admin"></button>
+      </div>
+    </div>
   </header>
-
-  <div class="huelle" id="admin-huelle">
-    <div class="admin-kopf">
+  <nav class="adm-navband" aria-label="Hauptnavigation">
+    <div class="adm-innen admin-kopf">
       <div id="admin-reiter"></div>
       <div id="admin-woche" class="verborgen"></div>
     </div>
+  </nav>
+
+  <div class="huelle" id="admin-huelle">
+    <div id="admin-pfad"></div>
     <div id="admin-meldung" class="meldung verborgen"></div>
     <div id="admin-inhalt"></div>
   </div>
@@ -2973,7 +3151,8 @@ function tresorMinijob() {
 }
 
 /* =====================================================================
-   ADMIN-OBERFLAECHE: Navigation, Startseite, Tresor-Karten, "Mehr"
+   ADMIN-OBERFLAECHE: Navigation, Startseite, Tresor-Karten, "Einstellungen" (frueher "Mehr")
+   Design ab 2026-11-16 nach Vorlage admin-start-design.html (CSS-Block "admin-design").
    Statt sieben Reitern: Startseite mit drei Knoepfen (Wochenplanung,
    Mitarbeiter, Mehr), eine globale Wochenzeile, Tresor-Karte nur wenn
    etwas zu tun ist. Jede Ansicht hat eine id; ADMIN_ANSICHTEN ordnet ihr
@@ -2983,7 +3162,7 @@ function tresorMinijob() {
 const WOCHEN_ANSICHTEN = new Set(["start", "woche", "zeiten", "export", "boerse"]);
 const MEHR_ANSICHTEN = new Set(["zeiten", "vorlage", "dispo", "export", "tresor"]);
 const ANSICHT_TITEL = {
-  woche: "Wochenplanung", mitarbeiter: "Mitarbeiter", mehr: "Mehr", zeiten: "Zeiten und Frist",
+  woche: "Wochenplanung", mitarbeiter: "Mitarbeiter", mehr: "Einstellungen", zeiten: "Zeiten und Frist",
   vorlage: "Dispo-Vorlage", dispo: "Fertige Dispo einlesen", export: "Verfügbarkeiten exportieren", tresor: "Tresor",
   nachfrist: "Abgabe für eine Person öffnen", boerse: "Schichtbörse"
 };
@@ -3000,15 +3179,84 @@ function adminAnsicht(id) {
   window.scrollTo({ top: 0 });
 }
 
-// Globale Wochenzeile (#admin-woche): genau eine Wochenauswahl fuer alle Ansichten
+// Kleine Strich-Symbole (feste Zeichnungen aus der Design-Vorlage, keine Daten)
+const ADM_IKONEN = {
+  links: '<path d="M15 6l-6 6 6 6"></path>',
+  rechts: '<path d="M9 6l6 6-6 6"></path>',
+  pfeil: '<path d="M5 12h14M13 6l6 6-6 6"></path>',
+  uhr: '<circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path>',
+  uhrKlein: '<circle cx="12" cy="12" r="8"></circle><path d="M12 8v4l2 2"></path>',
+  person: '<circle cx="12" cy="8" r="4"></circle><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"></path>',
+  tausch: '<path d="M7 7h11l-3-3M17 17H6l3 3"></path>',
+  download: '<path d="M12 3v12M7 10l5 5 5-5M4 21h16"></path>',
+  haken: '<path d="M5 12l5 5 9-10"></path>',
+  warn: '<path d="M12 7v6M12 17v.5"></path>',
+  schlossOffen: '<rect x="4" y="11" width="16" height="10" rx="2"></rect><path d="M8 11V7a4 4 0 0 1 7.5-2"></path>',
+  schlossZu: '<rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0"></path>'
+};
+function admIkon(name, groesse, strich, klasse) {
+  const s = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  s.setAttribute("width", groesse || 16);
+  s.setAttribute("height", groesse || 16);
+  s.setAttribute("viewBox", "0 0 24 24");
+  s.setAttribute("fill", "none");
+  s.setAttribute("stroke", "currentColor");
+  s.setAttribute("stroke-width", strich || 2);
+  s.setAttribute("stroke-linecap", "round");
+  s.setAttribute("aria-hidden", "true");
+  if (klasse) s.setAttribute("class", klasse);
+  s.innerHTML = ADM_IKONEN[name] || "";
+  return s;
+}
+function admKnopf(text, art, beiKlick, gross) {
+  const b = el("button", "adm-knopf fx " + art + (gross ? " gross" : ""), text);
+  b.type = "button";
+  if (beiKlick) b.onclick = beiKlick;
+  return b;
+}
+
+// Globale Wochenzeile (#admin-woche): KW-Umschalter ‹ KW 48 › fuer alle Ansichten.
+// admin.wochen ist absteigend sortiert: "vorherige" Woche = naechster Index.
 function wochenZeileAufbauen() {
   const wz = $("admin-woche");
   wz.textContent = "";
-  wz.appendChild(wochenAuswahl(() => { admin.status = null; adminZeichnen(); }));
+  const i = admin.wochen.findIndex((w) => w.kw_start_datum === admin.kw);
+  const gesperrt = !!admin.wochenGesperrt;
+  const wechsel = (j) => {
+    const w = admin.wochen[j];
+    if (!w || admin.wochenGesperrt) return;
+    admin.kw = w.kw_start_datum;
+    admin.status = null;
+    adminZeichnen();
+  };
+  const zurueck = el("button", "btn-i prev fx");
+  zurueck.type = "button";
+  zurueck.setAttribute("aria-label", "Vorherige Kalenderwoche");
+  zurueck.appendChild(admIkon("links", 16, 2.4));
+  zurueck.disabled = gesperrt || i < 0 || i >= admin.wochen.length - 1;
+  zurueck.onclick = () => wechsel(i + 1);
+  const vor = el("button", "btn-i next fx");
+  vor.type = "button";
+  vor.setAttribute("aria-label", "Nächste Kalenderwoche");
+  vor.appendChild(admIkon("rechts", 16, 2.4));
+  vor.disabled = gesperrt || i <= 0;
+  vor.onclick = () => wechsel(i - 1);
+  const mitte = el("div", "adm-kw");
+  mitte.setAttribute("aria-live", "polite");
+  if (admin.kw) {
+    const ende = alsDatum(admin.kw);
+    ende.setDate(ende.getDate() + 4);
+    mitte.appendChild(el("b", null, kwText(admin.kw)));
+    mitte.appendChild(el("span", null, tagKurz(admin.kw) + " – " + tagKurz(alsIso(ende)) + ende.getFullYear()));
+  } else {
+    mitte.appendChild(el("b", null, "keine Woche"));
+  }
+  wz.appendChild(zurueck); wz.appendChild(mitte); wz.appendChild(vor);
 }
 function wochenZeileSperren(an) {
-  const s = $("admin-woche").querySelector("select");
-  if (s) s.disabled = !!an;
+  admin.wochenGesperrt = !!an;
+  $("admin-woche").querySelectorAll("button").forEach((b) => { b.disabled = !!an; });
+  if (!an) wochenZeileAufbauen();
 }
 
 function kwText(kw) { return "KW " + isoKw(alsDatum(kw)).kw; }
@@ -3104,12 +3352,11 @@ async function adminStatusLaden() {
   return status;
 }
 
-function naechsterSchritt(st) {
+// Hinweis ueber dem Statusbereich: nur wenn etwas ausserhalb des normalen Ablaufs zu tun ist.
+// Den Tresor zeigt die Tresor-Karte darueber selbst an.
+function startHinweis(st) {
   const zuMitarbeiter = () => adminAnsicht("mitarbeiter");
-  const zuWoche = () => adminAnsicht("woche");
-  if (tresor.zustand === "fehler") return { text: "Nächster Schritt: Tresor neu laden (oben)." };
-  if (tresor.zustand === "leer") return { text: "Nächster Schritt: Tresor anlegen (oben), danach Stammliste einspielen (Mitarbeiter)." };
-  if (tresor.zustand === "gesperrt") return { text: "Nächster Schritt: Tresor öffnen (oben)." };
+  if (tresor.zustand !== "offen") return null;
   if (!st.aktive.length) return { text: "Nächster Schritt: Stammliste einspielen (Mitarbeiter).", knopf: "→ Mitarbeiter", aktion: zuMitarbeiter };
   const ohneNamen = st.aktive.filter((pn) => !(stammProfile[pn] && stammProfile[pn].name)).length;
   if (ohneNamen) {
@@ -3121,20 +3368,37 @@ function naechsterSchritt(st) {
     return { text: "⚠ " + kwText(st.heute) + " läuft und ist nicht veröffentlicht.", warnung: true,
       knopf: "→ " + kwText(st.heute) + " planen", aktion: () => { admin.kw = st.heute; admin.status = null; adminAnsicht("woche"); } };
   }
-  const veroeff = st.stand[st.kw];
-  if (!veroeff && st.zeilen[st.kw]) {
-    return { text: "Planung für " + kwText(st.kw) + " vorhanden (" + st.zeilen[st.kw] + " Schichten, Stand unbekannt).", knopf: "→ Wochenplanung", aktion: zuWoche };
-  }
-  if (!veroeff) {
-    const fristVorbei = st.frist && new Date(st.frist) < new Date();
-    if (fristVorbei) return { text: "Nächster Schritt: Planung für " + kwText(st.kw) + " berechnen und veröffentlichen.", knopf: "→ Wochenplanung", aktion: zuWoche };
-    return { text: "Warten auf Abgaben: " + st.abgegeben + " von " + st.aktive.length + (st.frist ? ", Frist " + zeitpunktText(st.frist) : "") + ". Du kannst schon jetzt planen.",
-      knopf: "→ Wochenplanung", aktion: zuWoche };
-  }
-  const naechste = admin.wochen.map((w) => w.kw_start_datum).filter((k) => k > st.kw).sort()[0];
-  return { text: "Erledigt: " + kwText(st.kw) + " ist seit " + zeitpunktText(veroeff.aktualisiert_am) + " veröffentlicht (" + veroeff.anzahl + " Schichten).",
-    knopf: naechste ? "→ Weiter mit " + kwText(naechste) : null,
-    aktion: naechste ? () => { admin.kw = naechste; admin.status = null; wochenZeileAufbauen(); adminZeichnen(); } : null };
+  return null;
+}
+
+// Phase der gewaehlten Woche: 1 Abgaben laufen · 2 Frist vorbei – planen · 4 Veroeffentlicht (Schritt 3 ist dann erledigt)
+function startPhase(st) {
+  if (st.stand[st.kw]) return 4;
+  if (st.frist && new Date(st.frist) < new Date()) return 2;
+  return 1;
+}
+function fristWochentag(iso) {
+  return new Date(iso).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin", weekday: "short" }).replace(".", "");
+}
+// "noch 4 Tage" / "noch 1 Tag" / "noch 5 Std." / "noch 12 Min." / null (vorbei)
+function restzeitText(iso) {
+  const ms = new Date(iso) - new Date();
+  if (ms <= 0) return null;
+  const tage = Math.floor(ms / 86400000);
+  if (tage >= 1) return "noch " + tage + (tage === 1 ? " Tag" : " Tage");
+  const std = Math.floor(ms / 3600000);
+  if (std >= 1) return "noch " + std + " Std.";
+  return "noch " + Math.max(1, Math.ceil(ms / 60000)) + " Min.";
+}
+function fristZeile(st) {
+  if (!st.frist) return "Keine Abgabefrist eingetragen";
+  const rest = restzeitText(st.frist);
+  return "Frist: " + fristWochentag(st.frist) + " " + zeitpunktText(st.frist) + " Uhr · " + (rest || "abgelaufen");
+}
+// "Wer fehlt noch?": Wochenplanung oeffnen und dort die Liste "Wer fehlt" aufklappen
+function werFehltZeigen() {
+  admin.werFehltAuf = true;
+  adminAnsicht("woche");
 }
 
 function tresorKurz() {
@@ -3153,81 +3417,292 @@ function tresorQuelleText() {
 // ---------- Startseite ----------
 function adminStart(ziel) {
   tresorKarte(ziel, "start");
-  const schritt = el("div", "meldung info", "Status wird geladen …");
-  schritt.style.marginBottom = "12px";
-  ziel.appendChild(schritt);
-  const k1 = startKnopf("Wochenplanung", null, () => adminAnsicht("woche"));
-  const k2 = startKnopf("Mitarbeiter", null, () => adminAnsicht("mitarbeiter"));
-  const k3 = startKnopf("Mehr", null, () => adminAnsicht("mehr"));
-  const raster = el("div", "start-raster");
-  raster.appendChild(k1.knopf); raster.appendChild(k2.knopf); raster.appendChild(k3.knopf);
-  ziel.appendChild(raster);
-  ziel.appendChild(startKnopf("Abgabe für eine Person öffnen",
-    "Nachzügler oder Falsch-Klick: " + NACHFRIST_MINUTEN + " Minuten offen, nur für diese Person, danach automatisch zu",
-    () => adminAnsicht("nachfrist")).knopf);
-  const kb = startKnopf("Schichtbörse (Ausfall nach der Planung)", "Schicht freigeben, wenn jemand ausfällt – " + kwText(admin.kw), () => adminAnsicht("boerse"));
-  ziel.appendChild(kb.knopf);
-  boerseStartInfo(kb.info).catch(() => { /* Info bleibt allgemein (z. B. Migration 0016 fehlt) */ });
-  ziel.appendChild(el("p", "hinweisbox",
-    "Namen und Profile liegen verschlüsselt im Tresor. Lesen kann sie nur, wer das Tresor-Passwort kennt – nicht der Datenbank-Anbieter."));
+  const main = el("div", "adm-main");
+  const links = el("div", "adm-links");
+  const statusBox = el("section", "adm-status rise d1");
+  statusBox.setAttribute("aria-label", "Status der Woche");
+  statusBox.appendChild(el("p", "adm-notiz", "Status wird geladen …"));
+  links.appendChild(statusBox);
+  links.appendChild(startSchnellaktionen());
+  const system = el("aside", "adm-system rise d3");
+  system.setAttribute("aria-labelledby", "adm-sys-titel");
+  const sysTitel = el("h2", "adm-h2", "Systemstatus");
+  sysTitel.id = "adm-sys-titel";
+  system.appendChild(sysTitel);
+  system.appendChild(el("p", "adm-notiz", TEXTE.laedt));
+  main.appendChild(links);
+  main.appendChild(system);
+  ziel.appendChild(main);
+
   const meinKw = admin.kw;
   adminStatusLaden().then((st) => {
-    if (admin.ansicht !== "start" || admin.kw !== meinKw) return;
-    startFuellen(st, schritt, k1.info, k2.info, k3.info);
+    if (admin.ansicht !== "start" || admin.kw !== meinKw || !document.body.contains(statusBox)) return;
+    const h = startHinweis(st);
+    if (h) {
+      const box = el("div", "meldung " + (h.warnung ? "schlecht" : "info"), h.text);
+      if (h.knopf && h.aktion) box.appendChild(kleinerKnopf(h.knopf, h.aktion));
+      links.insertBefore(box, statusBox);
+    }
+    startStatusFuellen(statusBox, st);
+    startSystemFuellen(system, st);
+    // Restzeit der Frist jede Minute auffrischen, solange die Startseite offen ist
+    const uhr = setInterval(() => {
+      if (admin.ansicht !== "start" || !document.body.contains(statusBox)) { clearInterval(uhr); return; }
+      const f = statusBox.querySelector(".adm-frist span");
+      if (f) f.textContent = fristZeile(st);
+    }, 60000);
   }).catch((e) => {
-    if (admin.ansicht !== "start") return;
-    schritt.className = "meldung schlecht";
-    schritt.textContent = "Status konnte nicht geladen werden: " + String(e.message || e) + " ";
-    schritt.appendChild(kleinerKnopf("Neu laden", () => { admin.status = null; adminZeichnen(); }));
-    [k1, k2, k3].forEach((k) => { k.info.textContent = "Status konnte nicht geladen werden"; });
+    if (admin.ansicht !== "start" || !document.body.contains(statusBox)) return;
+    statusBox.textContent = "";
+    const m = el("div", "meldung schlecht", "Status konnte nicht geladen werden: " + String(e.message || e) + " ");
+    m.style.margin = "0";
+    m.appendChild(kleinerKnopf("Neu laden", () => { admin.status = null; adminZeichnen(); }));
+    statusBox.appendChild(m);
+    system.querySelector(".adm-notiz").textContent = "Status konnte nicht geladen werden.";
   });
 }
 
-function startFuellen(st, schritt, i1, i2, i3) {
-  const n = naechsterSchritt(st);
-  schritt.className = "meldung " + (n.warnung ? "schlecht" : "info");
-  schritt.textContent = n.text;
-  if (n.knopf && n.aktion) schritt.appendChild(kleinerKnopf(n.knopf, n.aktion));
-
-  i1.textContent = "";
+// Statusbereich: Phase, "X von Y abgegeben", Balken, Frist, Haupt-Knoepfe, Ablauf in 4 Schritten
+function startStatusFuellen(box, st) {
+  box.textContent = "";
+  const phase = startPhase(st);
   const veroeff = st.stand[st.kw];
-  const fristVorbei = st.frist && new Date(st.frist) < new Date();
-  i1.appendChild(document.createTextNode(kwText(st.kw) + " · " + st.abgegeben + " von " + st.aktive.length + " abgegeben · " +
-    (st.frist ? (fristVorbei ? "Frist vorbei" : "Frist " + zeitpunktText(st.frist)) : "keine Frist") + " · "));
-  if (veroeff) i1.appendChild(document.createTextNode("✓ veröffentlicht " + zeitpunktText(veroeff.aktualisiert_am) + " (" + veroeff.anzahl + " Schichten)"));
-  else if (st.zeilen[st.kw]) i1.appendChild(document.createTextNode("Planung vorhanden (" + st.zeilen[st.kw] + " Schichten, Stand unbekannt)"));
-  else i1.appendChild(document.createTextNode("noch nicht veröffentlicht"));
-  if (auto.erg && auto.kw === st.kw && !auto.veroeffentlicht) i1.appendChild(document.createTextNode(" · Entwurf im Speicher"));
-
-  i2.textContent = "";
-  if (!st.aktive.length) {
-    i2.appendChild(warnSpan("Noch keine Zugänge – Stammliste einspielen"));
-  } else {
-    i2.appendChild(document.createTextNode(st.aktive.length + " aktive Zugänge · "));
-    if (tresor.zustand === "offen") {
-      const ohne = st.aktive.filter((pn) => !(stammProfile[pn] && stammProfile[pn].name)).length;
-      const ohneZugang = Object.keys(stammProfile).filter((pn) => st.aktive.indexOf(pn) < 0).length;
-      if (ohne) i2.appendChild(warnSpan("⚠ " + ohne + " ohne Namen – Stammliste einspielen"));
-      else i2.appendChild(document.createTextNode("Namen " + st.aktive.length + " von " + st.aktive.length + " ✓"));
-      if (ohneZugang) i2.appendChild(document.createTextNode(" · " + ohneZugang + (ohneZugang === 1 ? " Name" : " Namen") + " ohne Zugang"));
-      i2.appendChild(document.createTextNode(tresorQuelleText()));
-    } else if (tresor.zustand === "gesperrt") {
-      i2.appendChild(warnSpan("⚠ Tresor gesperrt – Namen fehlen"));
-    } else if (tresor.zustand === "leer") {
-      i2.appendChild(document.createTextNode("noch kein Tresor"));
-    } else {
-      i2.appendChild(warnSpan("Tresor: Fehler"));
-    }
+  const gesamt = st.aktive.length;
+  const fehlen = Math.max(0, gesamt - st.abgegeben);
+  const haupt = el("div", "adm-status-haupt");
+  const PHASEN = { 1: "Schritt 1 von 4 · Abgaben laufen", 2: "Schritt 2 von 4 · Frist vorbei – planen", 4: "Schritt 4 von 4 · Veröffentlicht" };
+  haupt.appendChild(el("div", "adm-phase", kwText(st.kw) + " · " + PHASEN[phase]));
+  const zahl = el("div", "adm-zahl");
+  zahl.appendChild(el("b", null, st.abgegeben + " von " + gesamt));
+  zahl.appendChild(el("span", null, "Verfügbarkeiten abgegeben"));
+  haupt.appendChild(zahl);
+  const prozent = gesamt ? Math.round(st.abgegeben / gesamt * 100) : 0;
+  const balken = el("div", "adm-balken");
+  balken.setAttribute("role", "img");
+  balken.setAttribute("aria-label", "Fortschritt " + prozent + " %");
+  const fuell = el("div", "bar");
+  fuell.style.width = Math.max(prozent, 2) + "%";
+  balken.appendChild(fuell);
+  haupt.appendChild(balken);
+  const frist = el("div", "adm-frist");
+  frist.appendChild(admIkon("uhr", 18, 2));
+  frist.appendChild(el("span", null, fristZeile(st)));
+  haupt.appendChild(frist);
+  if (veroeff) {
+    haupt.appendChild(el("div", "adm-notiz", "✓ Veröffentlicht am " + zeitpunktText(veroeff.aktualisiert_am) + " Uhr · " + veroeff.anzahl + " Schichten"));
+  } else if (st.zeilen[st.kw]) {
+    haupt.appendChild(el("div", "adm-notiz", "Planung vorhanden (" + st.zeilen[st.kw] + " Schichten), noch nicht veröffentlicht"));
   }
+  if (auto.erg && auto.kw === st.kw && !auto.veroeffentlicht) haupt.appendChild(el("div", "adm-notiz", "Entwurf im Speicher (noch nicht veröffentlicht)"));
 
-  i3.textContent = "";
-  i3.appendChild(document.createTextNode("Zeiten & Frist · "));
-  if (st.vorlage) i3.appendChild(document.createTextNode("Dispo-Vorlage ✓"));
-  else i3.appendChild(warnSpan("⚠ Dispo-Vorlage fehlt"));
-  i3.appendChild(document.createTextNode(" · Dispo einlesen · Export · " + tresorKurz()));
+  const knoepfe = el("div", "adm-knoepfe");
+  const pfeilKnopf = (text, ansicht) => {
+    const b = admKnopf(text, "btn-p", () => adminAnsicht(ansicht), true);
+    b.appendChild(admIkon("pfeil", 16, 2.4, "arr"));
+    return b;
+  };
+  if (phase === 1) {
+    knoepfe.appendChild(pfeilKnopf("Wochenplanung öffnen", "woche"));
+    knoepfe.appendChild(admKnopf("Wer fehlt noch?", "btn-s", werFehltZeigen, true));
+  } else if (phase === 2) {
+    knoepfe.appendChild(pfeilKnopf("Plan erstellen", "woche"));
+    if (fehlen) knoepfe.appendChild(admKnopf(fehlen + (fehlen === 1 ? " Fehlenden anzeigen" : " Fehlende anzeigen"), "btn-s", werFehltZeigen, true));
+  } else {
+    knoepfe.appendChild(pfeilKnopf("Schichtbörse öffnen", "boerse"));
+    knoepfe.appendChild(admKnopf("Plan ansehen", "btn-s", () => adminAnsicht("woche"), true));
+  }
+  haupt.appendChild(knoepfe);
+  box.appendChild(haupt);
+
+  const ol = el("ol", "adm-schritte");
+  ol.setAttribute("aria-label", "Ablauf der Woche");
+  [
+    ["Abgaben sammeln", st.frist ? "bis " + fristWochentag(st.frist) + " " + uhrzeitText(st.frist) : "ohne Frist"],
+    ["Planen", "Schichten verteilen"],
+    ["Veröffentlichen", "Plan an Mitarbeiter"],
+    ["Schichtbörse", "Ausfälle tauschen"]
+  ].forEach((s, i) => {
+    const nr = i + 1;
+    const li = el("li", nr === phase ? "jetzt" : (nr < phase ? "fertig" : null));
+    if (nr === phase) li.setAttribute("aria-current", "step");
+    const punkt = el("span", "adm-punkt" + (nr === phase ? " pulse" : ""));
+    if (nr < phase) { punkt.appendChild(admIkon("haken", 14, 3)); punkt.setAttribute("aria-label", "erledigt"); }
+    else punkt.textContent = String(nr);
+    li.appendChild(punkt);
+    const t = el("span", "adm-st");
+    t.appendChild(el("span", "t", s[0]));
+    t.appendChild(el("span", "u", s[1]));
+    li.appendChild(t);
+    ol.appendChild(li);
+  });
+  box.appendChild(ol);
 }
 
-// ---------- "Mehr": zweite Startseite ----------
+// Schnellaktionen: Abgabe nachtraeglich oeffnen (Personalnummer), Schichtboerse, Daten & Export
+function startSchnellaktionen() {
+  const sec = el("section", "adm-schnell");
+  sec.setAttribute("aria-labelledby", "adm-schnell-titel");
+  const h = el("h2", "adm-h2", "Schnellaktionen");
+  h.id = "adm-schnell-titel";
+  sec.appendChild(h);
+  const raster = el("div", "adm-karten");
+  sec.appendChild(raster);
+  const karte = (titel, ikon, text, verz) => {
+    const k = el("div", "adm-karte card rise " + verz);
+    const kopf = el("div", "adm-karte-kopf");
+    const ico = el("span", "ico");
+    ico.appendChild(admIkon(ikon, 18, 2));
+    kopf.appendChild(ico);
+    kopf.appendChild(el("h3", null, titel));
+    k.appendChild(kopf);
+    k.appendChild(el("p", null, text));
+    raster.appendChild(k);
+    return k;
+  };
+
+  // 1) Abgabe nachtraeglich oeffnen: gleiche Server-Funktion wie die Liste (nachfrist_oeffnen, Migration 0015)
+  const k1 = karte("Abgabe nachträglich öffnen", "person",
+    "Für Nachzügler oder Falsch-Klick. " + NACHFRIST_MINUTEN + " Minuten offen, nur für diese Person.", "d2");
+  const lab = el("label", null, "Personalnummer");
+  lab.htmlFor = "adm-pnr";
+  k1.appendChild(lab);
+  const feld = el("div", "adm-feld");
+  const pnr = document.createElement("input");
+  pnr.id = "adm-pnr";
+  pnr.type = "text";
+  pnr.autocomplete = "off";
+  pnr.placeholder = "Personalnummer eingeben";
+  const bOeffnen = admKnopf("Öffnen", "btn-d", null);
+  feld.appendChild(pnr); feld.appendChild(bOeffnen);
+  k1.appendChild(feld);
+  const rueck = el("div", "adm-rueck");
+  rueck.setAttribute("role", "status");
+  k1.appendChild(rueck);
+  const liste = el("button", "adm-link", "Liste aller Personen anzeigen");
+  liste.type = "button";
+  liste.style.alignSelf = "flex-start";
+  liste.onclick = () => adminAnsicht("nachfrist");
+  k1.appendChild(liste);
+  let okTimer = null;
+  const oeffnen = async () => {
+    const pn = pnr.value.trim();
+    rueck.className = "adm-rueck";
+    rueck.textContent = "";
+    if (!pn) { rueck.className = "adm-rueck schlecht"; rueck.textContent = "Bitte eine Personalnummer eingeben."; pnr.focus(); return; }
+    bOeffnen.disabled = true;
+    let erg;
+    try { erg = await sb.rpc("nachfrist_oeffnen", { p_personalnummer: pn, p_minuten: NACHFRIST_MINUTEN }); }
+    catch (e) { erg = { error: { message: String(e.message || e) } }; }
+    bOeffnen.disabled = false;
+    if (erg.error || !erg.data) {
+      rueck.className = "adm-rueck schlecht";
+      rueck.textContent = "Nicht geöffnet: " + (erg.error ? erg.error.message : "keine Antwort vom Server");
+      return;
+    }
+    const name = stammProfile[pn] && stammProfile[pn].name ? stammProfile[pn].name + " (Nr. " + pn + ")" : "Nr. " + pn;
+    rueck.className = "adm-rueck gut";
+    rueck.textContent = name + ": Abgabe für " + kwText(erg.data.kw_start_datum) + " offen bis " + uhrzeitText(erg.data.bis) + " Uhr.";
+    bOeffnen.textContent = "✓ " + NACHFRIST_MINUTEN + " Min. offen";
+    bOeffnen.classList.remove("btn-ok");
+    void bOeffnen.offsetWidth;
+    bOeffnen.classList.add("btn-ok");
+    clearTimeout(okTimer);
+    okTimer = setTimeout(() => { bOeffnen.textContent = "Öffnen"; bOeffnen.classList.remove("btn-ok"); }, 2600);
+    pnr.value = "";
+  };
+  bOeffnen.onclick = oeffnen;
+  pnr.addEventListener("keydown", (ev) => { if (ev.key === "Enter") oeffnen(); });
+
+  // 2) Schichtboerse
+  const k2 = karte("Schichtbörse", "tausch", "Jemand fällt nach der Planung aus? Schicht freigeben, andere können übernehmen.", "d3");
+  const info = el("p");
+  k2.appendChild(info);
+  boerseStartInfo(info).catch(() => { /* Info bleibt leer (z. B. Migration 0016 fehlt) */ });
+  k2.appendChild(el("div", "adm-fueller"));
+  const bB = admKnopf("Schicht freigeben", "btn-s", () => adminAnsicht("boerse"));
+  bB.style.alignSelf = "flex-start";
+  k2.appendChild(bB);
+
+  // 3) Daten & Export
+  const k3 = karte("Daten & Export", "download", "Dispo-Excel einlesen oder die Abgaben für die Planung exportieren.", "d4");
+  k3.appendChild(el("div", "adm-fueller"));
+  const reihe = el("div", "adm-reihe");
+  reihe.appendChild(admKnopf("Dispo einlesen", "btn-s", () => adminAnsicht("dispo")));
+  reihe.appendChild(admKnopf("Export", "btn-s", () => adminAnsicht("export")));
+  k3.appendChild(reihe);
+  return sec;
+}
+
+// Systemstatus rechts: Mitarbeiter, Stammliste, Dispo-Vorlage, Abgabefrist, Tresor
+function startSystemFuellen(box, st) {
+  box.querySelectorAll(".adm-notiz, .adm-sys, .adm-fuss").forEach((x) => x.remove());
+  const zeile = (art, titel, unter, aktion) => {
+    const z = el("div", "adm-sys");
+    const ico = el("span", "adm-sys-ico " + art);
+    const IK = { ok: ["haken", 3.5], warn: ["warn", 3], neutral: ["uhrKlein", 2.6], schloss: [tresor.zustand === "offen" ? "schlossOffen" : "schlossZu", 2.6] };
+    ico.appendChild(admIkon(IK[art][0], 12, IK[art][1]));
+    z.appendChild(ico);
+    const t = el("div", "adm-sys-text");
+    t.appendChild(el("b", null, titel));
+    const u = el("span");
+    (Array.isArray(unter) ? unter : [unter]).forEach((x) => { if (x) u.appendChild(typeof x === "string" ? document.createTextNode(x) : x); });
+    t.appendChild(u);
+    z.appendChild(t);
+    if (aktion) z.appendChild(aktion);
+    box.appendChild(z);
+  };
+  const link = (text, beiKlick) => { const b = el("button", "adm-link", text); b.type = "button"; b.onclick = beiKlick; return b; };
+
+  // Mitarbeiter
+  const n = st.aktive.length;
+  if (!n) {
+    zeile("warn", "Keine aktiven Mitarbeiter", warnSpan("Stammliste einspielen"), link("Öffnen", () => adminAnsicht("mitarbeiter")));
+  } else if (tresor.zustand === "offen") {
+    const ohne = st.aktive.filter((pn) => !(stammProfile[pn] && stammProfile[pn].name)).length;
+    const ohneZugang = Object.keys(stammProfile).filter((pn) => st.aktive.indexOf(pn) < 0).length;
+    const teile = [ohne ? warnSpan("⚠ " + ohne + " ohne Namen – Stammliste einspielen") : "Namen " + n + " von " + n + " im Tresor"];
+    if (ohneZugang) teile.push(" · " + ohneZugang + (ohneZugang === 1 ? " Name" : " Namen") + " ohne Zugang");
+    zeile(ohne ? "warn" : "ok", n + " aktive Mitarbeiter", teile, null);
+  } else {
+    zeile("neutral", n + " aktive Mitarbeiter", tresor.zustand === "gesperrt" ? "Namen erst bei offenem Tresor sichtbar" : "Namen: noch kein Tresor", null);
+  }
+
+  // Stammliste (Dateiname und Datum stehen im Tresor)
+  const q = tresor.zustand === "offen" && tresor.inhalt && tresor.inhalt.quelle;
+  if (q && q.dateiname) {
+    zeile("ok", "Stammliste", q.dateiname + (q.eingelesen_am ? " · " + zeitpunktText(q.eingelesen_am) : ""), null);
+  } else if (tresor.zustand === "offen") {
+    zeile("warn", "Stammliste", warnSpan("noch nicht eingespielt"), link("Einspielen", () => adminAnsicht("mitarbeiter")));
+  } else {
+    zeile("neutral", "Stammliste", "Stand erst bei offenem Tresor sichtbar", null);
+  }
+
+  // Dispo-Vorlage
+  if (st.vorlage) zeile("ok", "Dispo-Vorlage hinterlegt", (st.vorlage.dateiname || "Vorlage") + " · Stand " + zeitpunktText(st.vorlage.aktualisiert_am), null);
+  else zeile("warn", "Dispo-Vorlage fehlt", warnSpan("wird für den Dispo-Export gebraucht"), link("Hochladen", () => adminAnsicht("vorlage")));
+
+  // Abgabefrist
+  zeile("neutral", "Abgabefrist", kwText(st.kw) + ": " + (st.frist ? fristWochentag(st.frist) + " " + zeitpunktText(st.frist) + " Uhr" : "keine Frist"),
+    link("Ändern", () => adminAnsicht("zeiten")));
+
+  // Tresor
+  if (tresor.zustand === "offen") {
+    zeile("schloss", "Tresor offen", tresor.gemerkt ? "Passwort auf diesem Gerät gemerkt" : "Offen bis zum Abmelden",
+      admKnopf("Sperren", "btn-s", async () => { await tresorSperren(false); admin.status = null; adminZeichnen(); }));
+  } else if (tresor.zustand === "gesperrt") {
+    zeile("schloss", "Tresor gesperrt", "Ohne Tresor nur Personalnummern", link("Öffnen", () => { window.scrollTo({ top: 0, behavior: "smooth" }); }));
+  } else if (tresor.zustand === "leer") {
+    zeile("warn", "Kein Tresor", "Noch nicht angelegt", link("Anlegen", () => { window.scrollTo({ top: 0, behavior: "smooth" }); }));
+  } else {
+    zeile("warn", tresorKurz(), tresor.fehler || "", link("Details", () => adminAnsicht("tresor")));
+  }
+  const sysZeilen = box.querySelectorAll(".adm-sys");
+  if (sysZeilen.length) sysZeilen[sysZeilen.length - 1].style.borderBottom = "0";
+  box.appendChild(el("p", "adm-fuss",
+    "Namen und Profile liegen verschlüsselt im Tresor. Lesen kann sie nur, wer das Tresor-Passwort kennt – nicht der Datenbank-Anbieter."));
+}
+
+// ---------- "Einstellungen" (frueher "Mehr"): zweite Startseite ----------
 function adminMehr(ziel) {
   const st = admin.status && admin.status.kw === admin.kw ? admin.status : null;
   const fristInfo = st && st.frist ? "Frist " + kwText(admin.kw) + ": " + zeitpunktText(st.frist) : "Frist und Zeiten der gewählten Woche";
@@ -3475,7 +3950,7 @@ async function boerseFedexDatei(knopf, d) {
   try {
     await autoBibliothekenLaden();
     if (!auto.vorlage) await autoVorlageAusDbLaden();
-    if (!auto.vorlage) throw new Error("Für die FedEx-Datei fehlt die Dispo-Vorlage (Mehr → Dispo-Vorlage).");
+    if (!auto.vorlage) throw new Error("Für die FedEx-Datei fehlt die Dispo-Vorlage (Einstellungen → Dispo-Vorlage).");
     const eintraege = r.eintraege.map((e) => ({
       datum: e.datum, art: e.art, nr: e.nr, beginn: e.beginn, ende: e.ende, alternativen: [],
       name: e.personalnummer ? String(stammProfile[e.personalnummer].name).trim() : ""
@@ -3952,9 +4427,9 @@ function tresorFormularOeffnen(karte, ohneVergessen) {
   d.style.marginTop = "12px";
   d.appendChild(el("summary", null, "Passwort vergessen?"));
   d.appendChild(el("p", null,
-    "Unter Mehr › Tresor kannst du den Tresor mit einem neuen Passwort überschreiben und danach die Stammliste (mit den Lohndaten-Spalten) unter Mitarbeiter neu einspielen. " +
+    "Unter Einstellungen › Tresor kannst du den Tresor mit einem neuen Passwort überschreiben und danach die Stammliste (mit den Lohndaten-Spalten) unter Mitarbeiter neu einspielen. " +
     "Zugänge bleiben unverändert; nur die gemerkten Dispo-Schreibweisen gehen verloren."));
-  d.appendChild(kleinerKnopf("→ Mehr › Tresor", () => adminAnsicht("tresor")));
+  d.appendChild(kleinerKnopf("→ Einstellungen › Tresor", () => adminAnsicht("tresor")));
   karte.appendChild(d);
 }
 
@@ -4142,36 +4617,52 @@ function wochenAuswahl(beiWechsel) {
   return zeile;
 }
 
+// Tresor-Anzeige in der Kopfzeile (aus dem echten Zustand)
+function adminTresorPill() {
+  const p = $("admin-tresor-pill");
+  if (!p) return;
+  const z = tresor.zustand;
+  p.textContent = "";
+  p.className = "adm-pill" + (z === "offen" ? "" : (z === "fehler" ? " fehler" : " aus"));
+  p.appendChild(admIkon(z === "offen" ? "schlossOffen" : "schlossZu", 14, 2.2, "lock"));
+  p.appendChild(document.createTextNode(
+    z === "offen" ? "Tresor offen" : z === "gesperrt" ? "Tresor gesperrt" : z === "leer" ? "Kein Tresor" : z === "fehler" ? "Tresor: Fehler" : "Tresor lädt"));
+}
+
 function adminZeichnen() {
   const leiste = $("admin-reiter");
   leiste.textContent = "";
   const zuMehr = MEHR_ANSICHTEN.has(admin.ansicht);
-  leiste.className = "admin-leiste" + (admin.ansicht === "start" ? " nur-nav" : "");
-  // Feste Navigation (nur am PC/Laptop sichtbar, per CSS): jede Hauptansicht mit einem Klick
-  const nav = el("nav", "admin-nav");
-  const aktiv = zuMehr ? "mehr" : admin.ansicht;
-  [["start", "Start"], ["woche", "Wochenplanung"], ["mitarbeiter", "Mitarbeiter"], ["mehr", "Mehr"]].forEach((n) => {
-    const b = el("button", n[0] === aktiv ? "an" : null, n[1]);
+  leiste.className = "admin-leiste";
+  // Menue (PC und Handy): jede Hauptansicht mit einem Klick; "Einstellungen" = frueher "Mehr"
+  const nav = el("div", "admin-nav");
+  const aktiv = zuMehr ? "mehr" : (admin.ansicht === "nachfrist" ? "start" : admin.ansicht);
+  [["start", "Start"], ["woche", "Wochenplanung"], ["mitarbeiter", "Mitarbeiter"], ["boerse", "Schichtbörse"], ["mehr", "Einstellungen"]].forEach((n) => {
+    const b = el("button", "nav-a" + (n[0] === aktiv ? " an" : ""), n[1]);
     b.type = "button";
+    if (n[0] === aktiv) b.setAttribute("aria-current", "page");
     b.onclick = () => adminAnsicht(n[0]);
     nav.appendChild(b);
   });
   leiste.appendChild(nav);
-  if (admin.ansicht !== "start") {
-    // Am Handy der einzige Weg zurueck; am PC nur in den Unterseiten von "Mehr" sichtbar
-    const zeile = el("div", "admin-zurueck" + (zuMehr ? " unter" : ""));
-    const zurueck = el("button", "zurueck", zuMehr ? "← Mehr" : "← Start");
+  // Unterseiten (Einstellungen › …, Start › Abgabe öffnen): Zurueck-Knopf mit Titel
+  const pfad = $("admin-pfad");
+  pfad.textContent = "";
+  if (zuMehr || admin.ansicht === "nachfrist") {
+    const zeile = el("div", "admin-zurueck");
+    const zurueck = el("button", "zurueck", zuMehr ? "← Einstellungen" : "← Start");
     zurueck.type = "button";
     zurueck.onclick = () => adminAnsicht(zuMehr ? "mehr" : "start");
     zeile.appendChild(zurueck);
     zeile.appendChild(el("b", null, ANSICHT_TITEL[admin.ansicht] || ""));
-    leiste.appendChild(zeile);
+    pfad.appendChild(zeile);
   }
   $("admin-huelle").classList.toggle("breit", admin.ansicht === "woche");
+  $("admin-huelle").classList.toggle("start", admin.ansicht === "start");
   const wz = $("admin-woche");
   wz.classList.toggle("verborgen", !WOCHEN_ANSICHTEN.has(admin.ansicht));
-  const sel = wz.querySelector("select");
-  if (sel && admin.kw) sel.value = admin.kw;
+  wochenZeileAufbauen();
+  adminTresorPill();
   adminMeldung(null);
 
   const ziel = $("admin-inhalt");
@@ -5940,8 +6431,6 @@ function adminWoche(ziel) {
     const b1 = mittlererKnopf("Zurück zu " + kwText(auto.kw));
     b1.onclick = () => {
       admin.kw = auto.kw; admin.status = null;
-      const s = $("admin-woche").querySelector("select");
-      if (s) s.value = admin.kw;
       adminZeichnen();
     };
     const b2 = mittlererKnopf("Entwurf verwerfen und " + kwText(admin.kw) + " laden", true);
@@ -6146,6 +6635,12 @@ function abgabenAbschnitt(ziel, d) {
   dF.appendChild(el("summary", null, "Wer fehlt (" + fehlend.length + ")"));
   dF.appendChild(el("div", null, fehlend.map(nameOder).sort((a, b) => a.localeCompare(b, "de")).join(", ") || "–"));
   ziel.appendChild(dF);
+  if (admin.werFehltAuf) {
+    // Von der Startseite ("Wer fehlt noch?"): Liste aufklappen und hinscrollen
+    admin.werFehltAuf = false;
+    dF.open = true;
+    setTimeout(() => dF.scrollIntoView({ block: "center", behavior: "smooth" }), 60);
+  }
   const dA = el("details", "block");
   dA.style.marginTop = "8px";
   dA.appendChild(el("summary", null, "Alle Mitarbeiter (" + liste.length + ")"));
@@ -7180,7 +7675,11 @@ function markeAufbauen() {
     bild.alt = TEXTE.marke_vorn + " " + TEXTE.marke_hinten;
     f.appendChild(bild);
     if (f.hasAttribute("data-admin")) {
-      f.appendChild(document.createTextNode(TEXTE.marke_admin.replace(" · ", "")));
+      // Admin-Kopf im neuen Design: Logo | FedEx-Dispo · Admin
+      f.appendChild(el("span", "adm-trenn"));
+      const titel = el("span", "adm-titel", "FedEx-Dispo ");
+      titel.appendChild(el("span", null, "·" + TEXTE.marke_admin.replace(" · ", " ")));
+      f.appendChild(titel);
     }
   }
 }

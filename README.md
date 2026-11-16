@@ -452,9 +452,9 @@ Abmelden)** legt den (nicht exportierbaren) Schlüssel im Browser-Speicher
 Tresor-Passwort. Nur auf eigenen Geräten anhaken, nie an fremden Rechnern.
 
 **Abmelden** löscht den gemerkten Schlüssel auf dem Gerät. Dasselbe erreichst
-du über **Mehr > Tresor > Tresor auf diesem Gerät vergessen**.
+du über **Einstellungen > Tresor > Tresor auf diesem Gerät vergessen**.
 
-**Mehr > Tresor** zeigt den Status (Version, zuletzt gespeichert, von dir oder
+**Einstellungen > Tresor** zeigt den Status (Version, zuletzt gespeichert, von dir oder
 einem anderen Admin) und bietet:
 - **Tresor-Passwort ändern** — altes Passwort nötig. Andere Geräte (Vertretung)
   müssen das neue Passwort danach einmal eingeben.
@@ -508,10 +508,12 @@ wurde einmal im SQL Editor ausgeführt.
 
 Das ist der Standardweg: sechs bis sieben Klicks, **kein Upload**.
 
-1. Admin-Bereich öffnen. Auf der **Startseite** steht oben die Zeile **Woche**
-   (die Auswahl gilt für alle Unterseiten), darunter **Nächster Schritt: …** mit
-   einem Sprungknopf und die drei großen Knöpfe **Wochenplanung**,
-   **Mitarbeiter** und **Mehr**, jeder mit einer Statuszeile. Status lesen.
+1. Admin-Bereich öffnen. Oben steht das Menü (**Start**, **Wochenplanung**,
+   **Mitarbeiter**, **Schichtbörse**, **Einstellungen**) und rechts daneben der
+   KW-Umschalter **‹ KW … ›** (gilt für alle Unterseiten). Die **Startseite** zeigt
+   die Phase der Woche (Abgaben laufen · Frist vorbei – planen · Veröffentlicht),
+   „x von y abgegeben“, die Frist mit Restzeit und den passenden Hauptknopf;
+   darunter Schnellaktionen und rechts den Systemstatus. Status lesen.
 2. **Wochenplanung** öffnen. Alle Daten laden automatisch. Die vier Schritte
    stehen untereinander auf einer Seite:
    - **1 · Abgaben** — „x von y haben abgegeben" und die Frist. Aufklappbar:
@@ -665,12 +667,12 @@ Minijob-Stand bzw. ohne Einsatzzeitraum). Eine ältere `tresor.js` oder
 `minijob.js` aus dem Browser-Cache erkennt die App und bittet um Neuladen
 (Strg+F5).
 
-Eine fertige Dispo von außen einlesen (**Mehr > Fertige Dispo einlesen**) ist
+Eine fertige Dispo von außen einlesen (**Einstellungen > Fertige Dispo einlesen**) ist
 nur noch die Ausnahme, siehe
 [Geplante Schichten](#geplante-schichten-dispo-einlesen).
 
-**Frist ändern:** **Mehr > Zeiten und Frist** → Woche oben in der Zeile
-**Woche** wählen → **Abgabefrist dieser Woche** → Zeitpunkt setzen →
+**Frist ändern:** **Einstellungen > Zeiten und Frist** → Woche oben mit
+**‹ ›** wählen → **Abgabefrist dieser Woche** → Zeitpunkt setzen →
 **Speichern**. Die Angabe ist deutsche Zeit; Sommer- und Winterzeit werden
 berücksichtigt.
 
@@ -686,12 +688,12 @@ erscheint nach dem Speichern der Standardzeiten der Knopf **Auf die schon
 angelegten kommenden Wochen übertragen** (gesperrte Tage und Abgaben bleiben
 erhalten). Eine einzelne Woche ziehst du mit **Zeiten aus Standard neu laden** nach.
 
-**Eine Schicht ganz abschalten:** **Mehr > Zeiten und Frist** → **Standardzeiten** → bei
+**Eine Schicht ganz abschalten:** **Einstellungen > Zeiten und Frist** → **Standardzeiten** → bei
 der Schicht den Haken *„Schicht wird angeboten"* entfernen. Wirkt auf neue
 Wochen. Für die laufende Woche stattdessen bei **Zeiten dieser Woche** das
 Häkchen je Tag entfernen.
 
-**Feiertag sperren:** **Mehr > Zeiten und Frist** → Woche → den Tag aufklappen →
+**Feiertag sperren:** **Einstellungen > Zeiten und Frist** → Woche → den Tag aufklappen →
 **Tag sperren** anhaken, Grund eintragen (z. B. „Feiertag") → **Speichern**.
 Der Tag erscheint dann ausgegraut und ist nicht wählbar.
 **Achtung:** bereits eingetragene Verfügbarkeiten dieses Tages werden dabei
@@ -706,8 +708,8 @@ oder „✗ fehlt".
 
 ## Der Export (CSV)
 
-**Mehr > Verfügbarkeiten exportieren (CSV)** → Woche oben in der Zeile
-**Woche** wählen → **CSV herunterladen**. Den früheren JSON-Export gibt es seit
+**Einstellungen > Verfügbarkeiten exportieren (CSV)** → Woche oben mit
+**‹ ›** wählen → **CSV herunterladen**. Den früheren JSON-Export gibt es seit
 dem 12.11.2026 nicht mehr (er wurde nicht genutzt). Der
 Export ist optional: Die Wochenplanung rechnet direkt in der App. Er ist für
 eigene Auswertungen oder eine Planung außerhalb der App gedacht.
@@ -814,7 +816,7 @@ Die Nummer steht nicht mehr in der Stammliste. Wieder aufnehmen und die Liste
 erneut hochladen.
 
 **Mitarbeitende sehen „Frist vorbei", obwohl noch Zeit ist**
-**Mehr > Zeiten und Frist** → Woche oben wählen → **Abgabefrist dieser Woche**
+**Einstellungen > Zeiten und Frist** → Woche oben mit ‹ › wählen → **Abgabefrist dieser Woche**
 prüfen. Steht dort ein Zeitpunkt in der Vergangenheit, neu setzen und speichern.
 
 **Die Seite lädt, bleibt aber leer / Fehler beim Speichern**
@@ -841,7 +843,7 @@ und Ende stören nicht; Groß- und Kleinschreibung muss stimmen. Hat die
 Vertretung das Passwort geändert, gilt das neue.
 
 **Tresor-Passwort vergessen**
-**Mehr > Tresor > Passwort vergessen?** überschreibt den Tresor mit einem neuen
+**Einstellungen > Tresor > Passwort vergessen?** überschreibt den Tresor mit einem neuen
 Passwort. Danach die Stammliste **ohne Passwortspalte** (mit den
 Lohndaten-Spalten) einspielen. Zugänge bleiben, nur die gemerkten
 Dispo-Schreibweisen gehen verloren.
@@ -964,10 +966,10 @@ fertige Dispo, die außerhalb der App geändert oder erstellt wurde, wird eingel
 
 1. Einmalig `supabase/migrations/0006_geplante_schichten.sql` im SQL Editor ausführen
    (legt die Tabelle `planung` und die Funktion `planung_ersetzen` an; erweitert die Löschfrist).
-2. **Mehr > Fertige Dispo einlesen (Ausnahme)**: Es gibt nur ein Datei-Feld — die Dispo
+2. **Einstellungen > Fertige Dispo einlesen (Ausnahme)**: Es gibt nur ein Datei-Feld — die Dispo
    (`.xlsm`, Blatt "FedEx", eine Woche Mo–Fr) → "Planung prüfen". Eine zweite Stammliste ist
    nicht nötig: Die Namen kommen aus dem Tresor (er muss offen sein). Enthält die Dispo eine
-   andere Woche als oben in der Zeile **Woche** gewählt, warnt die App.
+   andere Woche als oben mit **‹ ›** gewählt, warnt die App.
 3. Die Namen werden **im Browser** aus dem Tresor den Personalnummern zugeordnet. Sichere Treffer sind
    vorausgewählt, Vorschläge sind markiert, der Rest wird per Auswahlliste zugeordnet oder übersprungen.
    Bestätigte Schreibweisen merkt sich die App verschlüsselt im Tresor; sie gelten auf allen Geräten.
@@ -1016,7 +1018,7 @@ Grundsatz: **kein stiller Fehler.** Vor dem Übernehmen muss alles Unklare gekl�
    herunterladen und an den Kunden geben.
 3. **4 · Veröffentlichen**: Haken setzen, veröffentlichen, auf die Gegenprobe „x von y Schichten
    stimmen mit der Datenbank überein" warten.
-4. Nur im Ausnahmefall (Dispo außerhalb der App geändert): **Mehr > Fertige Dispo einlesen**,
+4. Nur im Ausnahmefall (Dispo außerhalb der App geändert): **Einstellungen > Fertige Dispo einlesen**,
    alle Warnungen und "KLÄREN"-Zeilen abarbeiten, niemanden überspringen, der arbeiten soll,
    Woche bestätigen, auf "✓ n von n" warten, 3–5 Personen aus der Kontrollliste gegen die
    Excel gegenlesen.
@@ -1096,9 +1098,10 @@ tests/vorschau.js                             App lokal mit Fake-Backend starten
   und die vier Module werden erst geladen, wenn sie im Admin-Bereich wirklich
   gebraucht werden — Mitarbeitende am Handy laden sie nie. Verschlüsselung und
   Geräteschlüssel nutzen WebCrypto und IndexedDB: beides browser-nativ, kein CDN.
-- **Admin-Bereich:** Startseite mit globaler Wochenzeile und drei Knöpfen
-  (**Wochenplanung**, **Mitarbeiter**, **Mehr**) statt Reiter; zurück immer über
-  **← Start** bzw. **← Mehr**.
+- **Admin-Bereich:** Menü mit fünf Punkten (**Start**, **Wochenplanung**,
+  **Mitarbeiter**, **Schichtbörse**, **Einstellungen**) und KW-Umschalter ‹ ›;
+  Startseite mit Phase, Schnellaktionen und Systemstatus (Design seit 2026-11-16).
+  Unterseiten der Einstellungen haben **← Einstellungen**.
 - **Backend:** Supabase (PostgreSQL). Schutz ausschließlich über Row Level
   Security. Im Browser stecken nur Projekt-URL und anon-Key.
 - **Tabellen:** `employees`, `admins`, `shift_types`, `shift_templates`,
