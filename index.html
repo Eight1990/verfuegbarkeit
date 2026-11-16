@@ -539,7 +539,9 @@
     .adm-trenn{display:none;}
     #screen-admin header.balken .marke{flex-wrap:wrap;gap:4px 12px;}
     #screen-admin header.balken .marke img{height:32px;}
-    .adm-navband .admin-kopf{flex-direction:column;align-items:stretch;gap:0;}
+    /* nowrap ist noetig: mit wrap wird die Spalte so breit wie das ganze Menue und die Seite breiter als das Handy */
+    .adm-navband .admin-kopf{flex-direction:column;flex-wrap:nowrap;align-items:stretch;gap:0;}
+    #screen-admin .admin-leiste{width:100%;}
     #admin-woche{justify-content:center;border-top:1px solid #F0F0EA;}
     .adm-main{padding-top:16px;gap:16px;}
     .adm-links{gap:16px;}
@@ -3687,8 +3689,7 @@ function startSystemFuellen(box, st) {
 
   // Tresor
   if (tresor.zustand === "offen") {
-    zeile("schloss", "Tresor offen", tresor.gemerkt ? "Passwort auf diesem Gerät gemerkt" : "Offen bis zum Abmelden",
-      admKnopf("Sperren", "btn-s", async () => { await tresorSperren(false); admin.status = null; adminZeichnen(); }));
+    zeile("schloss", "Tresor offen", tresor.gemerkt ? "Passwort auf diesem Gerät gemerkt" : "Offen bis zum Abmelden", null);
   } else if (tresor.zustand === "gesperrt") {
     zeile("schloss", "Tresor gesperrt", "Ohne Tresor nur Personalnummern", link("Öffnen", () => { window.scrollTo({ top: 0, behavior: "smooth" }); }));
   } else if (tresor.zustand === "leer") {
