@@ -51,6 +51,11 @@ declare
   v_text      text;
   v_frist_alt timestamptz;
   v_a_flag    boolean;
+  v_b_flag    boolean;
+  v_ang1      bigint;
+  v_ang2      bigint;
+  v_ang3      bigint;
+  v_json      json;
   v_nr        int := 0;
 begin
   -- ------------------------------------------------------------------
@@ -312,6 +317,69 @@ begin
       'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
   end;
 
+  -- ------------------------------------------------------------------
+  -- 13a) Nachfrist (Migration 0015): laufende Nachfrist erlaubt Speichern
+  --      trotz abgelaufener Wochenfrist, abgelaufene Nachfrist nicht
+  -- ------------------------------------------------------------------
+  execute 'reset role';
+  insert into public.nachfrist (personalnummer, kw_start_datum, bis)
+  values (v_a_pn, v_kw, now() + interval '10 minutes')
+  on conflict (personalnummer, kw_start_datum) do update set bis = excluded.bis;
+  execute 'set local role authenticated';
+
+  begin
+    perform public.abgabe_speichern(
+      v_kw, null, 'Selbsttest Nachfrist offen',
+      json_build_array(json_build_object('datum', v_datum, 'schicht_id', v_schicht))::jsonb
+    );
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Speichern mit laufender Nachfrist'::text,
+      'gespeichert'::text, 'gespeichert'::text, true;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Speichern mit laufender Nachfrist'::text,
+      'gespeichert'::text, ('FEHLER: ' || left(sqlerrm, 70))::text, false;
+  end;
+
+  begin
+    perform public.nachfrist_oeffnen(v_a_pn, 10);
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter oeffnet sich selbst eine Nachfrist'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter oeffnet sich selbst eine Nachfrist'::text,
+      'abgelehnt'::text, 'abgelehnt'::text, true;
+  end;
+
+  execute 'reset role';
+  update public.nachfrist set bis = now() - interval '1 minute'
+   where personalnummer = v_a_pn and kw_start_datum = v_kw;
+  execute 'set local role authenticated';
+
+  begin
+    perform public.abgabe_speichern(
+      v_kw, null, 'Selbsttest Nachfrist abgelaufen',
+      json_build_array(json_build_object('datum', v_datum, 'schicht_id', v_schicht))::jsonb
+    );
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Speichern mit abgelaufener Nachfrist'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Speichern mit abgelaufener Nachfrist'::text,
+      'abgelehnt'::text, 'abgelehnt'::text, true;
+  end;
+
+  execute 'reset role';
+  delete from public.nachfrist where personalnummer = v_a_pn and kw_start_datum = v_kw;
+
   -- Frist wieder herstellen
   execute 'reset role';
   update public.weeks set abgabefrist = v_frist_alt where kw_start_datum = v_kw;
@@ -390,6 +458,118 @@ begin
   delete from public.planung where kw_start_datum = v_kw and personalnummer in (v_a_pn, v_b_pn);
   delete from public.planung_stand    where kw_start_datum = '2000-01-03';
   delete from public.planung_historie where kw_start_datum = '2000-01-03';
+
+  -- ------------------------------------------------------------------
+  -- 13b2) Schichtboerse (Migration 0016)
+  --   Testangebote in weit entfernten Wochen (2099 offen, 2000 abgelaufen)
+  -- ------------------------------------------------------------------
+  select e.muss_pw_aendern into v_b_flag
+  from public.employees e where e.personalnummer = v_b_pn;
+  update public.employees set muss_pw_aendern = false where personalnummer = v_b_pn;
+
+  insert into public.boerse_angebot (kw_start_datum, datum, schicht_id, beginn, ende)
+  values ('2099-01-05', '2099-01-06', 'FRUEH', '04:00', '07:00') returning id into v_ang1;
+  insert into public.boerse_angebot (kw_start_datum, datum, schicht_id, beginn, ende)
+  values ('2099-01-05', '2099-01-07', 'FRUEH', '04:00', '07:00') returning id into v_ang2;
+  insert into public.boerse_angebot (kw_start_datum, datum, schicht_id, beginn, ende)
+  values ('2000-01-03', '2000-01-04', 'FRUEH', '04:00', '07:00') returning id into v_ang3;
+  insert into public.boerse_berechtigt (angebot_id, personalnummer)
+  values (v_ang1, v_a_pn), (v_ang1, v_b_pn), (v_ang2, v_b_pn), (v_ang3, v_a_pn);
+
+  execute 'set local role authenticated';
+
+  select (select count(*) from public.boerse_angebot)
+       + (select count(*) from public.boerse_berechtigt)
+       + (select count(*) from public.planung_aenderungen) into v_zahl;
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter liest Boersen-Tabellen direkt (0016)'::text,
+    '0 Zeilen'::text, v_zahl::text, (v_zahl = 0);
+
+  -- nur die Testangebote zaehlen (echte offene Angebote von A duerfen den Test nicht stoeren)
+  select count(*) into v_zahl from public.boerse_meine_angebote() m
+   where m.id in (v_ang1, v_ang2, v_ang3);
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter A sieht eigene offene Angebote (0016)'::text,
+    '1 (nicht fremdes, nicht abgelaufenes)'::text, v_zahl::text, (v_zahl = 1);
+
+  v_json := public.boerse_uebernehmen(v_ang3);
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Uebernahme nach Boersenschluss (0016)'::text,
+    'zu_spaet'::text, coalesce(v_json->>'grund', v_json::text), (v_json->>'grund' = 'zu_spaet');
+
+  v_json := public.boerse_uebernehmen(v_ang2);
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Uebernahme ohne Berechtigung (0016)'::text,
+    'nicht_berechtigt'::text, coalesce(v_json->>'grund', v_json::text), (v_json->>'grund' = 'nicht_berechtigt');
+
+  v_json := public.boerse_uebernehmen(v_ang1);
+  select count(*) into v_zahl from public.planung
+   where personalnummer = v_a_pn and datum = '2099-01-06';
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Mitarbeiter A uebernimmt Angebot (0016)'::text,
+    'ok, 1 Schicht in planung'::text, (coalesce(v_json->>'ok', '?') || ', ' || v_zahl)::text,
+    (v_json->>'ok' = 'true' and v_zahl = 1);
+
+  -- Jetzt als Mitarbeiter B: dasselbe Angebot ist schon vergeben
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', v_b_user, 'role', 'authenticated')::text, true);
+  v_json := public.boerse_uebernehmen(v_ang1);
+  v_nr := v_nr + 1;
+  return query select v_nr,
+    'Zweiter uebernimmt vergebenes Angebot (0016)'::text,
+    'vergeben'::text, coalesce(v_json->>'grund', v_json::text), (v_json->>'grund' = 'vergeben');
+  perform set_config('request.jwt.claims',
+    json_build_object('sub', v_a_user, 'role', 'authenticated')::text, true);
+
+  begin
+    perform public.boerse_freigeben('2099-01-05', '2099-01-06', 'FRUEH', '04:00', '07:00', null, array[v_a_pn]);
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter gibt Schicht frei (0016)'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter gibt Schicht frei (0016)'::text,
+      'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  begin
+    perform public.boerse_zuruecknehmen(v_ang2);
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter nimmt Angebot zurueck (0016)'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter nimmt Angebot zurueck (0016)'::text,
+      'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  begin
+    perform public.fedex_datei_vermerken('2099-01-05');
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter vermerkt FedEx-Datei (0016)'::text,
+      'abgelehnt'::text, 'FEHLER: war moeglich'::text, false;
+  exception when others then
+    v_nr := v_nr + 1;
+    return query select v_nr,
+      'Mitarbeiter vermerkt FedEx-Datei (0016)'::text,
+      'abgelehnt'::text, ('abgelehnt (' || sqlstate || ')')::text, true;
+  end;
+
+  execute 'reset role';
+  delete from public.planung where datum = '2099-01-06' and personalnummer = v_a_pn;
+  delete from public.planung_aenderungen where angebot_id in (v_ang1, v_ang2, v_ang3);
+  delete from public.boerse_angebot where id in (v_ang1, v_ang2, v_ang3);
+  update public.employees set muss_pw_aendern = v_b_flag where personalnummer = v_b_pn;
 
   -- ------------------------------------------------------------------
   -- 13c) Dispo-Vorlage (Migration 0009): nur fuer Admins
@@ -574,7 +754,11 @@ begin
     'public.is_admin()', 'public.current_personalnummer()', 'public.woche_bearbeitbar(date)',
     'public.aktive_woche()', 'public.montag_von(date)', 'public.heute_berlin()',
     'public.standard_frist(date)', 'public.dauer_stunden(time, time)',
-    'public.sitzungen_beenden(uuid, uuid)'
+    'public.sitzungen_beenden(uuid, uuid)', 'public.nachfrist_oeffnen(text, int)',
+    'public.boerse_schluss(date, time)', 'public.planung_stand_nachzaehlen(date)',
+    'public.boerse_freigeben(date, date, text, time, time, text, text[])',
+    'public.boerse_zuruecknehmen(bigint)', 'public.boerse_meine_angebote()',
+    'public.boerse_uebernehmen(bigint)', 'public.fedex_datei_vermerken(date)'
   ]) as f(name)
   where has_function_privilege('anon', f.name, 'execute');
   v_nr := v_nr + 1;

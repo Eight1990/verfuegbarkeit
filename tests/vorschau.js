@@ -18,7 +18,7 @@ const PORT = Number(process.env.VORSCHAU_PORT || process.argv[2]) || 8765; // z.
 
 fs.rmSync(ziel, { recursive: true, force: true });
 fs.mkdirSync(path.join(ziel, "vendor"), { recursive: true });
-["planung-solver.js", "dispo-export.js", "tresor.js", "minijob.js"].forEach((f) => fs.copyFileSync(path.join(root, f), path.join(ziel, f)));
+["planung-solver.js", "dispo-export.js", "tresor.js", "minijob.js", "schichtboerse.js"].forEach((f) => fs.copyFileSync(path.join(root, f), path.join(ziel, f)));
 fs.readdirSync(path.join(root, "vendor")).forEach((f) =>
   fs.copyFileSync(path.join(root, "vendor", f), path.join(ziel, "vendor", f)));
 
@@ -68,8 +68,10 @@ window.__LOG=[];
  const SCHLUESSEL={employees:["personalnummer"],weeks:["kw_start_datum"],week_days:["datum"],week_shifts:["datum","schicht_id"],
    submissions:["kw_start_datum","personalnummer"],availability:["kw_start_datum","personalnummer","datum","schicht_id"],
    planung:["id"],planung_stand:["kw_start_datum"],planung_historie:["id"],app_dateien:["schluessel"],app_einstellungen:["schluessel"],
-   shift_types:["schicht_id"],shift_templates:["schicht_id","wochentag"]};
- let folge=1000;
+   shift_types:["schicht_id"],shift_templates:["schicht_id","wochentag"],nachfrist:["personalnummer","kw_start_datum"],
+   boerse_angebot:["id"],boerse_berechtigt:["angebot_id","personalnummer"],planung_aenderungen:["id"]};
+ // Fortlaufende Nummern: nach dem Neuladen hinter der groessten vorhandenen weiterzaehlen
+ let folge=Object.keys(__store).reduce((m,t)=>Array.isArray(__store[t])?__store[t].reduce((n,r)=>typeof r.id==="number"&&r.id>n?r.id:n,m):m,1000);
  function gleich(a,b){return String(a)===String(b);}
  function schluesselGleich(t,a,b){return (SCHLUESSEL[t]||[]).every(k=>gleich(a[k],b[k]));}
  function standard(t){
@@ -148,10 +150,53 @@ window.__LOG=[];
  }
  const START=${JSON.stringify(START)};
  const PN_MUSTER=/^[A-Za-z0-9._-]{1,20}$/;
+ // Vorschau als Mitarbeiter: localStorage "__fake_als" = Personalnummer (leer = Admin)
+ const ALS=(function(){try{return localStorage.getItem("__fake_als")||null;}catch(e){return null;}})();
+ function u5(t){return String(t||"").slice(0,5);}
+ function schlussMs(datum,beginn){return new Date(datum+"T"+u5(beginn)+":00").getTime()-3600000;}
+ function nachzaehlen(kw){const st=(__store.planung_stand||[]).find(s=>s.kw_start_datum===kw);if(st)st.anzahl=__store.planung.filter(p=>p.kw_start_datum===kw).length;}
+ function aenderung(a,aktion,pn,von){__store.planung_aenderungen=__store.planung_aenderungen||[];__store.planung_aenderungen.push({id:++folge,kw_start_datum:a.kw_start_datum,datum:a.datum,schicht_id:a.schicht_id,beginn:a.beginn,ende:a.ende,aktion:aktion,personalnummer:pn,ausgeloest_von:von,angebot_id:a.id,am:new Date().toISOString()});}
  function rpc(n,a){
    a=a||{};
-   if(n==="is_admin")return{data:true,error:null};
-   if(n==="current_personalnummer")return{data:null,error:null};
+   if(n==="is_admin")return{data:!ALS,error:null};
+   if(n==="current_personalnummer")return{data:ALS,error:null};
+   if(n==="boerse_freigeben"){
+     if(ALS)return{data:null,error:{message:"Nur fuer Admins."}};
+     if(Date.now()>=schlussMs(a.p_datum,a.p_beginn))return{data:null,error:{message:"Zu spaet: Die Schicht beginnt in weniger als 1 Stunde. Bitte telefonisch regeln."}};
+     if(a.p_von){const i=__store.planung.findIndex(p=>p.personalnummer===a.p_von&&p.datum===a.p_datum&&u5(p.beginn)===u5(a.p_beginn));
+       if(i<0)return{data:null,error:{message:"Diese Schicht ist in der veroeffentlichten Planung nicht (mehr) vorhanden. Bitte neu laden."}};__store.planung.splice(i,1);}
+     const ang={id:++folge,kw_start_datum:a.p_kw,datum:a.p_datum,schicht_id:a.p_schicht_id,beginn:u5(a.p_beginn)+":00",ende:u5(a.p_ende)+":00",status:"frei",frei_von:a.p_von||null,uebernommen_von:null,erstellt_am:new Date().toISOString(),erledigt_am:null};
+     __store.boerse_angebot=__store.boerse_angebot||[];__store.boerse_angebot.push(ang);
+     const aktiv=new Set(__store.employees.filter(e=>e.aktiv).map(e=>e.personalnummer));
+     const ber=Array.from(new Set(a.p_berechtigt||[])).filter(pn=>aktiv.has(pn)&&pn!==a.p_von&&!__store.planung.some(p=>p.personalnummer===pn&&p.datum===a.p_datum));
+     __store.boerse_berechtigt=(__store.boerse_berechtigt||[]).concat(ber.map(pn=>({angebot_id:ang.id,personalnummer:pn})));
+     aenderung(ang,a.p_von?"freigegeben":"zusatz",a.p_von||null,"admin");nachzaehlen(a.p_kw);__save();__LOG.push("freigeben "+ang.id+" "+ber.length);
+     return{data:{id:ang.id,berechtigt:ber.length},error:null};}
+   if(n==="boerse_zuruecknehmen"){
+     if(ALS)return{data:null,error:{message:"Nur fuer Admins."}};
+     const ang=(__store.boerse_angebot||[]).find(x=>x.id===a.p_id);if(!ang)return{data:null,error:{message:"Angebot nicht gefunden."}};
+     if(ang.status!=="frei")return{data:{ok:false,status:ang.status},error:null};
+     ang.status="zurueckgenommen";ang.erledigt_am=new Date().toISOString();aenderung(ang,"zurueckgenommen",null,"admin");__save();return{data:{ok:true,status:ang.status},error:null};}
+   if(n==="boerse_meine_angebote"){
+     if(!ALS)return{data:[],error:null};
+     const ids=new Set((__store.boerse_berechtigt||[]).filter(b=>b.personalnummer===ALS).map(b=>b.angebot_id));
+     const l=(__store.boerse_angebot||[]).filter(x=>ids.has(x.id)&&x.status==="frei"&&Date.now()<schlussMs(x.datum,x.beginn)&&!__store.planung.some(p=>p.personalnummer===ALS&&p.datum===x.datum))
+       .map(x=>({id:x.id,datum:x.datum,schicht_id:x.schicht_id,beginn:x.beginn,ende:x.ende}));
+     return{data:l,error:null};}
+   if(n==="boerse_uebernehmen"){
+     if(!ALS)return{data:null,error:{message:"Nicht angemeldet."}};
+     const ang=(__store.boerse_angebot||[]).find(x=>x.id===a.p_id);
+     if(!ang)return{data:{ok:false,grund:"vergeben"},error:null};
+     if(!(__store.boerse_berechtigt||[]).some(b=>b.angebot_id===ang.id&&b.personalnummer===ALS))return{data:{ok:false,grund:"nicht_berechtigt"},error:null};
+     if(ang.status!=="frei")return{data:{ok:false,grund:"vergeben"},error:null};
+     if(Date.now()>=schlussMs(ang.datum,ang.beginn))return{data:{ok:false,grund:"zu_spaet"},error:null};
+     if(__store.planung.some(p=>p.personalnummer===ALS&&p.datum===ang.datum))return{data:{ok:false,grund:"schon_eingeplant"},error:null};
+     __store.planung.push({id:++folge,personalnummer:ALS,datum:ang.datum,schicht_id:ang.schicht_id,beginn:ang.beginn,ende:ang.ende,kw_start_datum:ang.kw_start_datum});
+     ang.status="uebernommen";ang.uebernommen_von=ALS;ang.erledigt_am=new Date().toISOString();aenderung(ang,"uebernommen",ALS,"boerse");nachzaehlen(ang.kw_start_datum);__save();
+     return{data:{ok:true,datum:ang.datum,beginn:ang.beginn,ende:ang.ende},error:null};}
+   if(n==="fedex_datei_vermerken"){
+     if(ALS)return{data:null,error:{message:"Nur fuer Admins."}};
+     const am=new Date().toISOString();const st=(__store.planung_stand||[]).find(s=>s.kw_start_datum===a.p_kw);if(st)st.fedex_datei_am=am;__save();return{data:am,error:null};}
    if(n==="muss_passwort_aendern")return{data:false,error:null};
    if(n==="aktive_woche"||n==="get_or_create_week")return{data:START,error:null};
    if(n==="wochen_vorausanlegen"){for(let i=0;i<4;i++)wocheAnlegen(plusTage(START,7*i));__save();return{data:4,error:null};}
@@ -159,6 +204,15 @@ window.__LOG=[];
    if(n==="tag_sperren"){const t=__store.week_days.find(x=>x.datum===a.p_datum);if(!t)return{data:null,error:{message:"Tag nicht gefunden"}};
      t.gesperrt=!!a.p_gesperrt;t.grund=a.p_gesperrt?(a.p_grund||null):null;
      if(a.p_gesperrt)__store.availability=__store.availability.filter(v=>v.datum!==a.p_datum);__save();return{data:null,error:null};}
+   if(n==="nachfrist_oeffnen"){
+     const min=a.p_minuten==null?10:a.p_minuten;
+     if(min<0||min>60)return{data:null,error:{message:"Minuten muessen zwischen 0 und 60 liegen."}};
+     if(!__store.employees.some(e=>e.aktiv&&e.personalnummer===a.p_personalnummer))return{data:null,error:{message:"Personalnummer ist nicht aktiv."}};
+     const bis=new Date(Date.now()+min*60000).toISOString();
+     __store.nachfrist=__store.nachfrist||[];
+     const v=__store.nachfrist.find(x=>x.personalnummer===a.p_personalnummer&&x.kw_start_datum===START);
+     if(v){v.bis=bis;v.geoeffnet_am=new Date().toISOString();}else __store.nachfrist.push({personalnummer:a.p_personalnummer,kw_start_datum:START,bis:bis,geoeffnet_am:new Date().toISOString()});
+     __save();__LOG.push("nachfrist "+a.p_personalnummer+" "+min);return{data:{kw_start_datum:START,bis:bis},error:null};}
    if(n==="planung_ersetzen"){
      const kw=a.kw,liste=a.eintraege||[];
      if(!kw||new Date(kw+"T00:00:00Z").getUTCDay()!==1)return{data:null,error:{message:"kw muss ein Montag sein"}};
@@ -168,6 +222,7 @@ window.__LOG=[];
      __store.planung=__store.planung.filter(p=>p.kw_start_datum!==kw).concat(liste.map(e=>Object.assign({id:++folge,kw_start_datum:kw},e)));
      const st=__store.planung_stand.find(s=>s.kw_start_datum===kw);const stand={kw_start_datum:kw,aktualisiert_am:new Date().toISOString(),anzahl:liste.length};
      if(st)Object.assign(st,stand);else __store.planung_stand.push(stand);
+     (__store.boerse_angebot||[]).filter(x=>x.kw_start_datum===kw&&x.status==="frei").forEach(x=>{aenderung(x,"geschlossen",null,"admin");x.status="geschlossen";x.erledigt_am=new Date().toISOString();});
      __save();return{data:{erwartet:liste.length,eingefuegt:liste.length},error:null};}
    return{data:null,error:{message:"RPC "+n+" ist in der Vorschau nicht vorhanden"}};
  }
@@ -230,7 +285,7 @@ function indexBauen() {
 }
 indexBauen();
 const LIVE = { "/index.html": indexBauen };
-["tresor.js", "planung-solver.js", "dispo-export.js", "minijob.js"].forEach((f) => { LIVE["/" + f] = () => fs.readFileSync(path.join(root, f), "utf8"); });
+["tresor.js", "planung-solver.js", "dispo-export.js", "minijob.js", "schichtboerse.js"].forEach((f) => { LIVE["/" + f] = () => fs.readFileSync(path.join(root, f), "utf8"); });
 
 const typen = { ".html": "text/html;charset=utf-8", ".js": "text/javascript", ".xlsx": "application/octet-stream" };
 http.createServer((q, r) => {

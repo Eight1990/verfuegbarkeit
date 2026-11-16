@@ -1046,6 +1046,7 @@ tresor.js                                    Verschlüsselung des Stammlisten-Tr
 planung-solver.js                            regelbasierte Wochenplanung (lädt nur im Admin-Bereich)
 minijob.js                                   Wochen-Obergrenzen der Minijobber berechnen (lädt nur im Admin-Bereich)
 dispo-export.js                              füllt die Dispo-Vorlage (.xlsm) und baut daraus die Datei für FedEx (.xlsx) (lädt nur im Admin-Bereich)
+schichtboerse.js                             Regeln der Schichtbörse: wer passt, Börsenschluss, FedEx-Zeilen (lädt nur im Admin-Bereich)
 beispiel_stammliste.xlsx                     Beispiel für die kurze Form (nur Personalnummer und Passwort)
 README.md                                    diese Anleitung
 vendor/                                      lokale Kopien von supabase-js, SheetJS und JSZip
@@ -1064,6 +1065,8 @@ supabase/migrations/0011_wochen_automatisch.sql   Wochen 4 Wochen im Voraus anle
 supabase/migrations/0012_loeschfrist_cron.sql     Löschfrist: monatlicher Cron-Job + Protokoll
 supabase/migrations/0013_app_dateien_version.sql  Versionszähler und Größenschranke für app_dateien (Tresor)
 supabase/migrations/0014_sicherheit_haertung.sql  Härtung: Freitextfeld stillgelegt, Hilfsfunktionen nur mit Anmeldung, Sitzungen beenden, Löschlauf holt nach
+supabase/migrations/0015_nachfrist.sql            Nachfrist: Abgabe für eine Person 10 Minuten öffnen
+supabase/migrations/0016_schichtboerse.sql        Schichtbörse: Schicht freigeben/übernehmen, Änderungsliste, Zeitpunkt der FedEx-Datei
 
 supabase/functions/import-stammliste/index.ts     Stammliste einlesen (Server)
 supabase/functions/reset-passwort/index.ts        Einzelpasswort setzen (Server)
@@ -1075,6 +1078,7 @@ tests/tresor.test.js                          Verschlüsselung prüfen (node tes
 tests/syntax.test.js                          alle Skripte auf Syntaxfehler prüfen (vor jedem Push)
 tests/solver.test.js                          Wochenplanung mit erfundenen Daten
 tests/minijob.test.js                         Minijob-Grenze mit erfundenen Daten
+tests/schichtboerse.test.js                   Regeln der Schichtbörse mit erfundenen Daten
 tests/dispo-export.test.js                    FedEx-Datei mit künstlicher Mini-Vorlage; Dispo-Export mit echter Vorlage (dieser Teil wird übersprungen, wenn keine lokal liegt)
 tests/synthetisch.js                          erfundene Daten für Tests und Vorschau (keine echten Personen)
 tests/stamm_synthetisch.xlsx                  erfundene Stammliste im vollständigen Format (Spalten A–M)

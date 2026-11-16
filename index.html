@@ -248,9 +248,39 @@
     vertical-align:middle;
   }
   table.liste th{font-size:13px;color:var(--grau-hell);text-transform:uppercase;letter-spacing:.5px;}
+  .nf-suche{width:100%;margin:10px 0;}
+  .nf-zeile{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .nf-knopf{flex:1;display:block;text-align:left;padding:12px 14px;background:#fff;border:1px solid var(--rand);
+    border-radius:12px;font-family:inherit;font-size:16px;color:inherit;cursor:pointer;}
+  .nf-zeile.offen .nf-knopf{border:2px solid var(--gruen-dunkel);}
+  .nf-knopf:active{background:var(--gruen);}
+  .nf-name{display:block;font-weight:bold;}
+  .nf-info,.nf-status{display:block;font-size:14px;color:#4d4d4d;margin-top:3px;}
+  .nf-status.status-ja{color:#3d6b12;}
   .status-ja{color:#3d6b12;font-weight:bold;}
   .status-nein{color:var(--rot);font-weight:bold;}
   .zeile-paar{display:flex;gap:8px;align-items:center;margin-bottom:8px;}
+  .boerse-zeile{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:10px 12px;margin-bottom:8px;
+    background:#fff;border:1px solid var(--rand);border-radius:12px;}
+  .boerse-zeile > div{flex:1;min-width:0;}
+  .boerse-zeile.erledigt{background:#F2F2F2;}
+  .meldung .boerse-zeile{margin:8px 0 0;}
+  .boerse-tag{margin:16px 0 6px;font-size:16px;}
+  .boerse-frage{border:2px solid var(--gruen-dunkel);border-radius:12px;padding:12px 14px;margin:0 0 12px;background:#fff;}
+  .boerse-knoepfe{display:flex;gap:10px;}
+  .boerse-knoepfe .knopf-mittel{flex:1;width:auto;margin-top:6px;}
+  .boerse-text{width:100%;margin-top:8px;font-family:inherit;font-size:14px;}
+  .boerse-ma-karte{border:2px solid var(--gruen-dunkel);border-radius:14px;padding:14px 16px;margin-bottom:12px;background:#fff;}
+  .boerse-ma-titel{display:block;font-size:18px;}
+  .boerse-ma-zeit{font-size:17px;margin:4px 0;}
+  .boerse-ma-karte .knopf-mittel{width:100%;margin-top:10px;}
+  .boerse-dialog{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;z-index:1000;}
+  .boerse-dialog.verborgen{display:none;}
+  .boerse-dialog-box{background:#fff;border-radius:16px;padding:20px;max-width:440px;width:100%;max-height:90vh;overflow:auto;}
+  .boerse-dialog-box h3{margin:0 0 8px;}
+  .boerse-dialog-zeit{font-weight:bold;font-size:17px;}
+  .knopf-mittel.boerse-ja{background:#fff;border:3px solid var(--gruen-dunkel);font-weight:bold;}
+  body.dialog-offen{overflow:hidden;}
   .zeile-paar > *{flex:1;}
   .zeile-paar .etikett{flex:0 0 108px;font-size:15px;}
   .knopf-mittel{
@@ -457,6 +487,11 @@
   </div>
 </section>
 
+<!-- Bestätigungsfenster Schichtbörse (in der Seite, kein Browser-Popup) -->
+<div id="boerse-dialog" class="boerse-dialog verborgen" role="dialog" aria-modal="true" aria-labelledby="boerse-dialog-titel">
+  <div class="boerse-dialog-box" id="boerse-dialog-box"></div>
+</div>
+
 <!-- =================== MITARBEITER =================== -->
 <section id="screen-ma" class="verborgen">
   <header class="balken">
@@ -467,6 +502,7 @@
   <div class="huelle" id="ma-huelle">
     <!-- Startseite: zwei Wege -->
     <div id="ma-start">
+      <div id="boerse-ma" aria-live="polite"></div>
       <button type="button" class="start-knopf" id="btn-start-planung">
         <span class="start-titel" id="start-planung-titel"></span>
         <span class="start-info" id="start-planung-info"></span>
@@ -888,6 +924,19 @@ const TEXTE_DE = {
   ma_telefon:            "08122 553300",
   ma_telefon_href:       "tel:+498122553300",
   ma_oder:               " oder ",
+  boerse_karte_titel: "Sonderschicht frei",
+  boerse_karte_info: "Wer zuerst bestätigt, bekommt sie.",
+  boerse_btn: "Übernehmen",
+  boerse_frage_titel: "Schicht fest übernehmen?",
+  boerse_frage_text: "Mit „Ja, ich komme“ sagst du fest zu: Du bist eingeplant und musst zur Arbeit kommen. Kannst du doch nicht, ruf sofort im Büro an: ",
+  boerse_ja: "Ja, ich komme",
+  boerse_abbrechen: "Abbrechen",
+  boerse_danke: "Danke! Die Schicht steht jetzt unter Meine Planung.",
+  boerse_vergeben: "Diese Schicht ist leider schon vergeben.",
+  boerse_zu_spaet: "Diese Schicht beginnt bald und kann nicht mehr über die App übernommen werden.",
+  boerse_schon_eingeplant: "Du bist an diesem Tag schon eingeplant.",
+  boerse_fehler: "Das hat nicht geklappt. Bitte noch einmal versuchen oder im Büro anrufen.",
+  boerse_ok: "OK",
   schicht_namen:         { FRUEH: "Früh", SPAET: "Spät", LANG: "Lang", BUERO: "Büro" },
   admin_woche:           "Woche",
   admin_abgaben_titel:   "Abgabestatus",
@@ -982,6 +1031,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Tap a day for details.", ma_frei: "no shift",
     ma_plan_fehler: "The schedule could not be loaded. Please reload or contact the office.",
     ma_plan_neu_laden: "Reload", ma_plan_hinweis: "Something wrong? Please tell the office: ", ma_oder: " or ",
+    boerse_karte_titel: "Extra shift available", boerse_karte_info: "The first to confirm gets it.", boerse_btn: "Take shift", boerse_frage_titel: "Take this shift for sure?", boerse_frage_text: "With “Yes, I'll come” you make a firm commitment: you are scheduled and must come to work. If you can't make it after all, call the office right away: ", boerse_ja: "Yes, I'll come", boerse_abbrechen: "Cancel", boerse_danke: "Thank you! The shift is now in My schedule.", boerse_vergeben: "Sorry, this shift has already been taken.", boerse_zu_spaet: "This shift starts soon and can no longer be taken in the app.", boerse_schon_eingeplant: "You are already scheduled on this day.", boerse_fehler: "That didn't work. Please try again or call the office.", boerse_ok: "OK",
     schicht_namen: { FRUEH: "Early", SPAET: "Late", LANG: "Long", BUERO: "Office" },
     heute: "Today", morgen: "Tomorrow", heute_klammer: " (today)", ma_schichten_anzahl: "Shifts: ",
     sprache_titel: "Language", sprache_waehlen: "Choose language", schliessen: "Close",
@@ -1025,6 +1075,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Торкніться дня, щоб побачити деталі.", ma_frei: "немає зміни",
     ma_plan_fehler: "Не вдалося завантажити графік. Оновіть сторінку або зверніться до офісу.",
     ma_plan_neu_laden: "Оновити", ma_plan_hinweis: "Щось не так? Повідомте офіс: ", ma_oder: " або ",
+    boerse_karte_titel: "Є вільна додаткова зміна", boerse_karte_info: "Її отримає той, хто першим підтвердить.", boerse_btn: "Взяти", boerse_frage_titel: "Точно взяти цю зміну?", boerse_frage_text: "Натиснувши «Так, я прийду», ви твердо погоджуєтеся: вас заплановано, і ви маєте прийти на роботу. Якщо все ж не можете, негайно зателефонуйте в офіс: ", boerse_ja: "Так, я прийду", boerse_abbrechen: "Скасувати", boerse_danke: "Дякуємо! Зміна тепер у розділі «Мій графік».", boerse_vergeben: "На жаль, цю зміну вже взяли.", boerse_zu_spaet: "Ця зміна скоро почнеться, її вже не можна взяти в застосунку.", boerse_schon_eingeplant: "У цей день вас уже заплановано.", boerse_fehler: "Не вдалося. Спробуйте ще раз або зателефонуйте в офіс.", boerse_ok: "OK",
     schicht_namen: { FRUEH: "Рання", SPAET: "Пізня", LANG: "Довга", BUERO: "Офіс" },
     heute: "Сьогодні", morgen: "Завтра", heute_klammer: " (сьогодні)", ma_schichten_anzahl: "Змін: ",
     sprache_titel: "Мова", sprache_waehlen: "Обрати мову", schliessen: "Закрити",
@@ -1068,6 +1119,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Ayrıntılar için bir güne dokunun.", ma_frei: "vardiya yok",
     ma_plan_fehler: "Plan yüklenemedi. Lütfen sayfayı yenileyin veya ofise bildirin.",
     ma_plan_neu_laden: "Yenile", ma_plan_hinweis: "Bir sorun mu var? Lütfen ofise bildirin: ", ma_oder: " veya ",
+    boerse_karte_titel: "Boş ek vardiya", boerse_karte_info: "İlk onaylayan alır.", boerse_btn: "Üstlen", boerse_frage_titel: "Bu vardiyayı kesin olarak üstleniyor musunuz?", boerse_frage_text: "„Evet, geliyorum“ ile kesin söz vermiş olursunuz: Planlandınız ve işe gelmeniz gerekir. Yine de gelemezseniz hemen ofisi arayın: ", boerse_ja: "Evet, geliyorum", boerse_abbrechen: "İptal", boerse_danke: "Teşekkürler! Vardiya artık Planım altında.", boerse_vergeben: "Maalesef bu vardiya başkası tarafından alındı.", boerse_zu_spaet: "Bu vardiya yakında başlıyor, artık uygulamadan alınamaz.", boerse_schon_eingeplant: "Bu gün için zaten planlandınız.", boerse_fehler: "Olmadı. Lütfen tekrar deneyin veya ofisi arayın.", boerse_ok: "Tamam",
     schicht_namen: { FRUEH: "Sabah", SPAET: "Akşam", LANG: "Uzun", BUERO: "Ofis" },
     heute: "Bugün", morgen: "Yarın", heute_klammer: " (bugün)", ma_schichten_anzahl: "Vardiya: ",
     sprache_titel: "Dil", sprache_waehlen: "Dil seç", schliessen: "Kapat",
@@ -1111,6 +1163,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Dodirnite dan za detalje.", ma_frei: "nema smjene",
     ma_plan_fehler: "Raspored nije mogao biti učitan. Osvježite stranicu ili se obratite kancelariji.",
     ma_plan_neu_laden: "Osvježi", ma_plan_hinweis: "Nešto nije u redu? Javite kancelariji: ", ma_oder: " ili ",
+    boerse_karte_titel: "Slobodna dodatna smjena", boerse_karte_info: "Dobija je ko prvi potvrdi.", boerse_btn: "Preuzmi", boerse_frage_titel: "Sigurno preuzeti ovu smjenu?", boerse_frage_text: "Sa „Da, dolazim“ čvrsto potvrđujete: planirani ste i morate doći na posao. Ako ipak ne možete, odmah nazovite kancelariju: ", boerse_ja: "Da, dolazim", boerse_abbrechen: "Odustani", boerse_danke: "Hvala! Smjena je sada u Moj raspored.", boerse_vergeben: "Nažalost, ova smjena je već preuzeta.", boerse_zu_spaet: "Ova smjena uskoro počinje i više se ne može preuzeti u aplikaciji.", boerse_schon_eingeplant: "Taj dan ste već planirani.", boerse_fehler: "Nije uspjelo. Pokušajte ponovo ili nazovite kancelariju.", boerse_ok: "OK",
     schicht_namen: { FRUEH: "Jutarnja", SPAET: "Večernja", LANG: "Duga", BUERO: "Kancelarija" },
     heute: "Danas", morgen: "Sutra", heute_klammer: " (danas)", ma_schichten_anzahl: "Smjena: ",
     sprache_titel: "Jezik", sprache_waehlen: "Odaberi jezik", schliessen: "Zatvori",
@@ -1154,6 +1207,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Dodirnite dan za detalje.", ma_frei: "nema smjene",
     ma_plan_fehler: "Raspored nije mogao biti učitan. Osvježite stranicu ili se obratite uredu.",
     ma_plan_neu_laden: "Osvježi", ma_plan_hinweis: "Nešto nije u redu? Javite uredu: ", ma_oder: " ili ",
+    boerse_karte_titel: "Slobodna dodatna smjena", boerse_karte_info: "Dobiva je tko prvi potvrdi.", boerse_btn: "Preuzmi", boerse_frage_titel: "Sigurno preuzeti ovu smjenu?", boerse_frage_text: "S „Da, dolazim“ čvrsto potvrđujete: planirani ste i morate doći na posao. Ako ipak ne možete, odmah nazovite ured: ", boerse_ja: "Da, dolazim", boerse_abbrechen: "Odustani", boerse_danke: "Hvala! Smjena je sada u Moj raspored.", boerse_vergeben: "Nažalost, ova smjena je već preuzeta.", boerse_zu_spaet: "Ova smjena uskoro počinje i više se ne može preuzeti u aplikaciji.", boerse_schon_eingeplant: "Taj dan ste već planirani.", boerse_fehler: "Nije uspjelo. Pokušajte ponovno ili nazovite ured.", boerse_ok: "U redu",
     schicht_namen: { FRUEH: "Jutarnja", SPAET: "Večernja", LANG: "Duga", BUERO: "Ured" },
     heute: "Danas", morgen: "Sutra", heute_klammer: " (danas)", ma_schichten_anzahl: "Smjena: ",
     sprache_titel: "Jezik", sprache_waehlen: "Odaberi jezik", schliessen: "Zatvori",
@@ -1197,6 +1251,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Dodirnite dan za detalje.", ma_frei: "nema smene",
     ma_plan_fehler: "Raspored nije mogao biti učitan. Osvežite stranicu ili se obratite kancelariji.",
     ma_plan_neu_laden: "Osveži", ma_plan_hinweis: "Nešto nije u redu? Javite kancelariji: ", ma_oder: " ili ",
+    boerse_karte_titel: "Slobodna dodatna smena", boerse_karte_info: "Dobija je ko prvi potvrdi.", boerse_btn: "Preuzmi", boerse_frage_titel: "Sigurno preuzeti ovu smenu?", boerse_frage_text: "Sa „Da, dolazim“ čvrsto potvrđujete: planirani ste i morate da dođete na posao. Ako ipak ne možete, odmah pozovite kancelariju: ", boerse_ja: "Da, dolazim", boerse_abbrechen: "Odustani", boerse_danke: "Hvala! Smena je sada u Moj raspored.", boerse_vergeben: "Nažalost, ova smena je već preuzeta.", boerse_zu_spaet: "Ova smena uskoro počinje i više ne može da se preuzme u aplikaciji.", boerse_schon_eingeplant: "Tog dana ste već planirani.", boerse_fehler: "Nije uspelo. Pokušajte ponovo ili pozovite kancelariju.", boerse_ok: "U redu",
     schicht_namen: { FRUEH: "Jutarnja", SPAET: "Večernja", LANG: "Duga", BUERO: "Kancelarija" },
     heute: "Danas", morgen: "Sutra", heute_klammer: " (danas)", ma_schichten_anzahl: "Smena: ",
     sprache_titel: "Jezik", sprache_waehlen: "Izaberi jezik", schliessen: "Zatvori",
@@ -1240,6 +1295,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Érintsen meg egy napot a részletekért.", ma_frei: "nincs műszak",
     ma_plan_fehler: "A beosztást nem sikerült betölteni. Kérjük, töltse újra az oldalt, vagy forduljon az irodához.",
     ma_plan_neu_laden: "Újratöltés", ma_plan_hinweis: "Valami nem stimmel? Kérjük, jelezze az irodának: ", ma_oder: " vagy ",
+    boerse_karte_titel: "Szabad extra műszak", boerse_karte_info: "Aki először megerősíti, azé.", boerse_btn: "Elvállalom", boerse_frage_titel: "Biztosan elvállalja ezt a műszakot?", boerse_frage_text: "Az „Igen, jövök” gombbal véglegesen vállalja: be van osztva, és be kell jönnie dolgozni. Ha mégsem tud jönni, azonnal hívja az irodát: ", boerse_ja: "Igen, jövök", boerse_abbrechen: "Mégse", boerse_danke: "Köszönjük! A műszak most a Beosztásom alatt látható.", boerse_vergeben: "Sajnos ezt a műszakot már elvitték.", boerse_zu_spaet: "Ez a műszak hamarosan kezdődik, az alkalmazásban már nem vállalható el.", boerse_schon_eingeplant: "Ezen a napon már be van osztva.", boerse_fehler: "Nem sikerült. Kérjük, próbálja újra, vagy hívja az irodát.", boerse_ok: "OK",
     schicht_namen: { FRUEH: "Korai", SPAET: "Késői", LANG: "Hosszú", BUERO: "Iroda" },
     heute: "Ma", morgen: "Holnap", heute_klammer: " (ma)", ma_schichten_anzahl: "Műszakok: ",
     sprache_titel: "Nyelv", sprache_waehlen: "Nyelv választása", schliessen: "Bezárás",
@@ -1283,6 +1339,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Atingeți o zi pentru detalii.", ma_frei: "nicio tură",
     ma_plan_fehler: "Programul nu a putut fi încărcat. Reîncărcați pagina sau adresați-vă biroului.",
     ma_plan_neu_laden: "Reîncarcă", ma_plan_hinweis: "Ceva nu este în regulă? Anunțați biroul: ", ma_oder: " sau ",
+    boerse_karte_titel: "Tură suplimentară liberă", boerse_karte_info: "O primește cine confirmă primul.", boerse_btn: "Preiau", boerse_frage_titel: "Preluați sigur această tură?", boerse_frage_text: "Cu „Da, vin” vă angajați ferm: sunteți planificat și trebuie să veniți la muncă. Dacă totuși nu puteți, sunați imediat la birou: ", boerse_ja: "Da, vin", boerse_abbrechen: "Anulează", boerse_danke: "Mulțumim! Tura apare acum la Programul meu.", boerse_vergeben: "Din păcate, această tură a fost deja luată.", boerse_zu_spaet: "Această tură începe curând și nu mai poate fi preluată în aplicație.", boerse_schon_eingeplant: "Sunteți deja planificat în această zi.", boerse_fehler: "Nu a mers. Încercați din nou sau sunați la birou.", boerse_ok: "OK",
     schicht_namen: { FRUEH: "Dimineață", SPAET: "Seară", LANG: "Lungă", BUERO: "Birou" },
     heute: "Astăzi", morgen: "Mâine", heute_klammer: " (astăzi)", ma_schichten_anzahl: "Ture: ",
     sprache_titel: "Limba", sprache_waehlen: "Alege limba", schliessen: "Închide",
@@ -1326,6 +1383,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Toque un día para ver los detalles.", ma_frei: "sin turno",
     ma_plan_fehler: "No se pudo cargar la planificación. Recargue la página o contacte con la oficina.",
     ma_plan_neu_laden: "Recargar", ma_plan_hinweis: "¿Algo no cuadra? Avise a la oficina: ", ma_oder: " o ",
+    boerse_karte_titel: "Turno extra disponible", boerse_karte_info: "Se lo queda quien confirme primero.", boerse_btn: "Aceptar turno", boerse_frage_titel: "¿Aceptar este turno en firme?", boerse_frage_text: "Con «Sí, voy» se compromete en firme: está planificado y tiene que venir a trabajar. Si al final no puede, llame enseguida a la oficina: ", boerse_ja: "Sí, voy", boerse_abbrechen: "Cancelar", boerse_danke: "¡Gracias! El turno ya aparece en Mi planificación.", boerse_vergeben: "Lo sentimos, este turno ya está asignado.", boerse_zu_spaet: "Este turno empieza pronto y ya no se puede aceptar en la app.", boerse_schon_eingeplant: "Ya está planificado ese día.", boerse_fehler: "No ha funcionado. Inténtelo de nuevo o llame a la oficina.", boerse_ok: "OK",
     schicht_namen: { FRUEH: "Mañana", SPAET: "Tarde", LANG: "Largo", BUERO: "Oficina" },
     heute: "Hoy", morgen: "Mañana", heute_klammer: " (hoy)", ma_schichten_anzahl: "Turnos: ",
     sprache_titel: "Idioma", sprache_waehlen: "Elegir idioma", schliessen: "Cerrar",
@@ -1369,6 +1427,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Πατήστε μια ημέρα για λεπτομέρειες.", ma_frei: "χωρίς βάρδια",
     ma_plan_fehler: "Το πρόγραμμα δεν φορτώθηκε. Ανανεώστε τη σελίδα ή επικοινωνήστε με το γραφείο.",
     ma_plan_neu_laden: "Ανανέωση", ma_plan_hinweis: "Κάτι δεν πάει καλά; Ενημερώστε το γραφείο: ", ma_oder: " ή ",
+    boerse_karte_titel: "Ελεύθερη έκτακτη βάρδια", boerse_karte_info: "Την παίρνει όποιος επιβεβαιώσει πρώτος.", boerse_btn: "Αναλαμβάνω", boerse_frage_titel: "Σίγουρα αναλαμβάνετε αυτή τη βάρδια;", boerse_frage_text: "Με το «Ναι, έρχομαι» δεσμεύεστε οριστικά: είστε στο πρόγραμμα και πρέπει να έρθετε στη δουλειά. Αν τελικά δεν μπορείτε, τηλεφωνήστε αμέσως στο γραφείο: ", boerse_ja: "Ναι, έρχομαι", boerse_abbrechen: "Ακύρωση", boerse_danke: "Ευχαριστούμε! Η βάρδια βρίσκεται τώρα στο Το πρόγραμμά μου.", boerse_vergeben: "Δυστυχώς, αυτή η βάρδια έχει ήδη δοθεί.", boerse_zu_spaet: "Αυτή η βάρδια ξεκινά σύντομα και δεν μπορεί πλέον να αναληφθεί από την εφαρμογή.", boerse_schon_eingeplant: "Είστε ήδη στο πρόγραμμα εκείνη την ημέρα.", boerse_fehler: "Δεν πέτυχε. Δοκιμάστε ξανά ή τηλεφωνήστε στο γραφείο.", boerse_ok: "OK",
     schicht_namen: { FRUEH: "Πρωινή", SPAET: "Απογευματινή", LANG: "Μεγάλη", BUERO: "Γραφείο" },
     heute: "Σήμερα", morgen: "Αύριο", heute_klammer: " (σήμερα)", ma_schichten_anzahl: "Βάρδιες: ",
     sprache_titel: "Γλώσσα", sprache_waehlen: "Επιλογή γλώσσας", schliessen: "Κλείσιμο",
@@ -1412,6 +1471,7 @@ const UEBERSETZUNGEN = {
     ma_tag_antippen: "Dotknij dnia, aby zobaczyć szczegóły.", ma_frei: "brak zmiany",
     ma_plan_fehler: "Nie udało się wczytać grafiku. Odśwież stronę lub skontaktuj się z biurem.",
     ma_plan_neu_laden: "Odśwież", ma_plan_hinweis: "Coś się nie zgadza? Zgłoś to w biurze: ", ma_oder: " lub ",
+    boerse_karte_titel: "Wolna dodatkowa zmiana", boerse_karte_info: "Dostaje ją ten, kto pierwszy potwierdzi.", boerse_btn: "Biorę", boerse_frage_titel: "Na pewno bierzesz tę zmianę?", boerse_frage_text: "Klikając „Tak, przyjdę”, wiążąco się zgadzasz: jesteś zaplanowany i musisz przyjść do pracy. Jeśli jednak nie możesz, natychmiast zadzwoń do biura: ", boerse_ja: "Tak, przyjdę", boerse_abbrechen: "Anuluj", boerse_danke: "Dziękujemy! Zmiana jest teraz w Mój grafik.", boerse_vergeben: "Niestety, ta zmiana jest już zajęta.", boerse_zu_spaet: "Ta zmiana wkrótce się zaczyna i nie można jej już wziąć w aplikacji.", boerse_schon_eingeplant: "Tego dnia jesteś już zaplanowany.", boerse_fehler: "Nie udało się. Spróbuj ponownie lub zadzwoń do biura.", boerse_ok: "OK",
     schicht_namen: { FRUEH: "Poranna", SPAET: "Wieczorna", LANG: "Długa", BUERO: "Biuro" },
     heute: "Dziś", morgen: "Jutro", heute_klammer: " (dziś)", ma_schichten_anzahl: "Zmiany: ",
     sprache_titel: "Język", sprache_waehlen: "Wybierz język", schliessen: "Zamknij",
@@ -1774,7 +1834,7 @@ async function weiterNachAnmeldung() {
   ma.planung = null;
   maStartAufbauen();
   maAnsicht("start");
-  await Promise.all([wocheLaden(), planungDatenLaden()]);
+  await Promise.all([wocheLaden(), planungDatenLaden(), boerseMaLaden()]);
 }
 
 function zeigeLogin() {
@@ -1879,13 +1939,21 @@ async function wocheLaden() {
       .eq("kw_start_datum", kw).order("datum").order("sortierung"),
     sb.from("submissions").select("max_schichten, abgegeben_am")
       .eq("kw_start_datum", kw).maybeSingle(),
-    sb.from("availability").select("datum, schicht_id").eq("kw_start_datum", kw)
+    sb.from("availability").select("datum, schicht_id").eq("kw_start_datum", kw),
+    // Nachfrist (Migration 0015): vom Admin fuer diese Person kurz geoeffnet.
+    // Fehlt die Tabelle noch, kommt ein Fehler zurueck – dann gilt nur die Wochenfrist.
+    sb.from("nachfrist").select("bis").eq("kw_start_datum", kw).maybeSingle()
   ]);
 
   const woche = ergebnisse[0], tage = ergebnisse[1], schichten = ergebnisse[2];
-  const abgabe = ergebnisse[3], verfuegbar = ergebnisse[4];
+  const abgabe = ergebnisse[3], verfuegbar = ergebnisse[4], nachfrist = ergebnisse[5];
 
-  zustand.frist       = woche.data ? woche.data.abgabefrist : null;
+  zustand.frist = woche.data ? woche.data.abgabefrist : null;
+  const nachfristBis = (nachfrist && !nachfrist.error && nachfrist.data) ? nachfrist.data.bis : null;
+  if (nachfristBis && new Date(nachfristBis) > new Date() &&
+      (!zustand.frist || new Date(nachfristBis) > new Date(zustand.frist))) {
+    zustand.frist = nachfristBis;   // "Änderbar bis" zeigt dann die Nachfrist
+  }
   zustand.bearbeitbar = zustand.frist ? (new Date() < new Date(zustand.frist)) : false;
 
   const schichtenNachTag = {};
@@ -1961,7 +2029,7 @@ const dauerMin = (p) => {
   return b - a;
 };
 
-const ma = { ansicht: "start", planung: null, woche: 0, tag: null };
+const ma = { ansicht: "start", planung: null, woche: 0, tag: null, boerse: null };
 
 // Laedt laufende und naechste Woche. Ergebnis wird fuer Startseite und Kalender gemeinsam genutzt.
 async function planungDatenLaden() {
@@ -1991,6 +2059,88 @@ async function planungDatenLaden() {
   }
   maStartInfo();
   if (ma.ansicht === "planung") planungZeichnen();
+}
+
+// ---------- Schichtbörse für Mitarbeitende (Migration 0016) ----------
+// Offene Angebote für mich: nur Datum, Schicht, Zeiten. Fehlt die Migration, bleibt die Karte leer.
+async function boerseMaLaden() {
+  const { data, error } = await sb.rpc("boerse_meine_angebote");
+  ma.boerse = error ? [] : (data || []);
+  boerseMaZeichnen();
+}
+
+function boerseLangDatum(iso) { return WOCHENTAGE_LANG[alsDatum(iso).getDay()] + ", " + tagKurz(iso); }
+function boerseZeiten(a) { return uhr(a.beginn) + "–" + uhr(a.ende) + TEXTE.uhr_suffix; }
+
+function boerseMaZeichnen() {
+  const ziel = $("boerse-ma");
+  if (!ziel) return;
+  ziel.textContent = "";
+  (ma.boerse || []).forEach((a) => {
+    const k = el("div", "boerse-ma-karte");
+    k.appendChild(el("strong", "boerse-ma-titel", TEXTE.boerse_karte_titel));
+    k.appendChild(el("div", "boerse-ma-zeit", tagBezeichnung(a.datum) + " · " + schichtName(a.schicht_id) + " · " + boerseZeiten(a)));
+    k.appendChild(el("div", "start-info", TEXTE.boerse_karte_info));
+    const b = el("button", "knopf-mittel", TEXTE.boerse_btn);
+    b.type = "button";
+    b.onclick = () => boerseDialog(a);
+    k.appendChild(b);
+    ziel.appendChild(k);
+  });
+}
+
+function boerseDialogSchliessen() {
+  verbirg($("boerse-dialog"));
+  document.body.classList.remove("dialog-offen");
+}
+
+// Ergebnis anzeigen: Danke / schon vergeben / zu spät ...
+function boerseDialogMeldung(art, text) {
+  const box = $("boerse-dialog-box");
+  box.textContent = "";
+  box.appendChild(el("div", "meldung " + art, text));
+  const ok = el("button", "knopf-mittel", TEXTE.boerse_ok);
+  ok.type = "button";
+  ok.onclick = boerseDialogSchliessen;
+  box.appendChild(ok);
+  ok.focus();
+}
+
+function boerseDialog(a) {
+  const box = $("boerse-dialog-box");
+  box.textContent = "";
+  const h = el("h3", null, TEXTE.boerse_frage_titel);
+  h.id = "boerse-dialog-titel";
+  box.appendChild(h);
+  box.appendChild(el("p", "boerse-dialog-zeit", boerseLangDatum(a.datum) + ", " + boerseZeiten(a)));
+  const p = el("p", null, TEXTE.boerse_frage_text);
+  const tel = el("a", "telefon", TEXTE.ma_telefon);
+  tel.href = TEXTE.ma_telefon_href;
+  p.appendChild(tel);
+  box.appendChild(p);
+  const reihe = el("div", "boerse-knoepfe");
+  const ja = el("button", "knopf-mittel boerse-ja", TEXTE.boerse_ja);
+  ja.type = "button";
+  const nein = el("button", "knopf-mittel grau", TEXTE.boerse_abbrechen);
+  nein.type = "button";
+  reihe.appendChild(ja); reihe.appendChild(nein);
+  box.appendChild(reihe);
+  nein.onclick = boerseDialogSchliessen;
+  ja.onclick = async () => {
+    ja.disabled = true; nein.disabled = true;
+    ja.textContent = TEXTE.laedt;
+    const { data, error } = await sb.rpc("boerse_uebernehmen", { p_id: a.id });
+    if (error || !data) boerseDialogMeldung("schlecht", TEXTE.boerse_fehler);
+    else if (data.ok) boerseDialogMeldung("gut", TEXTE.boerse_danke);
+    else if (data.grund === "zu_spaet") boerseDialogMeldung("schlecht", TEXTE.boerse_zu_spaet);
+    else if (data.grund === "schon_eingeplant") boerseDialogMeldung("schlecht", TEXTE.boerse_schon_eingeplant);
+    else boerseDialogMeldung("schlecht", TEXTE.boerse_vergeben);
+    ma.planung = null;
+    await Promise.all([boerseMaLaden(), planungDatenLaden()]);
+  };
+  zeige($("boerse-dialog"));
+  document.body.classList.add("dialog-offen");
+  nein.focus();
 }
 
 // Hinweis mit Telefonnummer: Tippen startet auf dem Handy direkt den Anruf
@@ -2826,16 +2976,18 @@ function tresorMinijob() {
    die Zeichenfunktion zu. Meldungen (adminMeldung) immer NACH
    adminZeichnen setzen, weil adminZeichnen sie zuerst loescht.
 ===================================================================== */
-const WOCHEN_ANSICHTEN = new Set(["start", "woche", "zeiten", "export"]);
+const WOCHEN_ANSICHTEN = new Set(["start", "woche", "zeiten", "export", "boerse"]);
 const MEHR_ANSICHTEN = new Set(["zeiten", "vorlage", "dispo", "export", "tresor"]);
 const ANSICHT_TITEL = {
   woche: "Wochenplanung", mitarbeiter: "Mitarbeiter", mehr: "Mehr", zeiten: "Zeiten und Frist",
-  vorlage: "Dispo-Vorlage", dispo: "Fertige Dispo einlesen", export: "Verfügbarkeiten exportieren", tresor: "Tresor"
+  vorlage: "Dispo-Vorlage", dispo: "Fertige Dispo einlesen", export: "Verfügbarkeiten exportieren", tresor: "Tresor",
+  nachfrist: "Abgabe für eine Person öffnen", boerse: "Schichtbörse"
 };
 // Funktionsdeklarationen sind gehoisted, deshalb darf die Zuordnung hier oben stehen.
 const ADMIN_ANSICHTEN = {
   start: adminStart, woche: adminWoche, mitarbeiter: adminMitarbeiter, mehr: adminMehr,
-  zeiten: adminZeiten, vorlage: adminVorlage, dispo: adminPlanung, export: adminExport, tresor: adminTresor
+  zeiten: adminZeiten, vorlage: adminVorlage, dispo: adminPlanung, export: adminExport, tresor: adminTresor,
+  nachfrist: adminNachfrist, boerse: adminBoerse
 };
 
 function adminAnsicht(id) {
@@ -3006,6 +3158,12 @@ function adminStart(ziel) {
   const raster = el("div", "start-raster");
   raster.appendChild(k1.knopf); raster.appendChild(k2.knopf); raster.appendChild(k3.knopf);
   ziel.appendChild(raster);
+  ziel.appendChild(startKnopf("Abgabe für eine Person öffnen",
+    "Nachzügler oder Falsch-Klick: " + NACHFRIST_MINUTEN + " Minuten offen, nur für diese Person, danach automatisch zu",
+    () => adminAnsicht("nachfrist")).knopf);
+  const kb = startKnopf("Schichtbörse (Ausfall nach der Planung)", "Schicht freigeben, wenn jemand ausfällt – " + kwText(admin.kw), () => adminAnsicht("boerse"));
+  ziel.appendChild(kb.knopf);
+  boerseStartInfo(kb.info).catch(() => { /* Info bleibt allgemein (z. B. Migration 0016 fehlt) */ });
   ziel.appendChild(el("p", "hinweisbox",
     "Namen und Profile liegen verschlüsselt im Tresor. Lesen kann sie nur, wer das Tresor-Passwort kennt – nicht der Datenbank-Anbieter."));
   const meinKw = admin.kw;
@@ -3083,6 +3241,529 @@ function adminMehr(ziel) {
   ziel.appendChild(startKnopf("Verfügbarkeiten exportieren (CSV)", "Für Excel oder eine eigene Auswertung", () => adminAnsicht("export")).knopf);
   ziel.appendChild(startKnopf("Tresor", tresorKurz() + (tresor.zustand === "offen" ? " · Passwort ändern, Gerät vergessen" : ""), () => adminAnsicht("tresor")).knopf);
   if (!st) adminStatusLaden().then(() => { if (admin.ansicht === "mehr") adminZeichnen(); }).catch(() => { /* Infos bleiben allgemein */ });
+}
+
+// ---------- Start > Abgabe für eine Person öffnen (Nachfrist, Migration 0015) ----------
+// Gilt immer für die aktive Woche (die Woche, die Mitarbeitende gerade bearbeiten),
+// nicht für die oben gewählte Woche. Der Server schließt nach Ablauf von selbst.
+const NACHFRIST_MINUTEN = 10;
+function uhrzeitText(iso) {
+  return new Date(iso).toLocaleTimeString("de-DE", { timeZone: "Europe/Berlin", hour: "2-digit", minute: "2-digit", hour12: false });
+}
+function adminNachfrist(ziel) {
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, "Abgabe für eine Person öffnen"));
+  const kopf = el("p", null, TEXTE.laedt);
+  karte.appendChild(kopf);
+  karte.appendChild(el("p", "hinweisbox",
+    "Für Nachzügler und Falsch-Klicks: Tippe auf den Namen. Nur diese Person kann dann " + NACHFRIST_MINUTEN +
+    " Minuten lang ihre Verfügbarkeit abgeben oder ändern. Danach ist automatisch wieder zu. " +
+    "Sag der Person: App jetzt neu öffnen, eintragen und auf Senden tippen."));
+  if (tresor.zustand !== "offen") karte.appendChild(el("p", "hinweisbox", "Tresor ist nicht offen: Es stehen nur Personalnummern da. Für Namen oben den Tresor öffnen."));
+  const suche = document.createElement("input");
+  suche.type = "search";
+  suche.placeholder = "Name oder Personalnummer suchen";
+  suche.className = "nf-suche";
+  karte.appendChild(suche);
+  const liste = el("div");
+  karte.appendChild(liste);
+  ziel.appendChild(karte);
+
+  let d = null;
+  const nameOder = (pn) => (stammProfile[pn] && stammProfile[pn].name) ? stammProfile[pn].name : "Nr. " + pn;
+
+  const zeichneListe = () => {
+    liste.textContent = "";
+    if (!d) return;
+    const jetzt = new Date();
+    const fristVorbei = d.frist && new Date(d.frist) < jetzt;
+    kopf.textContent = kwText(d.kw) + " · Frist " + (d.frist ? zeitpunktText(d.frist) + (fristVorbei ? " (vorbei)" : "") : "–") +
+      " · " + d.abgaben.size + " von " + d.aktive.length + " abgegeben";
+    const s = suche.value.trim().toLowerCase();
+    const offen = (pn) => d.nachfrist[pn] && new Date(d.nachfrist[pn]) > jetzt;
+    const zeilen = d.aktive
+      .filter((pn) => !s || pn.toLowerCase().indexOf(s) >= 0 || nameOder(pn).toLowerCase().indexOf(s) >= 0)
+      .sort((a, b) => (offen(b) - offen(a)) || nameOder(a).localeCompare(nameOder(b), "de"));
+    if (!zeilen.length) { liste.appendChild(el("p", null, "Niemand gefunden.")); return; }
+    zeilen.forEach((pn) => {
+      const z = el("div", "nf-zeile" + (offen(pn) ? " offen" : ""));
+      const b = el("button", "nf-knopf");
+      b.type = "button";
+      b.appendChild(el("span", "nf-name", nameOder(pn)));
+      const zeit = d.abgaben.get(pn);
+      const nach = zeit && d.frist && new Date(zeit) > new Date(d.frist);
+      b.appendChild(el("span", "nf-info",
+        (stammProfile[pn] && stammProfile[pn].name ? "Nr. " + pn + " · " : "") +
+        (zeit ? (nach ? "nachgereicht " : "abgegeben ") + zeitpunktText(zeit) : "noch nicht abgegeben")));
+      if (offen(pn)) {
+        const rest = Math.max(1, Math.ceil((new Date(d.nachfrist[pn]) - jetzt) / 60000));
+        b.appendChild(el("span", "nf-status status-ja", "✓ offen bis " + uhrzeitText(d.nachfrist[pn]) + " Uhr (noch " + rest + " Min.) · tippen = wieder " + NACHFRIST_MINUTEN + " Min."));
+      } else {
+        b.appendChild(el("span", "nf-status", "Tippen = " + NACHFRIST_MINUTEN + " Minuten öffnen"));
+      }
+      b.onclick = () => oeffnen(pn, NACHFRIST_MINUTEN, b);
+      z.appendChild(b);
+      if (offen(pn)) {
+        const zu = el("button", "knopf-klein", "Schließen");
+        zu.type = "button";
+        zu.onclick = () => oeffnen(pn, 0, zu);
+        z.appendChild(zu);
+      }
+      liste.appendChild(z);
+    });
+  };
+
+  const laden = async () => {
+    const kwA = await sb.rpc("aktive_woche");
+    if (kwA.error) { kopf.textContent = ""; adminMeldung("schlecht", kwA.error.message); return; }
+    const kw = kwA.data;
+    const r = await Promise.all([
+      sb.from("employees").select("personalnummer").eq("aktiv", true),
+      sb.from("submissions").select("personalnummer, abgegeben_am").eq("kw_start_datum", kw),
+      sb.from("nachfrist").select("personalnummer, bis").eq("kw_start_datum", kw),
+      sb.from("weeks").select("abgabefrist").eq("kw_start_datum", kw).maybeSingle()
+    ]);
+    if (r[2].error) {
+      kopf.textContent = "";
+      adminMeldung("schlecht", "Die Datenbank kennt die Nachfrist noch nicht: bitte supabase/migrations/0015_nachfrist.sql im SQL Editor ausführen. (" + r[2].error.message + ")");
+      return;
+    }
+    for (const teil of r) if (teil.error) { adminMeldung("schlecht", teil.error.message); return; }
+    const nf = {};
+    (r[2].data || []).forEach((n) => { nf[n.personalnummer] = n.bis; });
+    d = {
+      kw: kw,
+      aktive: (r[0].data || []).map((e) => e.personalnummer),
+      abgaben: new Map((r[1].data || []).map((a) => [a.personalnummer, a.abgegeben_am])),
+      nachfrist: nf,
+      frist: r[3].data ? r[3].data.abgabefrist : null
+    };
+    zeichneListe();
+  };
+
+  const oeffnen = async (pn, minuten, knopf) => {
+    knopf.disabled = true;
+    const { data, error } = await sb.rpc("nachfrist_oeffnen", { p_personalnummer: pn, p_minuten: minuten });
+    knopf.disabled = false;
+    if (error) { adminMeldung("schlecht", error.message); return; }
+    adminMeldung("gut", minuten
+      ? nameOder(pn) + ": Abgabe offen bis " + uhrzeitText(data.bis) + " Uhr. Danach automatisch wieder zu."
+      : nameOder(pn) + ": Abgabe wieder geschlossen.");
+    await laden();
+  };
+
+  suche.oninput = zeichneListe;
+  // Restzeit alle 30 Sekunden auffrischen, solange diese Ansicht offen ist
+  const uhr = setInterval(() => {
+    if (admin.ansicht !== "nachfrist" || !document.body.contains(liste)) { clearInterval(uhr); return; }
+    zeichneListe();
+  }, 30000);
+  laden().catch((e) => adminMeldung("schlecht", String(e.message || e)));
+}
+
+// ---------- Start > Schichtbörse (Ausfall nach der Planung, Migration 0016) ----------
+// Gilt für die oben gewählte Woche. Freigeben nimmt die Person aus der veröffentlichten
+// Planung; wer passt, rechnet schichtboerse.js aus (nur Personalnummern gehen an den Server).
+// Der Server lässt bei "Übernehmen" nur einen gewinnen und schließt 1 Stunde vor Beginn.
+const BOERSE_HINWEIS_TEXT = "Hallo zusammen, in der Minijob-App gibt es eine freie Sonderschicht. " +
+  "Wer kann: bitte die App öffnen und schauen. Wer zuerst bestätigt, bekommt sie.";
+
+async function boerseModul() {
+  await skriptLaden("schichtboerse.js");
+  if (!window.Schichtboerse || typeof window.Schichtboerse.kandidaten !== "function") {
+    throw new Error("schichtboerse.js konnte nicht geladen werden. Bitte die Seite neu laden (Strg+F5).");
+  }
+  return window.Schichtboerse;
+}
+
+function boerseFehlerText(e) {
+  const m = String((e && e.message) || e);
+  return /boerse_|planung_aenderungen|fedex_datei_am|schema cache|does not exist/i.test(m)
+    ? "Die Datenbank kennt die Schichtbörse noch nicht: bitte supabase/migrations/0016_schichtboerse.sql im SQL Editor ausführen. (" + m + ")"
+    : m;
+}
+
+async function boerseDatenHolen(kw) {
+  const r = await Promise.all([
+    sb.from("boerse_angebot").select("id, datum, schicht_id, beginn, ende, status, frei_von, uebernommen_von, erstellt_am, erledigt_am")
+      .eq("kw_start_datum", kw),
+    sb.from("planung").select("personalnummer, datum, schicht_id, beginn, ende").eq("kw_start_datum", kw),
+    sb.from("planung_aenderungen").select("aktion, am").eq("kw_start_datum", kw),
+    sb.from("planung_stand").select("kw_start_datum, aktualisiert_am, anzahl, fedex_datei_am").eq("kw_start_datum", kw),
+    sb.from("week_shifts").select("datum, schicht_id, name, beginn, ende, aktiv, sortierung").eq("kw_start_datum", kw),
+    sb.from("employees").select("personalnummer").eq("aktiv", true),
+    verfuegbarkeitenSeitenweise(kw)
+  ]);
+  for (const teil of r) if (teil.error) throw new Error(boerseFehlerText(teil.error));
+  const angebote = r[0].data || [];
+  const berechtigt = {};
+  if (angebote.length) {
+    const b = await sb.from("boerse_berechtigt").select("angebot_id, personalnummer").in("angebot_id", angebote.map((a) => a.id));
+    if (b.error) throw new Error(boerseFehlerText(b.error));
+    (b.data || []).forEach((x) => { berechtigt[x.angebot_id] = (berechtigt[x.angebot_id] || 0) + 1; });
+  }
+  return {
+    kw: kw, angebote: angebote, berechtigt: berechtigt,
+    planung: r[1].data || [], aenderungen: r[2].data || [], stand: (r[3].data || [])[0] || null,
+    schichten: (r[4].data || []).filter((s) => s.aktiv), aktive: (r[5].data || []).map((e) => e.personalnummer),
+    verfuegbar: r[6].data || []
+  };
+}
+
+function boerseName(pn) {
+  if (!pn) return "–";
+  return (stammProfile[pn] && stammProfile[pn].name) ? stammProfile[pn].name : "Nr. " + pn;
+}
+function boerseWochentag(datum) { const t = alsDatum(datum).getDay(); return t === 0 ? 7 : t; }
+function boerseTag(datum) { return (AUTO_TAGE[boerseWochentag(datum) - 1] || "") + " " + tagKurz(datum); }
+function boerseMinuten(beginn, ende) {
+  const m = (t) => { const p = uhr(t).split(":"); return (+p[0] || 0) * 60 + (+p[1] || 0); };
+  return Math.max(0, m(ende) - m(beginn));
+}
+function boerseGruppe(pn) {
+  const fg = stammProfile[pn] && stammProfile[pn].fahrgemeinschaft;
+  if (!fg) return null;
+  return (window.PlanungSolver && window.PlanungSolver.gruppeNorm) ? window.PlanungSolver.gruppeNorm(fg) : String(fg).trim().toUpperCase();
+}
+
+// Hinweis an Max: liegt die Person mit der übernommenen Schicht über ihrer Minijob-Wochengrenze?
+async function boerseMinijobHinweis(d, pn) {
+  try {
+    await minijobModul();
+    const lage = minijobLage(tresorMinijob(), stammProfile, d.kw);
+    const grenze = minijobGrenzeVon(lage, pn);
+    if (grenze === null || grenze === undefined) return "";
+    const geplant = d.planung.filter((p) => p.personalnummer === pn).reduce((s, p) => s + boerseMinuten(p.beginn, p.ende), 0);
+    return geplant > grenze ? "⚠ Minijob: damit " + minijobGeplant(geplant) + " geplant, Wochengrenze " + minijobGeplant(grenze) + "." : "";
+  } catch (_) {
+    return "";
+  }
+}
+
+function boerseHinweisKopieren(knopf, textFeld) {
+  const fertig = () => { knopf.textContent = "✓ Hinweis kopiert – jetzt in die WhatsApp-Gruppe einfügen"; };
+  const vonHand = () => { textFeld.select(); knopf.textContent = "Text unten markiert – bitte mit Strg+C kopieren"; };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(BOERSE_HINWEIS_TEXT).then(fertig, vonHand);
+  else vonHand();
+}
+
+// FedEx-Datei aus der VEROEFFENTLICHTEN Planung (mit Boersen-Aenderungen). Freie Schichten bleiben
+// als leere Zeile mit Uhrzeit stehen. Max sendet die Datei selbst (Regel 8).
+async function boerseFedexDatei(knopf, d) {
+  const B = await boerseModul();
+  // Unbesetzt bleiben: Angebote in der Boerse / nicht besetzt und zurueckgenommene Ausfaelle
+  // (Entscheidung Max 2026-11-16: Zuruecknehmen = Schicht bleibt unbesetzt). Eine zurueckgenommene
+  // Zusatzschicht (frei_von leer) war nie geplant und kommt nicht in die Datei.
+  const offen = d.angebote.filter((a) => a.status === "frei" || (a.status === "zurueckgenommen" && a.frei_von));
+  const r = B.fedexEintraege(d.planung, offen, d.kw, boerseName);
+  const hatName = (pn) => !!(stammProfile[pn] && stammProfile[pn].name && String(stammProfile[pn].name).trim());
+  const ohneName = Array.from(new Set(r.eintraege.filter((e) => e.personalnummer && !hatName(e.personalnummer)).map((e) => e.personalnummer)));
+  if (ohneName.length) {
+    adminMeldung("schlecht", "FedEx-Datei gesperrt: Für " + ohneName.length + " Personen fehlt der Name (Nr. " +
+      ohneName.slice(0, 8).join(", ") + (ohneName.length > 8 ? " …" : "") + "). Bitte oben den Tresor öffnen.");
+    return;
+  }
+  if (r.unbekannt.length) {
+    adminMeldung("schlecht", "FedEx-Datei gesperrt: Schichten ohne passende Zeile (" + r.unbekannt.slice(0, 5).join(", ") + ").");
+    return;
+  }
+  knopf.disabled = true;
+  try {
+    await autoBibliothekenLaden();
+    if (!auto.vorlage) await autoVorlageAusDbLaden();
+    if (!auto.vorlage) throw new Error("Für die FedEx-Datei fehlt die Dispo-Vorlage (Mehr → Dispo-Vorlage).");
+    const eintraege = r.eintraege.map((e) => ({
+      datum: e.datum, art: e.art, nr: e.nr, beginn: e.beginn, ende: e.ende, alternativen: [],
+      name: e.personalnummer ? String(stammProfile[e.personalnummer].name).trim() : ""
+    }));
+    const k = isoKw(alsDatum(d.kw));
+    const x = await DispoExport.fedexDatei(JSZip, auto.vorlage.bytes, { tage: r.tage, eintraege: eintraege }, { kw: k.kw });
+    datenSpeichern(x.bytes, "ZiG_Planung_FedEx_KW" + k.kw + "_" + k.jahr + ".xlsx",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    const v = await sb.rpc("fedex_datei_vermerken", { p_kw: d.kw });
+    let text = "Datei für FedEx erstellt (" + x.belegt + " Plätze belegt" + (offen.length ? ", " + offen.length + " unbesetzt" : "") + "). Senden machst du selbst.";
+    if (x.nichtUntergebracht.length) text += " Achtung: In der Vorlage fehlen Zeilen für " + x.nichtUntergebracht.length + " Plätze (" +
+      x.nichtUntergebracht.slice(0, 5).join(", ") + ") – bitte von Hand ergänzen.";
+    if (v.error) text += " (Zeitpunkt nicht vermerkt: " + v.error.message + ")";
+    adminMeldung(x.nichtUntergebracht.length || v.error ? "info" : "gut", text);
+    return true;
+  } catch (e) {
+    adminMeldung("schlecht", String(e.message || e));
+  } finally {
+    knopf.disabled = false;
+  }
+}
+
+function adminBoerse(ziel) {
+  const kw = admin.kw;
+  const karte = el("div", "karte");
+  karte.appendChild(el("h2", null, "Schichtbörse " + kwText(kw) + " · " + kwZeitraum(kw)));
+  karte.appendChild(el("p", "hinweisbox",
+    "Fällt nach der Planung jemand aus: unten bei der Schicht auf „Freigeben“ tippen. Die App zeigt sie nur Leuten, " +
+    "die an dem Tag für diese Schicht verfügbar sind und noch nicht eingeplant sind. Wer zuerst bestätigt, bekommt sie. " +
+    "Die Börse läuft bis 1 Stunde vor Schichtbeginn. Die Minijob-Grenze wird dabei nicht geprüft."));
+  if (tresor.zustand !== "offen") karte.appendChild(el("p", "hinweisbox", "Tresor ist nicht offen: Es stehen nur Personalnummern da. Für Namen oben den Tresor öffnen."));
+  const box = el("div");
+  box.appendChild(el("p", null, TEXTE.laedt));
+  karte.appendChild(box);
+  ziel.appendChild(karte);
+
+  let B = null, d = null;
+  const sichtbar = () => admin.ansicht === "boerse" && admin.kw === kw && document.body.contains(box);
+
+  const laden = async () => {
+    try {
+      B = await boerseModul();
+      const neu = await boerseDatenHolen(kw);
+      if (!sichtbar()) return;
+      d = neu;
+      await zeichnen();
+    } catch (e) {
+      if (!sichtbar()) return;
+      box.textContent = "";
+      box.appendChild(el("div", "meldung schlecht", boerseFehlerText(e)));
+    }
+  };
+
+  const zeitText = (x) => uhr(x.beginn) + "–" + uhr(x.ende);
+  const schichtName = (x) => {
+    const s = d.schichten.find((y) => y.datum === x.datum && y.schicht_id === x.schicht_id);
+    return s && s.name ? s.name : x.schicht_id;
+  };
+
+  const zeichnen = async () => {
+    const jetzt = new Date();
+    const neu = el("div");
+    const mitLage = d.angebote.map((a) => Object.assign({ lage: B.lage(a, jetzt) }, a))
+      .sort((a, b) => (a.datum + uhr(a.beginn)).localeCompare(b.datum + uhr(b.beginn)));
+
+    // 1. Rot oben: nicht besetzt (Börse vorbei, niemand hat übernommen)
+    const rot = mitLage.filter((a) => a.lage === "nicht_besetzt");
+    if (rot.length) {
+      const r = el("div", "meldung schlecht");
+      r.appendChild(el("strong", null, "Nicht besetzt (" + rot.length + ") – bitte telefonisch regeln:"));
+      rot.forEach((a) => {
+        const z = el("div", "boerse-zeile");
+        z.appendChild(el("span", null, boerseTag(a.datum) + " · " + zeitText(a) + " · " + schichtName(a)));
+        z.appendChild(kleinerKnopf("Erledigt", () => zuruecknehmen(a, true)));
+        r.appendChild(z);
+      });
+      neu.appendChild(r);
+    }
+
+    // 2. Änderungen seit letzter FedEx-Datei (bzw. seit der Veröffentlichung)
+    const seit = d.stand ? (d.stand.fedex_datei_am || d.stand.aktualisiert_am) : null;
+    const anz = B.aenderungenSeit(d.aenderungen.filter((x) => x.aktion !== "geschlossen"), seit);
+    if (anz) {
+      neu.appendChild(el("div", "meldung info", "Änderungen seit " + (d.stand && d.stand.fedex_datei_am ? "der letzten FedEx-Datei" : "der Veröffentlichung") +
+        ": " + anz + ". Die FedEx-Datei schickst du wie immer selbst."));
+    }
+    if (d.planung.length) {
+      const fx = mittlererKnopf("FedEx-Datei neu (aus der veröffentlichten Planung, .xlsx)", !anz);
+      fx.onclick = async () => { if (await boerseFedexDatei(fx, d)) laden(); };
+      neu.appendChild(fx);
+    }
+
+    // 3. Offene Angebote
+    const offen = mitLage.filter((a) => a.lage === "offen");
+    neu.appendChild(el("h3", null, "In der Börse (" + offen.length + ")"));
+    if (!offen.length) neu.appendChild(el("p", "hinweisbox", "Gerade ist keine Schicht in der Börse."));
+    offen.forEach((a) => {
+      const z = el("div", "boerse-zeile");
+      const t = el("div");
+      t.appendChild(el("strong", null, boerseTag(a.datum) + " · " + zeitText(a) + " · " + schichtName(a)));
+      t.appendChild(el("div", "nf-info", "sichtbar für " + (d.berechtigt[a.id] || 0) + " Personen · läuft bis " +
+        uhrzeitText(B.schluss(a.datum, a.beginn).toISOString()) + " Uhr" + (a.frei_von ? " · vorher: " + boerseName(a.frei_von) : " · Zusatzschicht")));
+      z.appendChild(t);
+      z.appendChild(kleinerKnopf("Zurücknehmen", () => zuruecknehmen(a, false)));
+      neu.appendChild(z);
+    });
+    if (offen.length) {
+      const k = mittlererKnopf("Hinweis für die WhatsApp-Gruppe kopieren");
+      const feld = document.createElement("textarea");
+      feld.readOnly = true;
+      feld.rows = 2;
+      feld.className = "boerse-text";
+      feld.value = BOERSE_HINWEIS_TEXT;
+      k.onclick = () => boerseHinweisKopieren(k, feld);
+      neu.appendChild(k);
+      neu.appendChild(feld);
+    }
+
+    // 4. Erledigt
+    const erledigt = mitLage.filter((a) => a.lage === "uebernommen" || a.lage === "zurueckgenommen" || a.lage === "geschlossen");
+    if (erledigt.length) {
+      neu.appendChild(el("h3", null, "Erledigt (" + erledigt.length + ")"));
+      for (const a of erledigt) {
+        const z = el("div", "boerse-zeile erledigt");
+        const t = el("div");
+        t.appendChild(el("span", null, boerseTag(a.datum) + " · " + zeitText(a) + " · " + schichtName(a)));
+        let info;
+        if (a.lage === "uebernommen") info = "✓ über Börse übernommen von " + boerseName(a.uebernommen_von) + " (" + zeitpunktText(a.erledigt_am) + ")";
+        else if (a.lage === "zurueckgenommen") info = "zurückgenommen (" + zeitpunktText(a.erledigt_am) + ")";
+        else info = "geschlossen durch neue Veröffentlichung (" + zeitpunktText(a.erledigt_am) + ")";
+        t.appendChild(el("div", "nf-info", info));
+        if (a.lage === "uebernommen") {
+          const mj = await boerseMinijobHinweis(d, a.uebernommen_von);
+          if (mj) t.appendChild(el("div", "status-nein", mj));
+        }
+        z.appendChild(t);
+        neu.appendChild(z);
+      }
+    }
+
+    // 5. Veröffentlichte Planung mit "Freigeben"
+    neu.appendChild(el("h3", null, "Veröffentlichte Planung"));
+    if (!d.planung.length && !d.stand) {
+      neu.appendChild(el("p", "hinweisbox", "Für " + kwText(kw) + " ist noch keine Planung veröffentlicht."));
+    } else {
+      const tage = Array.from(new Set(d.schichten.map((s) => s.datum).concat(d.planung.map((p) => p.datum)))).sort();
+      tage.forEach((datum) => {
+        neu.appendChild(el("h4", "boerse-tag", boerseTag(datum)));
+        const zeilen = d.planung.filter((p) => p.datum === datum)
+          .sort((a, b) => (uhr(a.beginn) + a.schicht_id + boerseName(a.personalnummer)).localeCompare(uhr(b.beginn) + b.schicht_id + boerseName(b.personalnummer), "de"));
+        if (!zeilen.length) neu.appendChild(el("p", "nf-info", "Niemand eingeplant."));
+        zeilen.forEach((p) => {
+          const z = el("div", "boerse-zeile");
+          const t = el("div");
+          t.appendChild(el("span", null, zeitText(p) + " · " + schichtName(p) + " · "));
+          t.appendChild(el("strong", null, boerseName(p.personalnummer)));
+          const ueber = d.angebote.find((a) => a.status === "uebernommen" && a.uebernommen_von === p.personalnummer && a.datum === p.datum && uhr(a.beginn) === uhr(p.beginn));
+          if (ueber) t.appendChild(el("div", "nf-info", "über Börse übernommen " + uhrzeitText(ueber.erledigt_am) + " Uhr"));
+          z.appendChild(t);
+          const vorbei = jetzt >= B.schluss(p.datum, p.beginn);
+          const k = kleinerKnopf(vorbei ? "zu spät" : "Freigeben", () => freigebenFragen(z, p));
+          k.disabled = vorbei;
+          z.appendChild(k);
+          neu.appendChild(z);
+        });
+        const zusatz = d.schichten.filter((s) => s.datum === datum && jetzt < B.schluss(s.datum, s.beginn));
+        if (zusatz.length) {
+          const zk = el("button", "knopf-klein", "+ Zusatzschicht freigeben");
+          zk.type = "button";
+          zk.style.marginBottom = "8px";
+          zk.onclick = () => zusatzWaehlen(zk, datum, zusatz);
+          neu.appendChild(zk);
+        }
+      });
+    }
+    // Erst ganz am Ende tauschen: kein Flackern, keine offene Rückfrage geht beim Auffrischen verloren
+    if (!sichtbar()) return;
+    if (box.querySelector(".boerse-frage")) return;
+    box.textContent = "";
+    box.appendChild(neu);
+  };
+
+  const zusatzWaehlen = (knopf, datum, schichten) => {
+    const alt = box.querySelector(".boerse-frage");
+    if (alt) alt.remove();
+    const panel = el("div", "boerse-frage");
+    panel.appendChild(el("p", null, "Welche Schicht am " + boerseTag(datum) + " zusätzlich anbieten?"));
+    schichten.forEach((s) => {
+      const b = kleinerKnopf(uhr(s.beginn) + "–" + uhr(s.ende) + " " + (s.name || s.schicht_id), () => {
+        panel.remove();
+        freigebenFragen(knopf, { personalnummer: null, datum: datum, schicht_id: s.schicht_id, beginn: s.beginn, ende: s.ende });
+      });
+      b.style.margin = "4px 8px 4px 0";
+      panel.appendChild(b);
+    });
+    const ab = kleinerKnopf("Abbrechen", () => panel.remove());
+    ab.style.margin = "4px 0";
+    panel.appendChild(ab);
+    knopf.after(panel);
+  };
+
+  // Rückfrage in der Seite (kein Browser-Popup)
+  const freigebenFragen = (nachElement, p) => {
+    const alt = box.querySelector(".boerse-frage");
+    if (alt) alt.remove();
+    const passend = B.kandidaten({ datum: p.datum, schicht_id: p.schicht_id, verfuegbar: d.verfuegbar, planung: d.planung, aktive: d.aktive, ausser: p.personalnummer });
+    const panel = el("div", "boerse-frage");
+    panel.appendChild(el("strong", null, (p.personalnummer ? "Schicht von " + boerseName(p.personalnummer) : "Zusatzschicht") + " freigeben?"));
+    panel.appendChild(el("p", null, boerseTag(p.datum) + " · " + zeitText(p) + " · " + schichtName(p)));
+    if (p.personalnummer) {
+      panel.appendChild(el("p", null, boerseName(p.personalnummer) + " wird aus der Schicht genommen und sieht sie nicht mehr. Sag der Person selbst Bescheid."));
+      const g = boerseGruppe(p.personalnummer);
+      if (g) {
+        const mit = d.planung.filter((x) => x.datum === p.datum && x.personalnummer !== p.personalnummer && boerseGruppe(x.personalnummer) === g);
+        if (mit.length) panel.appendChild(el("p", "status-nein", "⚠ Fahrgemeinschaft: Am selben Tag eingeplant ist " +
+          mit.map((x) => boerseName(x.personalnummer)).join(", ") + ". Die Börse achtet nicht auf Fahrgemeinschaften."));
+      }
+    }
+    panel.appendChild(el("p", passend.length ? null : "status-nein", passend.length
+      ? "Passend: " + passend.length + " Personen (an dem Tag für diese Schicht verfügbar, noch nicht eingeplant)."
+      : "⚠ Niemand passt: keiner ist an dem Tag für diese Schicht verfügbar und frei. Besser telefonisch regeln."));
+    const ja = el("button", "knopf-mittel", "Ja, freigeben");
+    ja.type = "button";
+    const nein = el("button", "knopf-mittel grau", "Abbrechen");
+    nein.type = "button";
+    const reihe = el("div", "boerse-knoepfe");
+    reihe.appendChild(ja); reihe.appendChild(nein);
+    panel.appendChild(reihe);
+    nein.onclick = () => panel.remove();
+    ja.onclick = async () => {
+      ja.disabled = true; nein.disabled = true;
+      const { data, error } = await sb.rpc("boerse_freigeben", {
+        p_kw: kw, p_datum: p.datum, p_schicht_id: p.schicht_id, p_beginn: uhr(p.beginn), p_ende: uhr(p.ende),
+        p_von: p.personalnummer, p_berechtigt: passend
+      });
+      if (error) { ja.disabled = false; nein.disabled = false; adminMeldung("schlecht", "NICHT freigegeben: " + boerseFehlerText(error)); return; }
+      panel.remove();
+      admin.status = null;
+      adminMeldung("gut", "Freigegeben: sichtbar für " + data.berechtigt + " Personen. Tipp: „Hinweis kopieren“ und in die WhatsApp-Gruppe schicken.");
+      await laden();
+    };
+    nachElement.after(panel);
+  };
+
+  const zuruecknehmen = async (a, erledigt) => {
+    const { data, error } = await sb.rpc("boerse_zuruecknehmen", { p_id: a.id });
+    if (error) { adminMeldung("schlecht", boerseFehlerText(error)); return; }
+    const offeneFrage = box.querySelector(".boerse-frage");
+    if (offeneFrage) offeneFrage.remove();
+    admin.status = null;
+    if (data && data.ok === false) adminMeldung("info", "Nicht mehr in der Börse (Status: " + data.status + ").");
+    else adminMeldung("gut", erledigt ? "Aus der Liste genommen." : "Zurückgenommen: Die Schicht ist nicht mehr in der Börse und bleibt unbesetzt.");
+    await laden();
+  };
+
+  // Restzeiten und "nicht besetzt" jede Minute auffrischen, solange die Ansicht offen ist
+  const takt = setInterval(() => {
+    if (!sichtbar()) { clearInterval(takt); return; }
+    if (d && B) zeichnen();
+  }, 60000);
+  laden();
+}
+
+// Startseite: offene und nicht besetzte Angebote ab dieser Woche (rot, wenn nicht besetzt)
+async function boerseStartInfo(info) {
+  const r = await sb.from("boerse_angebot").select("datum, beginn, status").eq("status", "frei").gte("kw_start_datum", montagIso(new Date()));
+  if (r.error) return;
+  const B = await boerseModul();
+  const jetzt = new Date();
+  const rot = (r.data || []).filter((a) => B.lage(a, jetzt) === "nicht_besetzt").length;
+  const offen = (r.data || []).filter((a) => B.lage(a, jetzt) === "offen").length;
+  if (!rot && !offen) return;
+  info.textContent = "";
+  if (rot) info.appendChild(warnSpan("⚠ " + rot + " nicht besetzt – bitte telefonisch regeln"));
+  if (rot && offen) info.appendChild(document.createTextNode(" · "));
+  if (offen) info.appendChild(document.createTextNode(offen + " in der Börse"));
+}
+
+// Vor dem (Neu-)Veroeffentlichen: Was passiert mit der Boerse dieser Woche? (Entscheidung Max 2026-11-16)
+function boerseWarnungAnhaengen(ziel, kw) {
+  const box = el("div");
+  ziel.appendChild(box);
+  sb.from("boerse_angebot").select("status").eq("kw_start_datum", kw).then((r) => {
+    if (r.error || !r.data) return;
+    const frei = r.data.filter((a) => a.status === "frei").length;
+    const ueber = r.data.filter((a) => a.status === "uebernommen").length;
+    if (!frei && !ueber) return;
+    box.appendChild(el("div", "meldung schlecht", "Schichtbörse " + kwText(kw) + ": " +
+      (frei ? frei + " Schicht(en) stehen gerade in der Börse – Veröffentlichen schließt diese Angebote. " : "") +
+      (ueber ? ueber + " Schicht(en) wurden über die Börse übernommen – sie gelten nur, wenn sie auch in der neuen Planung stehen. " : "") +
+      "Die Betroffenen informierst du selbst."));
+  }, () => { /* Hinweis nur, wenn lesbar */ });
 }
 
 // ---------- Mehr > Dispo-Vorlage ----------
@@ -4636,6 +5317,7 @@ function planungVorschau(ziel, dispo, stamm, zugaenge, bisher) {
     [b.personalnummer, b.datum, uhr(b.beginn), b.schicht_id].join("|")));
   const diffBox = el("p", "hinweisbox");
   ziel.appendChild(diffBox);
+  boerseWarnungAnhaengen(ziel, kw);
 
   // ---- Personen (nur mit App-Zugang zuordenbar)
   const personen = stamm
@@ -5467,7 +6149,9 @@ function abgabenAbschnitt(ziel, d) {
     tr.appendChild(el("td", null, pn));
     tr.appendChild(el("td", null, KATEGORIE_TEXT[pr.kategorie] || "–"));
     const zeit = zeitNach[pn];
-    tr.appendChild(el("td", zeit ? "status-ja" : "status-nein", zeit ? "✓ " + zeitpunktText(zeit) : "✗ " + TEXTE.admin_fehlt));
+    const nachgereicht = zeit && woche && woche.abgabefrist && new Date(zeit) > new Date(woche.abgabefrist);
+    tr.appendChild(el("td", zeit ? "status-ja" : "status-nein",
+      zeit ? "✓ " + zeitpunktText(zeit) + (nachgereicht ? " (nachgereicht)" : "") : "✗ " + TEXTE.admin_fehlt));
     tbody.appendChild(tr);
   });
   tab.appendChild(tbody);
@@ -5580,6 +6264,7 @@ function autoListe() {
 
 // Hinweis vor dem Veroeffentlichen: Gibt es schon eine Planung dieser Woche? Was aendert sich?
 function planungStandHinweis(ziel, kw, stand, bisher, liste) {
+  boerseWarnungAnhaengen(ziel, kw);
   if (!bisher || !bisher.length) {
     ziel.appendChild(el("p", "hinweisbox", "Für " + kwText(kw) + " ist noch keine Planung veröffentlicht."));
     return;
@@ -6283,6 +6968,22 @@ async function autoExportieren(knopf, art) {
         "application/vnd.ms-excel.sheet.macroEnabled.12");
     }
     let text = (fedex ? "Datei für FedEx" : "Dispo-Datei") + " erstellt (" + r.belegt + " Plätze belegt).";
+    if (fedex) {
+      // "Aenderungen seit letzter FedEx-Datei" (Migration 0016) nur zuruecksetzen, wenn dieser Entwurf genau
+      // der veroeffentlichten Planung entspricht. Sonst (z. B. nach Schichtboerse) waere die Datei veraltet.
+      let gleich = false;
+      try {
+        await autoStandLaden();
+        const schl = (p) => [p.personalnummer, p.datum, uhr(p.beginn), p.schicht_id].join("|");
+        const alt = new Set((auto.bisher || []).map(schl));
+        const neu = new Set(autoListe().map(schl));
+        gleich = alt.size === neu.size && Array.from(neu).every((x) => alt.has(x));
+      } catch (_) { gleich = false; }
+      if (gleich) sb.rpc("fedex_datei_vermerken", { p_kw: admin.kw }).then(() => {}, () => {});
+      else if (auto.bisher && auto.bisher.length) {
+        text += " Hinweis: Diese Datei zeigt den Entwurf, nicht die veröffentlichte Planung. Nach Änderungen über die Schichtbörse bitte dort „FedEx-Datei neu“ nehmen.";
+      }
+    }
     if (r.nichtUntergebracht.length) {
       text += " Achtung: In der Vorlage fehlen Zeilen für " + r.nichtUntergebracht.length +
         " Plätze (" + r.nichtUntergebracht.slice(0, 5).join(", ") + ") – bitte von Hand ergänzen.";
@@ -6568,6 +7269,7 @@ function sprachSetzen(code, speichern) {
     maStartAufbauen();
     if (zustand.kw) maAufbauen();
     if (ma.planung) maStartInfo();
+    if (ma.boerse) boerseMaZeichnen();
     if (ma.ansicht === "planung") planungZeichnen();
     window.scrollTo({ top: y });
   }
