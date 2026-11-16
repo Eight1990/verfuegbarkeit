@@ -270,6 +270,10 @@
   .boerse-knoepfe{display:flex;gap:10px;}
   .boerse-knoepfe .knopf-mittel{flex:1;width:auto;margin-top:6px;}
   .boerse-text{width:100%;margin-top:8px;font-family:inherit;font-size:14px;}
+  .boerse-wer{margin-top:4px;font-size:14px;}
+  .boerse-wer summary{cursor:pointer;color:#4d4d4d;padding:4px 0;}
+  .boerse-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+  .boerse-chip{background:#F2F2F2;border:1px solid var(--rand);border-radius:999px;padding:3px 10px;font-size:14px;white-space:nowrap;}
   .boerse-ma-karte{border:2px solid var(--gruen-dunkel);border-radius:14px;padding:14px 16px;margin-bottom:12px;background:#fff;}
   .boerse-ma-titel{display:block;font-size:18px;}
   .boerse-ma-zeit{font-size:17px;margin:4px 0;}
@@ -3400,7 +3404,7 @@ async function boerseDatenHolen(kw) {
   if (angebote.length) {
     const b = await sb.from("boerse_berechtigt").select("angebot_id, personalnummer").in("angebot_id", angebote.map((a) => a.id));
     if (b.error) throw new Error(boerseFehlerText(b.error));
-    (b.data || []).forEach((x) => { berechtigt[x.angebot_id] = (berechtigt[x.angebot_id] || 0) + 1; });
+    (b.data || []).forEach((x) => { (berechtigt[x.angebot_id] = berechtigt[x.angebot_id] || []).push(x.personalnummer); });
   }
   return {
     kw: kw, angebote: angebote, berechtigt: berechtigt,
@@ -3509,6 +3513,7 @@ function adminBoerse(ziel) {
   ziel.appendChild(karte);
 
   let B = null, d = null;
+  const aufgeklappt = new Set();   // Angebote, deren Namensliste offen ist (bleibt beim Auffrischen offen)
   const sichtbar = () => admin.ansicht === "boerse" && admin.kw === kw && document.body.contains(box);
 
   const laden = async () => {
@@ -3572,8 +3577,20 @@ function adminBoerse(ziel) {
       const z = el("div", "boerse-zeile");
       const t = el("div");
       t.appendChild(el("strong", null, boerseTag(a.datum) + " · " + zeitText(a) + " · " + schichtName(a)));
-      t.appendChild(el("div", "nf-info", "sichtbar für " + (d.berechtigt[a.id] || 0) + " Personen · läuft bis " +
+      t.appendChild(el("div", "nf-info", "läuft bis " +
         uhrzeitText(B.schluss(a.datum, a.beginn).toISOString()) + " Uhr" + (a.frei_von ? " · vorher: " + boerseName(a.frei_von) : " · Zusatzschicht")));
+      // Wer sieht das Angebot? Zugeklappt nur die Zahl, aufgeklappt die Namen als kompakte Kästchen
+      const wer = (d.berechtigt[a.id] || []).slice().sort((x, y) => boerseName(x).localeCompare(boerseName(y), "de"));
+      const det = document.createElement("details");
+      det.className = "boerse-wer";
+      det.open = aufgeklappt.has(a.id);
+      det.ontoggle = () => { if (det.open) aufgeklappt.add(a.id); else aufgeklappt.delete(a.id); };
+      det.appendChild(el("summary", null, "sichtbar für " + wer.length + (wer.length === 1 ? " Person" : " Personen")));
+      const chips = el("div", "boerse-chips");
+      if (!wer.length) chips.appendChild(el("span", "nf-info", "niemand – bitte telefonisch regeln"));
+      wer.forEach((pn) => chips.appendChild(el("span", "boerse-chip", boerseName(pn))));
+      det.appendChild(chips);
+      t.appendChild(det);
       z.appendChild(t);
       z.appendChild(kleinerKnopf("Zurücknehmen", () => zuruecknehmen(a, false)));
       neu.appendChild(z);
