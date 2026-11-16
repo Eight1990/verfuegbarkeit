@@ -77,6 +77,25 @@
     color:var(--grau);cursor:pointer;line-height:1.2;white-space:pre-line;
   }
   .schnell button:active{background:var(--gruen);border-color:var(--gruen-dunkel);}
+  /* ---------- Ich kann diese Woche nicht ---------- */
+  .nein-gross{
+    width:100%;margin-bottom:14px;padding:14px;background:#fff;
+    border:2px solid var(--rot);border-radius:14px;color:var(--rot);
+    font-family:inherit;font-size:18px;font-weight:bold;cursor:pointer;
+  }
+  .nein-gross:active{background:#fbe9e7;}
+  .nein-box{
+    background:#fbe9e7;border:2px solid var(--rot);border-radius:var(--radius);
+    padding:16px;text-align:center;margin-bottom:14px;
+  }
+  .nein-box .gross{font-size:22px;font-weight:bold;color:var(--rot);}
+  .nein-box .klein{font-size:15px;margin-top:6px;white-space:pre-line;}
+  .nein-box .zur{
+    margin-top:12px;background:#fff;border:2px solid var(--grau);border-radius:10px;
+    padding:8px 14px;font-family:inherit;font-size:15px;color:var(--grau);cursor:pointer;
+  }
+  #tage.ausgegraut{opacity:.35;}
+  .knopf-gross.rot{background:var(--rot);color:#fff;}
 
   /* ---------- Tageskarte ---------- */
   .tag{
@@ -738,9 +757,15 @@
 
     <div id="ma-meldung" class="meldung verborgen"></div>
 
+    <button type="button" class="nein-gross verborgen" id="btn-kann-nicht"></button>
+    <div class="nein-box verborgen" id="nein-box">
+      <div class="gross" id="nein-titel"></div>
+      <div class="klein" id="nein-text"></div>
+      <button type="button" class="zur" id="btn-doch"></button>
+    </div>
+
     <div class="schnell" id="schnellwahl">
       <button type="button" id="btn-alles"></button>
-      <button type="button" id="btn-nichts"></button>
       <button type="button" id="btn-letzte"></button>
     </div>
 
@@ -1059,6 +1084,9 @@ const TEXTE_DE = {
   alles_moeglich:        "Alles\nmöglich",
   nichts:                "Nichts",
   wie_letzte_woche:      "Wie letzte\nWoche",
+  kann_nicht: "Ich kann diese Woche nicht", nein_titel: "Diese Woche nicht verfügbar",
+  nein_text: "Du bekommst diese Woche keine Schichten.\nBitte unten auf „Senden“ tippen.",
+  doch_verfuegbar: "Doch verfügbar? Zurück", senden_kann_nicht: "Senden: Ich kann nicht",
   ganzer_tag:            "Ganzer Tag",
   tag_gesperrt:          "Kein Einsatz",
 
@@ -1225,6 +1253,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Log out", kw_praefix: "Week ", frist_bis: "Editable until ",
     frist_vorbei: "Deadline passed – view only", gespeichert_am: "Sent on ",
     alles_moeglich: "All\npossible", nichts: "None", wie_letzte_woche: "Like last\nweek",
+    kann_nicht: "I can't work this week", nein_titel: "Not available this week",
+    nein_text: "There will be no shifts for you this week.\nPlease tap “Send” below.",
+    doch_verfuegbar: "Available after all? Back", senden_kann_nicht: "Send: I can't",
     ganzer_tag: "Whole day", tag_gesperrt: "No work",
     wochentage: ["Monday","Tuesday","Wednesday","Thursday","Friday"],
     tage_so_kurz: ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"],
@@ -1269,6 +1300,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Вийти", kw_praefix: "Тиждень ", frist_bis: "Можна змінювати до ",
     frist_vorbei: "Термін минув – лише перегляд", gespeichert_am: "Надіслано ",
     alles_moeglich: "Усе\nможливо", nichts: "Нічого", wie_letzte_woche: "Як минулого\nтижня",
+    kann_nicht: "Цього тижня я не можу", nein_titel: "Цього тижня: не можу",
+    nein_text: "Цього тижня змін не буде.\nНатисніть «Надіслати» внизу.",
+    doch_verfuegbar: "Все ж можете? Назад", senden_kann_nicht: "Надіслати: не можу",
     ganzer_tag: "Весь день", tag_gesperrt: "Немає роботи",
     wochentage: ["Понеділок","Вівторок","Середа","Четвер","П’ятниця"],
     tage_so_kurz: ["Нд","Пн","Вт","Ср","Чт","Пт","Сб"],
@@ -1313,6 +1347,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Çıkış yap", kw_praefix: "Hafta ", frist_bis: "Son değişiklik zamanı: ",
     frist_vorbei: "Süre doldu – yalnızca görüntüleme", gespeichert_am: "Gönderim zamanı: ",
     alles_moeglich: "Hepsi\nmümkün", nichts: "Hiçbiri", wie_letzte_woche: "Geçen hafta\ngibi",
+    kann_nicht: "Bu hafta çalışamıyorum", nein_titel: "Bu hafta: çalışamıyorum",
+    nein_text: "Bu hafta vardiya verilmeyecek.\nLütfen aşağıda „Gönder“e dokunun.",
+    doch_verfuegbar: "Yine de müsait misiniz? Geri", senden_kann_nicht: "Gönder: çalışamıyorum",
     ganzer_tag: "Tüm gün", tag_gesperrt: "Çalışma yok",
     wochentage: ["Pazartesi","Salı","Çarşamba","Perşembe","Cuma"],
     tage_so_kurz: ["Paz","Pzt","Sal","Çar","Per","Cum","Cmt"],
@@ -1357,6 +1394,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Odjavi se", kw_praefix: "Sedmica ", frist_bis: "Izmjena moguća do ",
     frist_vorbei: "Rok je istekao – samo pregled", gespeichert_am: "Poslano ",
     alles_moeglich: "Sve\nmoguće", nichts: "Ništa", wie_letzte_woche: "Kao prošle\nsedmice",
+    kann_nicht: "Ove sedmice ne mogu", nein_titel: "Ove sedmice: ne mogu",
+    nein_text: "Ove sedmice nema smjena.\nMolimo dodirnite „Pošalji“ dolje.",
+    doch_verfuegbar: "Ipak možete? Nazad", senden_kann_nicht: "Pošalji: ne mogu",
     ganzer_tag: "Cijeli dan", tag_gesperrt: "Nema rada",
     wochentage: ["Ponedjeljak","Utorak","Srijeda","Četvrtak","Petak"],
     tage_so_kurz: ["Ned","Pon","Uto","Sri","Čet","Pet","Sub"],
@@ -1401,6 +1441,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Odjavi se", kw_praefix: "Tjedan ", frist_bis: "Izmjena moguća do ",
     frist_vorbei: "Rok je istekao – samo pregled", gespeichert_am: "Poslano ",
     alles_moeglich: "Sve\nmoguće", nichts: "Ništa", wie_letzte_woche: "Kao prošlog\ntjedna",
+    kann_nicht: "Ovaj tjedan ne mogu", nein_titel: "Ovaj tjedan: ne mogu",
+    nein_text: "Ovaj tjedan nema smjena.\nMolimo dodirnite „Pošalji“ dolje.",
+    doch_verfuegbar: "Ipak možete? Natrag", senden_kann_nicht: "Pošalji: ne mogu",
     ganzer_tag: "Cijeli dan", tag_gesperrt: "Nema rada",
     wochentage: ["Ponedjeljak","Utorak","Srijeda","Četvrtak","Petak"],
     tage_so_kurz: ["Ned","Pon","Uto","Sri","Čet","Pet","Sub"],
@@ -1445,6 +1488,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Odjavi se", kw_praefix: "Sedmica ", frist_bis: "Izmena moguća do ",
     frist_vorbei: "Rok je istekao – samo pregled", gespeichert_am: "Poslato ",
     alles_moeglich: "Sve\nmoguće", nichts: "Ništa", wie_letzte_woche: "Kao prošle\nsedmice",
+    kann_nicht: "Ove sedmice ne mogu", nein_titel: "Ove sedmice: ne mogu",
+    nein_text: "Ove sedmice nema smena.\nMolimo dodirnite „Pošalji“ dole.",
+    doch_verfuegbar: "Ipak možete? Nazad", senden_kann_nicht: "Pošalji: ne mogu",
     ganzer_tag: "Ceo dan", tag_gesperrt: "Nema rada",
     wochentage: ["Ponedeljak","Utorak","Sreda","Četvrtak","Petak"],
     tage_so_kurz: ["Ned","Pon","Uto","Sre","Čet","Pet","Sub"],
@@ -1489,6 +1535,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Kijelentkezés", kw_praefix: "Hét ", frist_bis: "Módosítható eddig: ",
     frist_vorbei: "A határidő lejárt – csak megtekintés", gespeichert_am: "Elküldve: ",
     alles_moeglich: "Bármikor\nlehet", nichts: "Semmi", wie_letzte_woche: "Mint a múlt\nhéten",
+    kann_nicht: "Ezen a héten nem tudok dolgozni", nein_titel: "Ezen a héten: nem tudok",
+    nein_text: "Ezen a héten nem lesz műszak.\nKérjük, alul koppintson a „Küldés“ gombra.",
+    doch_verfuegbar: "Mégis ráér? Vissza", senden_kann_nicht: "Küldés: nem tudok",
     ganzer_tag: "Egész nap", tag_gesperrt: "Nincs munka",
     wochentage: ["Hétfő","Kedd","Szerda","Csütörtök","Péntek"],
     tage_so_kurz: ["V","H","K","Sze","Cs","P","Szo"],
@@ -1533,6 +1582,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Deconectare", kw_praefix: "Săptămâna ", frist_bis: "Modificabil până la ",
     frist_vorbei: "Termenul a expirat – doar vizualizare", gespeichert_am: "Trimis la ",
     alles_moeglich: "Totul\neste posibil", nichts: "Nimic", wie_letzte_woche: "Ca în săptămâna\ntrecută",
+    kann_nicht: "Săptămâna aceasta nu pot", nein_titel: "Săptămâna aceasta: nu pot",
+    nein_text: "Săptămâna aceasta nu vor fi ture.\nVă rugăm apăsați „Trimite” mai jos.",
+    doch_verfuegbar: "Totuși puteți? Înapoi", senden_kann_nicht: "Trimite: nu pot",
     ganzer_tag: "Toată ziua", tag_gesperrt: "Fără lucru",
     wochentage: ["Luni","Marți","Miercuri","Joi","Vineri"],
     tage_so_kurz: ["Dum","Lun","Mar","Mie","Joi","Vin","Sâm"],
@@ -1577,6 +1629,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Cerrar sesión", kw_praefix: "Semana ", frist_bis: "Modificable hasta ",
     frist_vorbei: "Plazo vencido – solo lectura", gespeichert_am: "Enviado el ",
     alles_moeglich: "Todo\nposible", nichts: "Nada", wie_letzte_woche: "Como la\nsemana pasada",
+    kann_nicht: "Esta semana no puedo", nein_titel: "Esta semana: no puedo",
+    nein_text: "Esta semana no habrá turnos.\nPulse «Enviar» abajo.",
+    doch_verfuegbar: "¿Sí puede? Volver", senden_kann_nicht: "Enviar: no puedo",
     ganzer_tag: "Todo el día", tag_gesperrt: "Sin trabajo",
     wochentage: ["Lunes","Martes","Miércoles","Jueves","Viernes"],
     tage_so_kurz: ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"],
@@ -1621,6 +1676,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Αποσύνδεση", kw_praefix: "Εβδομάδα ", frist_bis: "Αλλαγές έως ",
     frist_vorbei: "Η προθεσμία έληξε – μόνο προβολή", gespeichert_am: "Στάλθηκε στις ",
     alles_moeglich: "Όλα\nδυνατά", nichts: "Τίποτα", wie_letzte_woche: "Όπως την\nπροηγ. εβδομάδα",
+    kann_nicht: "Αυτή την εβδομάδα δεν μπορώ", nein_titel: "Αυτή την εβδομάδα: δεν μπορώ",
+    nein_text: "Αυτή την εβδομάδα δεν θα υπάρχουν βάρδιες.\nΠατήστε «Αποστολή» παρακάτω.",
+    doch_verfuegbar: "Τελικά μπορείτε; Πίσω", senden_kann_nicht: "Αποστολή: δεν μπορώ",
     ganzer_tag: "Όλη μέρα", tag_gesperrt: "Χωρίς εργασία",
     wochentage: ["Δευτέρα","Τρίτη","Τετάρτη","Πέμπτη","Παρασκευή"],
     tage_so_kurz: ["Κυρ","Δευ","Τρί","Τετ","Πέμ","Παρ","Σάβ"],
@@ -1665,6 +1723,9 @@ const UEBERSETZUNGEN = {
     abmelden: "Wyloguj się", kw_praefix: "Tydzień ", frist_bis: "Zmiany możliwe do ",
     frist_vorbei: "Termin minął – tylko podgląd", gespeichert_am: "Wysłano ",
     alles_moeglich: "Wszystko\nmożliwe", nichts: "Nic", wie_letzte_woche: "Jak w zeszłym\ntygodniu",
+    kann_nicht: "W tym tygodniu nie mogę", nein_titel: "W tym tygodniu: nie mogę",
+    nein_text: "W tym tygodniu nie będzie zmian.\nProszę nacisnąć „Wyślij” na dole.",
+    doch_verfuegbar: "Jednak tak? Wróć", senden_kann_nicht: "Wyślij: nie mogę",
     ganzer_tag: "Cały dzień", tag_gesperrt: "Brak pracy",
     wochentage: ["Poniedziałek","Wtorek","Środa","Czwartek","Piątek"],
     tage_so_kurz: ["Ndz","Pon","Wt","Śr","Czw","Pt","Sob"],
@@ -1828,7 +1889,8 @@ const zustand = {
   tage: [],                 // [{datum, wochentag, gesperrt, grund, schichten:[...]}]
   gewaehlt: new Set(),      // "datum|schicht_id"
   maxSchichten: null,
-  abgegebenAm: null
+  abgegebenAm: null,
+  kannNicht: false         // "Ich kann diese Woche nicht" gewaehlt
 };
 
 const schluessel = (datum, schichtId) => datum + "|" + schichtId;
@@ -2192,6 +2254,8 @@ async function wocheLaden() {
     .filter((k) => angezeigt.has(k)));
   zustand.maxSchichten = abgabe.data ? abgabe.data.max_schichten : null;
   zustand.abgegebenAm  = abgabe.data ? abgabe.data.abgegeben_am : null;
+  // Leere Abgabe = "Ich kann diese Woche nicht"
+  zustand.kannNicht = !!zustand.abgegebenAm && zustand.gewaehlt.size === 0;
 
   maAufbauen();
 }
@@ -2576,10 +2640,18 @@ function maAufbauen() {
   }
 
   $("btn-alles").textContent  = TEXTE.alles_moeglich;
-  $("btn-nichts").textContent = TEXTE.nichts;
   $("btn-letzte").textContent = TEXTE.wie_letzte_woche;
   $("btn-alles").onclick  = () => { alleSetzen(true);  zeichnen(); };
-  $("btn-nichts").onclick = () => { alleSetzen(false); zeichnen(); };
+  $("btn-kann-nicht").textContent = "✕ " + TEXTE.kann_nicht;
+  $("nein-titel").textContent     = "✕ " + TEXTE.nein_titel;
+  $("btn-doch").textContent       = TEXTE.doch_verfuegbar;
+  $("btn-kann-nicht").onclick = () => {
+    alleSetzen(false);
+    zustand.kannNicht = true;
+    zeichnen();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  $("btn-doch").onclick = () => { zustand.kannNicht = false; zeichnen(); };
   $("btn-letzte").onclick = wieLetzteWoche;
 
   $("titel-max").textContent     = TEXTE.titel_max;
@@ -2630,6 +2702,7 @@ function symbolFuer(schicht) {
 function zeichnen() {
   const behaelter = $("tage");
   behaelter.textContent = "";
+  const nein = !!zustand.kannNicht;
 
   for (const tag of zustand.tage) {
     const karte = el("div", "tag" + (tag.gesperrt ? " gesperrt" : ""));
@@ -2649,7 +2722,7 @@ function zeichnen() {
       const an = zustand.gewaehlt.has(schluessel(tag.datum, s.schicht_id));
       const knopf = el("button", "schicht" + (an ? " an" : ""));
       knopf.type = "button";
-      knopf.disabled = !zustand.bearbeitbar;
+      knopf.disabled = !zustand.bearbeitbar || nein;
       knopf.setAttribute("aria-pressed", an ? "true" : "false");
 
       const sym = el("span", "symbol");
@@ -2667,7 +2740,7 @@ function zeichnen() {
       karte.appendChild(knopf);
     }
 
-    if (zustand.bearbeitbar && tag.schichten.length > 1) {
+    if (zustand.bearbeitbar && !nein && tag.schichten.length > 1) {
       const alleAn = tag.schichten.every((s) =>
         zustand.gewaehlt.has(schluessel(tag.datum, s.schicht_id)));
       const gt = el("button", "ganzer-tag", TEXTE.ganzer_tag);
@@ -2686,6 +2759,19 @@ function zeichnen() {
   $("summe-box").textContent = "";
   $("summe-box").appendChild(document.createTextNode(TEXTE.summe_text));
   $("summe-box").appendChild(el("b", null, stundenText(stundenSumme())));
+
+  // "Ich kann diese Woche nicht": roter Kasten statt Auswahl
+  const darf = zustand.bearbeitbar;
+  $("btn-kann-nicht").classList.toggle("verborgen", nein || !darf);
+  $("nein-box").classList.toggle("verborgen", !nein);
+  $("nein-text").textContent = darf ? TEXTE.nein_text : "";
+  $("btn-doch").classList.toggle("verborgen", !darf);
+  $("schnellwahl").classList.toggle("verborgen", nein || !darf);
+  $("karte-max").classList.toggle("verborgen", nein);
+  $("summe-box").classList.toggle("verborgen", nein);
+  behaelter.classList.toggle("ausgegraut", nein);
+  $("btn-senden").textContent = nein ? TEXTE.senden_kann_nicht : TEXTE.senden;
+  $("btn-senden").classList.toggle("rot", nein);
 
   $("btn-senden").disabled = !zustand.bearbeitbar;
 }
@@ -2817,6 +2903,7 @@ async function senden() {
   const knopf = $("btn-senden");
   knopf.disabled = true;
 
+  if (zustand.kannNicht) zustand.gewaehlt.clear();
   const eintraege = Array.from(zustand.gewaehlt).map((k) => {
     const teile = k.split("|");
     return { datum: teile[0], schicht_id: teile[1] };
